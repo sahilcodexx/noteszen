@@ -2,9 +2,12 @@ export interface Note {
   id: string;
   title: string;
   content: string;
-  folder: string; // 'all' | 'work' | 'personal' | 'ideas' | 'trash' | etc.
+  folder: string; // 'personal' | 'work' | 'ideas' | 'trash' etc.
   tags: string[];
+  backlinks: string[];
   isPinned: boolean;
+  isFavorite: boolean;
+  isArchived: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,6 +19,7 @@ export interface ElectronAPI {
   minimize: () => void;
   maximize: () => void;
   close: () => void;
+  closeQuickCapture: () => void;
 }
 
 declare global {

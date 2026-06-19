@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('window-min'),
   maximize: () => ipcRenderer.send('window-max'),
   close: () => ipcRenderer.send('window-close'),
+  closeQuickCapture: () => ipcRenderer.send('close-quick-capture'),
 })

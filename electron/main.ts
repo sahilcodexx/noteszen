@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, globalShortcut } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { initDatabase, getSqlNotes, saveSqlNote, deleteSqlNote } from './db.js'
 
 // Resolve dirname since we are in ES Modules
 const __filename = fileURLToPath(import.meta.url)
@@ -11,23 +12,31 @@ process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
 
 let win: BrowserWindow | null = null
+let quickCaptureWin: BrowserWindow | null = null
 
-// Path for storing notes on disk (JSON format)
-const NOTES_DIR = path.join(app.getPath('userData'), 'noteszen-data')
-
-if (!fs.existsSync(NOTES_DIR)) {
-  fs.mkdirSync(NOTES_DIR, { recursive: true })
+// Copy sql-wasm.wasm to dist-electron if it exists in node_modules
+function ensureWasmFile() {
+  try {
+    const srcWasm = path.join(__dirname, '../node_modules/sql.js/dist/sql-wasm.wasm')
+    const destWasm = path.join(__dirname, 'sql-wasm.wasm')
+    if (fs.existsSync(srcWasm) && !fs.existsSync(destWasm)) {
+      fs.copyFileSync(srcWasm, destWasm)
+      console.log('Copied sql-wasm.wasm to build folder.')
+    }
+  } catch (e) {
+    console.error('Failed to copy sql-wasm.wasm:', e)
+  }
 }
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1150,
-    height: 780,
-    minWidth: 850,
-    minHeight: 600,
-    frame: false, // Frameless for custom macOS window traffic lights
+    width: 1200,
+    height: 800,
+    minWidth: 900,
+    minHeight: 650,
+    frame: false, // Frameless layout
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'), // compiled by vite-plugin-electron
+      preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
       contextIsolation: true,
     },
@@ -41,10 +50,52 @@ function createWindow() {
   }
 }
 
+function createQuickCaptureWindow() {
+  quickCaptureWin = new BrowserWindow({
+    width: 500,
+    height: 200,
+    frame: false,
+    resizable: false,
+    show: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  })
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    quickCaptureWin.loadURL(`${process.env.VITE_DEV_SERVER_URL}#quick-capture`)
+  } else {
+    quickCaptureWin.loadFile(path.join(process.env.DIST!, 'index.html'), { hash: 'quick-capture' })
+  }
+
+  quickCaptureWin.on('blur', () => {
+    quickCaptureWin?.hide()
+  })
+}
+
+function toggleQuickCapture() {
+  if (!quickCaptureWin) {
+    createQuickCaptureWindow()
+  }
+
+  if (quickCaptureWin?.isVisible()) {
+    quickCaptureWin.hide()
+  } else {
+    quickCaptureWin?.show()
+    quickCaptureWin?.center()
+    quickCaptureWin?.focus()
+  }
+}
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
+    quickCaptureWin = null
   }
 })
 
@@ -54,49 +105,28 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  ensureWasmFile()
+  await initDatabase()
   createWindow()
+  createQuickCaptureWindow()
 
-  // IPC handlers for notes persistence
+  // Register Global shortcut for Quick Capture (Ctrl+Shift+Space)
+  globalShortcut.register('CommandOrControl+Shift+Space', () => {
+    toggleQuickCapture()
+  })
+
+  // IPC handlers for notes persistence (linked to SQLite db)
   ipcMain.handle('get-notes', async () => {
-    try {
-      const files = fs.readdirSync(NOTES_DIR)
-      const notes = files
-        .filter(f => f.endsWith('.json'))
-        .map(f => {
-          const content = fs.readFileSync(path.join(NOTES_DIR, f), 'utf-8')
-          return JSON.parse(content)
-        })
-      // Return notes sorted by updatedAt descending
-      return notes.sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    } catch (e) {
-      console.error('Error reading notes:', e)
-      return []
-    }
+    return getSqlNotes()
   })
 
   ipcMain.handle('save-note', async (_, note) => {
-    try {
-      const filePath = path.join(NOTES_DIR, `${note.id}.json`)
-      fs.writeFileSync(filePath, JSON.stringify(note, null, 2), 'utf-8')
-      return true
-    } catch (e) {
-      console.error('Error saving note:', e)
-      return false
-    }
+    return saveSqlNote(note)
   })
 
   ipcMain.handle('delete-note', async (_, noteId) => {
-    try {
-      const filePath = path.join(NOTES_DIR, `${noteId}.json`)
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath)
-      }
-      return true
-    } catch (e) {
-      console.error('Error deleting note:', e)
-      return false
-    }
+    return deleteSqlNote(noteId)
   })
 
   // Window control IPCs
@@ -115,4 +145,12 @@ app.whenReady().then(() => {
   ipcMain.on('window-close', () => {
     win?.close()
   })
+
+  ipcMain.on('close-quick-capture', () => {
+    quickCaptureWin?.hide()
+  })
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
