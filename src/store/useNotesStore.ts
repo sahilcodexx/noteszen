@@ -28,6 +28,7 @@ interface NotesState {
   updateNote: (id: string, fields: Partial<Note>) => void
   deleteNote: (id: string) => void
   restoreNote: (id: string) => void
+  emptyTrash: () => void
   togglePin: (id: string) => void
   toggleFavorite: (id: string) => void
   toggleArchive: (id: string) => void
@@ -104,18 +105,31 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setSelectedNoteId: (id) => set({ selectedNoteId: id }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFolder: (folder) => set({ activeFolder: folder, selectedTag: null }),
-  setSelectedTag: (tag) => set({ selectedTag: tag, activeFolder: 'notes' }),
+  setSelectedTag: (tag) => set({ selectedTag: tag, ...(tag ? { activeFolder: 'notes' } : {}) }),
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setGlobalSearchOpen: (open) => set({ isGlobalSearchOpen: open }),
   setSaveStatus: (status) => set({ saveStatus: status }),
 
   createNote: (initialFields = {}) => {
+    const activeFolder = get().activeFolder
+    const systemFolders = ['notes', 'favorites', 'daily', 'recent', 'archive', 'trash']
+    
+    // Determine the folder for the new note
+    let folder = initialFields.folder
+    if (!folder) {
+      if (!systemFolders.includes(activeFolder)) {
+        folder = activeFolder
+      } else {
+        folder = 'personal'
+      }
+    }
+
     const newNote: Note = {
       id: Math.random().toString(36).substring(2, 11),
       title: initialFields.title || 'Untitled Note',
       content: initialFields.content || '',
-      folder: initialFields.folder || 'personal',
+      folder: folder,
       tags: initialFields.tags || [],
       backlinks: initialFields.backlinks || [],
       isPinned: initialFields.isPinned || false,
@@ -126,7 +140,17 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     }
 
     const updatedNotes = [newNote, ...get().notes]
-    set({ notes: updatedNotes, selectedNoteId: newNote.id })
+    
+    // Reset view if the new note wouldn't be visible in current active system view
+    const resetView = ['favorites', 'recent', 'archive', 'daily', 'trash'].includes(activeFolder)
+    
+    set({ 
+      notes: updatedNotes, 
+      selectedNoteId: newNote.id,
+      selectedTag: null,
+      ...(resetView ? { activeFolder: 'notes' } : {})
+    })
+    
     persistNote(newNote, updatedNotes)
   },
 
@@ -156,46 +180,49 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   updateNote: (id, fields) => {
-    set((state) => {
-      const updatedNotes = state.notes.map((note) => {
-        if (note.id === id) {
-          const content = fields.content !== undefined ? fields.content : note.content
-          const backlinks = fields.content !== undefined 
-            ? extractBacklinks(content, state.notes)
-            : note.backlinks
+    let updatedNote: Note | null = null
+    const updatedNotes = get().notes.map((note) => {
+      if (note.id === id) {
+        const content = fields.content !== undefined ? fields.content : note.content
+        const backlinks = fields.content !== undefined 
+          ? extractBacklinks(content, get().notes)
+          : note.backlinks
 
-          const updated = {
-            ...note,
-            ...fields,
-            backlinks,
-            updatedAt: new Date().toISOString()
-          }
-
-          // Debounce actual save to SQL
-          set({ saveStatus: 'saving' })
-          if (saveTimeout) clearTimeout(saveTimeout)
-          saveTimeout = setTimeout(() => {
-            persistNote(updated, get().notes)
-            set({ saveStatus: 'saved' })
-          }, 600)
-
-          return updated
+        const updated = {
+          ...note,
+          ...fields,
+          backlinks,
+          updatedAt: new Date().toISOString()
         }
-        return note
-      })
-      return { notes: updatedNotes }
+        updatedNote = updated
+        return updated
+      }
+      return note
     })
+
+    if (updatedNote) {
+      if (saveTimeout) clearTimeout(saveTimeout)
+      saveTimeout = setTimeout(() => {
+        if (updatedNote) {
+          persistNote(updatedNote, get().notes)
+          set({ saveStatus: 'saved' })
+        }
+      }, 600)
+
+      set({ 
+        notes: updatedNotes,
+        saveStatus: 'saving'
+      })
+    }
   },
 
   deleteNote: (id) => {
     const target = get().notes.find(n => n.id === id)
     if (!target) return
 
-    let updatedNotes: Note[] = []
-
     if (target.folder === 'trash') {
       // Permanent delete
-      updatedNotes = get().notes.filter(n => n.id !== id)
+      const updatedNotes = get().notes.filter(n => n.id !== id)
       set({ notes: updatedNotes })
       if (get().selectedNoteId === id) {
         set({ selectedNoteId: updatedNotes[0]?.id || null })
@@ -207,7 +234,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       }
     } else {
       // Move to Trash
-      updatedNotes = get().notes.map((note) => {
+      const updatedNotes = get().notes.map((note) => {
         if (note.id === id) {
           return {
             ...note,
@@ -245,6 +272,22 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const noteToSave = updatedNotes.find(n => n.id === id)
     if (noteToSave) {
       persistNote(noteToSave, updatedNotes)
+    }
+  },
+
+  emptyTrash: () => {
+    const trashNotes = get().notes.filter(n => n.folder === 'trash')
+    const updatedNotes = get().notes.filter(n => n.folder !== 'trash')
+    set({ notes: updatedNotes })
+    if (get().selectedNoteId && trashNotes.some(n => n.id === get().selectedNoteId)) {
+      set({ selectedNoteId: null })
+    }
+    if (window.electronAPI) {
+      Promise.all(trashNotes.map(n => window.electronAPI.deleteNote(n.id))).catch(err => {
+        console.error('Failed to empty trash in SQLite:', err)
+      })
+    } else {
+      localStorage.setItem('noteszen-db-notes', JSON.stringify(updatedNotes))
     }
   },
 

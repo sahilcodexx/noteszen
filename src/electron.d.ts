@@ -20,6 +20,7 @@ export interface ElectronAPI {
   maximize: () => void;
   close: () => void;
   closeQuickCapture: () => void;
+  log: (...args: unknown[]) => void;
 }
 
 declare global {

@@ -1,4 +1,3 @@
-import initSqlJs from 'sql.js'
 import pathNpm from 'node:path'
 import fs from 'node:fs'
 import { app } from 'electron'
@@ -8,22 +7,28 @@ import { fileURLToPath } from 'node:url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = pathNpm.dirname(__filename)
 
+// Bind to global scope so bundled CommonJS packages can resolve it in ES Module output
+globalThis.__dirname = __dirname
+globalThis.__filename = __filename
+global.__dirname = __dirname
+global.__filename = __filename
+
 const DB_PATH = pathNpm.join(app.getPath('userData'), 'noteszen.db')
 
-let db: any = null
+let db: import('sql.js').Database | null = null
 
 export interface Note {
-  id: string
-  title: string
-  content: string
-  folder: string
-  isPinned: boolean
-  isFavorite: boolean
-  isArchived: boolean
-  createdAt: string
-  updatedAt: string
-  tags: string[]
-  backlinks: string[]
+  id: string;
+  title: string;
+  content: string;
+  folder: string;
+  isPinned: boolean;
+  isFavorite: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
+  backlinks: string[];
 }
 
 function getWasmPath() {
@@ -48,12 +53,14 @@ function getWasmPath() {
 
 export async function initDatabase() {
   try {
+    const initSqlJs = (await import('sql.js')).default
     const wasmPath = getWasmPath()
-    const wasmBinary = fs.readFileSync(wasmPath)
-    const SQL = await initSqlJs({ wasmBinary: new Uint8Array(wasmBinary) as any })
+    const wasmBinary = await fs.promises.readFile(wasmPath)
+    const SQL = await initSqlJs({ wasmBinary: new Uint8Array(wasmBinary).buffer })
 
-    if (fs.existsSync(DB_PATH)) {
-      const filebuffer = fs.readFileSync(DB_PATH)
+    const dbExists = fs.existsSync(DB_PATH)
+    if (dbExists) {
+      const filebuffer = await fs.promises.readFile(DB_PATH)
       db = new SQL.Database(filebuffer)
     } else {
       db = new SQL.Database()
@@ -82,12 +89,13 @@ export async function initDatabase() {
           PRIMARY KEY (sourceId, targetId)
         );
       `)
-      saveDatabase()
+      await saveDatabase()
     }
     console.log('Database initialized successfully at:', DB_PATH)
   } catch (e) {
     console.error('Failed to initialize sql.js database:', e)
     // Fallback to in-memory database if filesystem fails
+    const initSqlJs = (await import('sql.js')).default
     const SQL = await initSqlJs()
     db = new SQL.Database()
     db.run(`
@@ -108,12 +116,12 @@ export async function initDatabase() {
   }
 }
 
-function saveDatabase() {
+async function saveDatabase() {
   try {
     if (!db) return
     const data = db.export()
     const buffer = Buffer.from(data)
-    fs.writeFileSync(DB_PATH, buffer)
+    await fs.promises.writeFile(DB_PATH, buffer)
   } catch (e) {
     console.error('Error saving SQLite database file:', e)
   }
@@ -154,7 +162,7 @@ export function getSqlNotes(): Note[] {
   }
 }
 
-export function saveSqlNote(note: Note): boolean {
+export async function saveSqlNote(note: Note): Promise<boolean> {
   try {
     if (!db) return false
     // 1. Save note
@@ -197,7 +205,7 @@ export function saveSqlNote(note: Note): boolean {
       stmt.free()
     }
 
-    saveDatabase()
+    await saveDatabase()
     return true
   } catch (e) {
     console.error('Error saving SQLite note:', e)
@@ -205,16 +213,17 @@ export function saveSqlNote(note: Note): boolean {
   }
 }
 
-export function deleteSqlNote(id: string): boolean {
+export async function deleteSqlNote(id: string): Promise<boolean> {
   try {
     if (!db) return false
     db.run(`DELETE FROM notes WHERE id = ?`, [id])
     db.run(`DELETE FROM tags WHERE noteId = ?`, [id])
     db.run(`DELETE FROM backlinks WHERE sourceId = ? OR targetId = ?`, [id, id])
-    saveDatabase()
+    await saveDatabase()
     return true
   } catch (e) {
     console.error('Error deleting SQLite note:', e)
     return false
   }
 }
+

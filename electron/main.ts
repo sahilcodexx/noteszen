@@ -149,6 +149,10 @@ app.whenReady().then(async () => {
   ipcMain.on('close-quick-capture', () => {
     quickCaptureWin?.hide()
   })
+
+  ipcMain.on('log', (_, args) => {
+    console.log('[FRONTEND LOG]', ...args)
+  })
 })
 
 app.on('will-quit', () => {

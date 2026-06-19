@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "shadcn": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "1d9eca48714f0298a91c2743d05b7f45bacd2ff1d44ece55c3ff32f4a93cf3b8"
+    }
+  }
+}

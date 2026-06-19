@@ -26,7 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 
 // App Components
 import Editor from './components/Editor'
@@ -37,6 +37,33 @@ import QuickCapture from './components/QuickCapture'
 
 // State Store
 import { useNotesStore } from './store/useNotesStore'
+
+// Helper function to format relative times beautifully
+function formatRelativeTime(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffSecs = Math.floor(diffMs / 1000)
+    const diffMins = Math.floor(diffSecs / 60)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffSecs < 60) {
+      return 'just now'
+    } else if (diffMins < 60) {
+      return `${diffMins}m ago`
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`
+    } else {
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    }
+  } catch (e) {
+    return 'some time ago'
+  }
+}
 
 export default function App() {
   const isQuickCaptureWindow = window.location.hash === '#quick-capture'
@@ -72,13 +99,15 @@ export default function App() {
     toggleArchive,
     deleteNote,
     restoreNote,
-    updateNote
+    updateNote,
+    emptyTrash
   } = useNotesStore()
 
   // Local React states
   const [tagFilterInput, setTagFilterInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
+  const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Load notes on mount
@@ -167,6 +196,28 @@ export default function App() {
   const activeNote = useMemo(() => {
     return notes.find(n => n.id === selectedNoteId) || null
   }, [notes, selectedNoteId])
+
+  // Sync selected note when active view changes
+  useEffect(() => {
+    if (activeFolder === 'trash' || activeFolder === 'archive') {
+      const isCurrentNoteInView = sortedNotes.some(n => n.id === selectedNoteId)
+      if (!isCurrentNoteInView) {
+        setSelectedNoteId(sortedNotes.length > 0 ? sortedNotes[0].id : null)
+      }
+      return
+    }
+
+    if (sortedNotes.length > 0) {
+      const isCurrentNoteInView = sortedNotes.some(n => n.id === selectedNoteId)
+      if (!isCurrentNoteInView) {
+        setSelectedNoteId(sortedNotes[0].id)
+      }
+    } else {
+      if (selectedNoteId !== null) {
+        setSelectedNoteId(null)
+      }
+    }
+  }, [activeFolder, selectedTag, sortedNotes, selectedNoteId, setSelectedNoteId])
 
   // Global Keyboard shortcuts trigger
   useEffect(() => {
@@ -270,33 +321,32 @@ export default function App() {
   }
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark bg-[#141416] text-[#e3e3e6]' : 'bg-[#f5f5f7] text-[#1c1c1f]'}`}>
+    <div className={`flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
       
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <aside 
-        className={`flex flex-col border-r border-black/5 dark:border-white/5 shrink-0 drag-region transition-all duration-300 backdrop-blur-md
-          ${isSidebarCollapsed ? 'w-0 opacity-0 -translate-x-[200px] overflow-hidden' : 'w-[220px] opacity-100 translate-x-0'}
-          ${darkMode ? 'bg-[#18181c]/90' : 'bg-[#eef0f3]/95'}`}
+        className={`flex flex-col border-r border-border shrink-0 drag-region transition-all duration-300 backdrop-blur-md bg-sidebar
+          ${isSidebarCollapsed ? 'w-0 opacity-0 -translate-x-[200px] overflow-hidden' : 'w-[220px] opacity-100 translate-x-0'}`}
       >
         {/* macOS Custom Traffic lights window triggers */}
         <div className="h-12 flex items-center pl-4 gap-2 no-drag shrink-0">
           <button 
             onClick={handleWinClose}
-            className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all"
+            className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default"
             title="Close"
           >
             <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
           </button>
           <button 
             onClick={handleWinMin}
-            className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all"
+            className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default"
             title="Minimize"
           >
             <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
           </button>
           <button 
             onClick={handleWinMax}
-            className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all"
+            className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default"
             title="Maximize"
           >
             <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
@@ -305,23 +355,23 @@ export default function App() {
 
         {/* Brand header title */}
         <div className="px-4 py-1.5 flex items-center justify-between no-drag">
-          <span className="text-base font-bold bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent flex items-center gap-1.5 font-sans tracking-tight">
-            <Sparkles className="w-4 h-4 text-amber-500" />
+          <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent flex items-center gap-1.5 font-sans tracking-tight">
+            <Sparkles className="w-4 h-4 text-primary" />
             NotesZen
           </span>
         </div>
 
         {/* Sidebar Nav Actions (Shadcn Custom Scroll Container) */}
         <ScrollArea className="flex-grow px-2 py-3 space-y-1.5 no-drag select-none scrollbar-none">
-          <p className="text-[9px] font-bold tracking-wider text-gray-400 dark:text-gray-500 uppercase px-2.5 mb-1.5">Views</p>
+          <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2">Views</p>
           
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {[
-              { id: 'notes', name: 'Notes', icon: FileText, color: 'text-amber-500/90' },
-              { id: 'favorites', name: 'Favorites', icon: Star, color: 'text-yellow-500/90' },
-              { id: 'daily', name: 'Daily Notes', icon: Calendar, color: 'text-green-500/90' },
-              { id: 'archive', name: 'Archive', icon: Archive, color: 'text-blue-500/90' },
-              { id: 'trash', name: 'Trash', icon: Trash2, color: 'text-red-500/90' }
+              { id: 'notes', name: 'Notes', icon: FileText, color: 'text-primary' },
+              { id: 'favorites', name: 'Favorites', icon: Star, color: 'text-amber-500' },
+              { id: 'daily', name: 'Daily Notes', icon: Calendar, color: 'text-emerald-500' },
+              { id: 'archive', name: 'Archive', icon: Archive, color: 'text-indigo-500' },
+              { id: 'trash', name: 'Trash', icon: Trash2, color: 'text-destructive' }
             ].map((folder) => {
               const Icon = folder.icon
               const isSelected = activeFolder === folder.id && !selectedTag
@@ -338,23 +388,18 @@ export default function App() {
               return (
                 <Button
                   key={folder.id}
-                  variant={isSelected ? 'default' : 'ghost'}
+                  variant={isSelected ? 'secondary' : 'ghost'}
                   onClick={() => setActiveFolder(folder.id)}
-                  className={`w-full justify-between h-8 px-2.5 text-xs font-semibold rounded-lg transition-all group
-                    ${isSelected 
-                      ? 'bg-amber-500 text-white shadow-sm hover:bg-amber-600 shadow-amber-500/10' 
-                      : darkMode 
-                        ? 'text-gray-400 hover:bg-white/5 hover:text-white' 
-                        : 'text-gray-600 hover:bg-black/5 hover:text-gray-900'}`}
+                  className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-xs font-medium transition-all group/item"
                 >
-                  <div className="flex items-center gap-2">
-                    <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : folder.color}`} />
-                    <span>{folder.name}</span>
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground'}>{folder.name}</span>
                   </div>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-md transition-all
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium transition-all
                     ${isSelected 
-                      ? 'bg-white/20 text-white' 
-                      : 'bg-black/10 dark:bg-white/5 text-gray-400 dark:text-gray-500 group-hover:text-gray-300'}`}>
+                      ? 'bg-primary/15 text-primary' 
+                      : 'bg-secondary/65 text-muted-foreground group-hover/item:text-foreground'}`}>
                     {count}
                   </span>
                 </Button>
@@ -364,8 +409,8 @@ export default function App() {
 
           {/* Sidebar Tags view */}
           {allTags.length > 0 && (
-            <div className="pt-4 space-y-0.5">
-              <p className="text-[9px] font-bold tracking-wider text-gray-400 dark:text-gray-500 uppercase px-2.5 mb-1.5">Tags</p>
+            <div className="pt-4 space-y-1">
+              <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2">Tags</p>
               {allTags.map((tag) => {
                 const isSelected = selectedTag === tag
                 const tagCount = notes.filter(n => n.folder !== 'trash' && n.tags && n.tags.includes(tag)).length
@@ -373,20 +418,18 @@ export default function App() {
                 return (
                   <Button
                     key={tag}
-                    variant={isSelected ? 'default' : 'ghost'}
+                    variant={isSelected ? 'secondary' : 'ghost'}
                     onClick={() => setSelectedTag(tag)}
-                    className={`w-full justify-between h-8 px-2.5 text-xs font-semibold rounded-lg transition-all
-                      ${isSelected 
-                        ? 'bg-amber-600 text-white shadow-sm hover:bg-amber-700 shadow-amber-600/10' 
-                        : darkMode 
-                          ? 'text-gray-400 hover:bg-white/5 hover:text-white' 
-                          : 'text-gray-600 hover:bg-black/5 hover:text-gray-900'}`}
+                    className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-xs font-medium transition-all group/item"
                   >
-                    <div className="flex items-center gap-2">
-                      <Tag className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-amber-500/80'}`} />
-                      <span className="truncate max-w-[120px]">{tag}</span>
+                    <div className="flex items-center gap-2.5">
+                      <Tag className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground truncate max-w-[120px]'}>{tag}</span>
                     </div>
-                    <span className="text-[8px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-gray-400">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium transition-all
+                      ${isSelected 
+                        ? 'bg-primary/15 text-primary' 
+                        : 'bg-secondary/65 text-muted-foreground'}`}>
                       {tagCount}
                     </span>
                   </Button>
@@ -397,13 +440,12 @@ export default function App() {
         </ScrollArea>
 
         {/* Sidebar settings controls */}
-        <div className="p-3.5 border-t border-black/5 dark:border-white/5 no-drag flex items-center justify-between shrink-0 select-none">
+        <div className="p-4 border-t border-border/40 no-drag flex items-center justify-between shrink-0 select-none bg-sidebar/80 backdrop-blur-md">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setDarkMode(!darkMode)}
-            className="w-7 h-7 rounded-lg text-gray-400 hover:text-white hover:bg-white/5"
-            title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
           >
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
@@ -411,26 +453,25 @@ export default function App() {
           <Button
             variant="ghost"
             onClick={() => setShowSettings(true)}
-            className="h-7 px-2 text-xs font-semibold text-gray-400 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-1.5"
-            title="Settings"
+            className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary flex items-center gap-1.5"
           >
             <Settings className="w-4 h-4" />
+            Settings
           </Button>
         </div>
       </aside>
 
       {/* 2. NOTE LIST PANEL */}
-      <section className={`w-[270px] flex flex-col border-r border-black/5 dark:border-white/5 shrink-0 transition-colors duration-300
-        ${darkMode ? 'bg-[#18181b]' : 'bg-white'}`}>
+      <section className="w-[270px] flex flex-col border-r border-border shrink-0 bg-background/50 backdrop-blur-sm">
         
         {/* Note List Header controls */}
-        <div className="h-14 px-4 flex items-center gap-2 border-b border-black/5 dark:border-white/5 shrink-0 select-none">
+        <div className="h-14 px-4 flex items-center gap-2 border-b border-border/40 shrink-0 select-none">
           {isSidebarCollapsed && (
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="w-8 h-8 rounded-lg text-gray-400"
+              className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
               title="Expand Sidebar"
             >
               <Menu className="w-4 h-4" />
@@ -438,95 +479,104 @@ export default function App() {
           )}
 
           <div className="relative flex-grow flex items-center">
-            <Search className="absolute left-2.5 w-3.5 h-3.5 text-gray-400" />
+            <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
             <Input
               ref={searchInputRef}
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e: any) => setSearchQuery(e.target.value)}
-              className={`w-full pl-8 pr-7 h-7.5 text-xs outline-none border-0 rounded-lg transition-all focus-visible:ring-1 focus-visible:ring-amber-500/40
-                ${darkMode ? 'bg-black/35 text-white placeholder-gray-500' : 'bg-[#eef0f3] text-gray-800 placeholder-gray-400'}`}
+              className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
             />
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 text-gray-400 hover:text-white"
+                className="absolute right-2.5 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3 h-3" />
               </button>
             )}
           </div>
 
-          <Button
-            onClick={() => createNote()}
-            disabled={activeFolder === 'trash'}
-            className="w-7.5 h-7.5 rounded-full bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-40 shrink-0"
-            size="icon"
-            title="Create Note"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+          {activeFolder === 'trash' ? (
+            sortedNotes.length > 0 && (
+              <Button
+                onClick={() => setShowEmptyTrashConfirm(true)}
+                className="w-7.5 h-7.5 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground shrink-0 flex items-center justify-center transition-all shadow-sm"
+                size="icon"
+                title="Empty Trash Bin"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            )
+          ) : (
+            <Button
+              onClick={() => createNote()}
+              className="w-7.5 h-7.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-sm"
+              size="icon"
+              title="Create Note"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
         </div>
 
         {/* Note List Items (Shadcn Scroll Area) */}
-        <ScrollArea className="flex-1 divide-y divide-black/5 dark:divide-white/5">
+        <ScrollArea className="flex-1 divide-y divide-border/30">
           {sortedNotes.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 mt-12 select-none">
-              <FileText className="w-8 h-8 mx-auto text-gray-600 mb-2 opacity-50" />
-              <p className="text-xs font-semibold">No notes found</p>
-              <p className="text-[10px] text-gray-600 mt-1">Press ⌘N to make a new note</p>
+            <div className="p-8 text-center text-muted-foreground/60 mt-12 select-none">
+              <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2 opacity-55" />
+              <p className="text-xs font-bold text-foreground/80">No notes found</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Press ⌘N to make a new note</p>
             </div>
           ) : (
             sortedNotes.map((note) => {
               const isSelected = note.id === selectedNoteId
               const previewText = note.content
-                ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').substring(0, 70)
+                ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 80)
                 : 'No additional text'
               
-              const dateObj = new Date(note.updatedAt)
-              const formattedDate = dateObj.toLocaleDateString(undefined, { 
-                month: 'short', 
-                day: 'numeric' 
-              })
+              const formattedDate = formatRelativeTime(note.updatedAt)
 
               return (
                 <div
                   key={note.id}
                   onClick={() => setSelectedNoteId(note.id)}
-                  className={`p-3.5 cursor-pointer relative transition-all group border-l-2
+                  className={`p-3.5 cursor-pointer relative transition-all group border-l-2 flex flex-col gap-1.5
                     ${isSelected 
-                      ? 'bg-amber-500/10 border-amber-500' 
-                      : 'border-transparent hover:bg-black/[0.01] dark:hover:bg-white/[0.01]'}`}
+                      ? 'bg-primary/5 border-primary' 
+                      : 'border-transparent hover:bg-muted/30'}`}
                 >
-                  <div className="flex items-start justify-between gap-1 mb-1">
-                    <h3 className={`font-semibold text-xs truncate flex-grow ${isSelected ? 'text-amber-500 dark:text-amber-400' : ''}`}>
+                  <div className="flex items-start justify-between gap-1 mb-0.5">
+                    <h3 className={`font-semibold text-xs truncate flex-grow ${isSelected ? 'text-primary' : 'text-foreground/90'}`}>
                       {note.title || 'Untitled Note'}
                     </h3>
                     <div className="flex items-center gap-1.5 shrink-0 select-none">
                       {note.isPinned && (
-                        <Pin className="w-3 h-3 text-amber-500 fill-amber-500" />
+                        <Pin className="w-3 h-3 text-primary fill-primary" />
                       )}
                       
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteNote(note.id)
-                        }}
-                        className="opacity-0 group-hover:opacity-100 w-4 h-4 text-gray-400 hover:text-red-500 transition-opacity flex items-center justify-center"
-                        title={activeFolder === 'trash' ? 'Delete permanently' : 'Move to Trash'}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {activeFolder !== 'trash' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            deleteNote(note.id)
+                          }}
+                          className="opacity-0 group-hover:opacity-100 w-4 h-4 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
+                          title="Move to Trash"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <p className="text-[11px] line-clamp-2 mb-2 text-gray-500 leading-normal font-normal">
+                  <p className="text-[11px] line-clamp-2 text-muted-foreground leading-normal font-normal">
                     {previewText}
                   </p>
 
-                  <div className="flex items-center justify-between select-none">
-                    <span className="text-[9px] text-gray-400 font-medium">
+                  <div className="flex items-center justify-between select-none mt-1">
+                    <span className="text-[9px] text-muted-foreground/80 font-medium">
                       {formattedDate}
                     </span>
 
@@ -536,7 +586,7 @@ export default function App() {
                         {note.tags.slice(0, 2).map(tag => (
                           <span 
                             key={tag}
-                            className="text-[8px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-gray-400 truncate"
+                            className="text-[8px] px-1.5 py-0.5 rounded bg-secondary/80 text-muted-foreground truncate"
                           >
                             {tag}
                           </span>
@@ -546,16 +596,24 @@ export default function App() {
                   </div>
 
                   {note.folder === 'trash' && (
-                    <Button
-                      variant="link"
-                      onClick={(e: any) => {
-                        e.stopPropagation()
-                        restoreNote(note.id)
-                      }}
-                      className="absolute right-3 top-3 text-[9px] h-auto p-0 text-amber-500 hover:underline"
-                    >
-                      Restore
-                    </Button>
+                    <div className="absolute right-3.5 top-3.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <Button
+                        variant="link"
+                        size="xs"
+                        onClick={() => restoreNote(note.id)}
+                        className="text-[9px] h-auto p-0 text-primary hover:underline font-bold"
+                      >
+                        Restore
+                      </Button>
+                      <Button
+                        variant="link"
+                        size="xs"
+                        onClick={() => deleteNote(note.id)}
+                        className="text-[9px] h-auto p-0 text-destructive hover:underline font-bold"
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   )}
                 </div>
               )
@@ -565,10 +623,10 @@ export default function App() {
       </section>
 
       {/* 3. MAIN EDITOR PANEL */}
-      <main className="flex-grow flex flex-col min-w-0 bg-[#ffffff] dark:bg-[#151518] transition-colors duration-300">
+      <main className="flex-grow flex flex-col min-w-0 bg-[#ffffff] dark:bg-[#151518]">
         
         {/* Editor panel toolbar */}
-        <div className="h-14 px-6 border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 select-none">
+        <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none">
           <div className="flex items-center gap-3">
             {/* Collapse / Expand Toggle */}
             {isSidebarCollapsed && (
@@ -576,7 +634,7 @@ export default function App() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
-                className="w-8 h-8 rounded-lg text-gray-400"
+                className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
                 title="Expand Sidebar"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -587,7 +645,7 @@ export default function App() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleSidebar}
-                className="w-8 h-8 rounded-lg text-gray-400"
+                className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
                 title="Collapse Sidebar"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -596,15 +654,15 @@ export default function App() {
 
             {/* Auto-save indicators */}
             {activeNote && (
-              <span className="text-[10px] text-gray-500 font-semibold flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1.5">
                 {saveStatus === 'saving' ? (
                   <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
                     Autosaving...
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                    <CheckCircle className="w-3.5 h-3.5 text-primary/80" />
                     Saved local
                   </>
                 )}
@@ -617,11 +675,11 @@ export default function App() {
             <Button
               variant="outline"
               onClick={() => setCommandPaletteOpen(true)}
-              className="h-8 px-2.5 rounded-lg border-black/5 dark:border-white/5 text-gray-400 flex items-center gap-1.5 text-xs"
+              className="h-8 px-2.5 rounded-lg border-border bg-card/45 text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5 text-xs font-semibold"
               title="Command Palette (⌘K)"
             >
               <Command className="w-3.5 h-3.5" />
-              <kbd className="font-mono text-[9px] bg-black/5 dark:bg-white/5 px-1 rounded">⌘K</kbd>
+              <kbd className="font-mono text-[9px] bg-secondary/80 px-1 rounded">⌘K</kbd>
             </Button>
 
             {activeNote && activeNote.folder !== 'trash' && (
@@ -631,11 +689,11 @@ export default function App() {
                   variant="outline"
                   size="icon"
                   onClick={() => togglePin(activeNote.id)}
-                  className={`w-8 h-8 rounded-lg border-black/5 dark:border-white/5
-                    ${activeNote.isPinned ? 'text-amber-500 hover:bg-amber-500/10' : 'text-gray-400 hover:bg-white/5'}`}
+                  className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
+                    ${activeNote.isPinned ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
                   title="Pin Note (⌘P)"
                 >
-                  <Pin className={`w-4 h-4 ${activeNote.isPinned ? 'fill-amber-500' : ''}`} />
+                  <Pin className={`w-4 h-4 ${activeNote.isPinned ? 'fill-primary' : ''}`} />
                 </Button>
 
                 {/* Favorite Note */}
@@ -643,11 +701,11 @@ export default function App() {
                   variant="outline"
                   size="icon"
                   onClick={() => toggleFavorite(activeNote.id)}
-                  className={`w-8 h-8 rounded-lg border-black/5 dark:border-white/5
-                    ${activeNote.isFavorite ? 'text-yellow-500 hover:bg-yellow-500/10' : 'text-gray-400 hover:bg-white/5'}`}
+                  className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
+                    ${activeNote.isFavorite ? 'text-amber-500 hover:bg-amber-500/8' : 'text-muted-foreground hover:text-foreground'}`}
                   title="Favorite Note"
                 >
-                  <Star className={`w-4 h-4 ${activeNote.isFavorite ? 'fill-yellow-500' : ''}`} />
+                  <Star className={`w-4 h-4 ${activeNote.isFavorite ? 'fill-amber-500' : ''}`} />
                 </Button>
 
                 {/* Archive Note */}
@@ -655,11 +713,11 @@ export default function App() {
                   variant="outline"
                   size="icon"
                   onClick={() => toggleArchive(activeNote.id)}
-                  className={`w-8 h-8 rounded-lg border-black/5 dark:border-white/5
-                    ${activeNote.isArchived ? 'text-blue-500 hover:bg-blue-500/10' : 'text-gray-400 hover:bg-white/5'}`}
+                  className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
+                    ${activeNote.isArchived ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
                   title="Archive Note"
                 >
-                  <Archive className={`w-4 h-4 ${activeNote.isArchived ? 'fill-blue-500' : ''}`} />
+                  <Archive className={`w-4 h-4 ${activeNote.isArchived ? 'fill-primary' : ''}`} />
                 </Button>
               </>
             )}
@@ -669,6 +727,35 @@ export default function App() {
         {/* Note Editor Area */}
         {activeNote ? (
           <div className="flex-1 flex flex-col overflow-hidden">
+            {activeNote.folder === 'trash' && (
+              <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-destructive/80 animate-pulse" />
+                  <span>This note is in the Trash. Restore it to edit.</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button 
+                    size="xs" 
+                    variant="outline" 
+                    className="h-6 text-[10px] border-destructive/25 text-destructive hover:bg-destructive/10 font-bold bg-transparent" 
+                    onClick={() => restoreNote(activeNote.id)}
+                  >
+                    Restore
+                  </Button>
+                  <Button 
+                    size="xs" 
+                    variant="destructive" 
+                    className="h-6 text-[10px] font-bold" 
+                    onClick={() => {
+                      deleteNote(activeNote.id)
+                    }}
+                  >
+                    Delete Permanently
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Big Note Title Input */}
             <div className="px-10 pt-8 pb-3 shrink-0">
               <input
@@ -677,22 +764,22 @@ export default function App() {
                 value={activeNote.title}
                 onChange={(e: any) => updateNote(activeNote.id, { title: e.target.value })}
                 disabled={activeNote.folder === 'trash'}
-                className="w-full bg-transparent text-2xl font-bold border-0 shadow-none outline-none placeholder-gray-400 focus:ring-0 focus:ring-offset-0 p-0"
+                className="w-full bg-transparent text-2xl font-bold border-0 shadow-none outline-none placeholder-muted-foreground/50 focus:ring-0 focus:ring-offset-0 p-0 text-foreground tracking-tight"
               />
 
               {/* Tags editor row */}
               <div className="flex items-center flex-wrap gap-1.5 mt-3 select-none">
-                <Tag className="w-3.5 h-3.5 text-gray-500" />
+                <Tag className="w-3.5 h-3.5 text-muted-foreground/60" />
                 {activeNote.tags && activeNote.tags.map(t => (
                   <span 
                     key={t}
-                    className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/15"
+                    className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/10"
                   >
                     {t}
                     {activeNote.folder !== 'trash' && (
                       <button 
                         onClick={() => handleRemoveTagFromActiveNote(t)}
-                        className="hover:text-amber-700 transition-colors"
+                        className="hover:text-primary/70 transition-colors"
                       >
                         <X className="w-2.5 h-2.5" />
                       </button>
@@ -707,7 +794,7 @@ export default function App() {
                       placeholder="Add tag..."
                       value={tagFilterInput}
                       onChange={(e) => setTagFilterInput(e.target.value)}
-                      className="border-none bg-transparent text-[11px] text-gray-500 outline-none w-16 focus:w-24 transition-all focus:ring-0 placeholder-gray-600 py-0"
+                      className="border-none bg-transparent text-[11px] text-muted-foreground outline-none w-16 focus:w-24 transition-all focus:ring-0 placeholder-muted-foreground/60 py-0"
                     />
                   </form>
                 )}
@@ -720,30 +807,30 @@ export default function App() {
         ) : (
           /* Premium Empty state */
           <div className="flex-1 flex flex-col items-center justify-center p-8 select-none">
-            <div className="p-4 rounded-full bg-amber-500/5 text-amber-500 mb-4 animate-pulse">
+            <div className="p-4 rounded-full bg-primary/5 text-primary mb-4 animate-pulse">
               <Sparkles className="w-7 h-7" />
             </div>
-            <h2 className="text-base font-bold mb-1">Focus your thoughts</h2>
-            <p className="text-xs text-gray-500 max-w-sm text-center mb-6 leading-relaxed">
-              Create a new note or double-click to start a Daily log inbox. Everything is saved locally.
+            <h2 className="text-sm font-bold text-foreground/80 tracking-tight">Focus your thoughts</h2>
+            <p className="text-xs text-muted-foreground max-w-sm text-center mb-6 leading-relaxed">
+              Create a new note or start a Daily log inbox. Everything is saved locally.
             </p>
 
-            <div className="w-[300px] border border-black/5 dark:border-white/5 rounded-xl bg-black/[0.01] dark:bg-white/[0.01] p-3 space-y-1.5 text-[10px] text-gray-400 font-medium">
-              <div className="flex justify-between p-1 bg-black/10 dark:bg-white/5 rounded px-2">
+            <div className="w-[300px] border border-border/50 rounded-xl bg-card/45 p-3 space-y-1.5 text-[10px] text-muted-foreground font-medium">
+              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
                 <span>New Note</span>
-                <kbd className="font-mono bg-black/20 dark:bg-white/10 px-1 rounded text-[9px]">⌘N</kbd>
+                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘N</kbd>
               </div>
-              <div className="flex justify-between p-1 bg-black/10 dark:bg-white/5 rounded px-2">
+              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
                 <span>Daily Log</span>
-                <kbd className="font-mono bg-black/20 dark:bg-white/10 px-1 rounded text-[9px]">⌘D</kbd>
+                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘D</kbd>
               </div>
-              <div className="flex justify-between p-1 bg-black/10 dark:bg-white/5 rounded px-2">
+              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
                 <span>Command Palette</span>
-                <kbd className="font-mono bg-black/20 dark:bg-white/10 px-1 rounded text-[9px]">⌘K</kbd>
+                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘K</kbd>
               </div>
-              <div className="flex justify-between p-1 bg-black/10 dark:bg-white/5 rounded px-2">
+              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
                 <span>Global Search</span>
-                <kbd className="font-mono bg-black/20 dark:bg-white/10 px-1 rounded text-[9px]">⌘⇧F</kbd>
+                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘⇧F</kbd>
               </div>
             </div>
           </div>
@@ -824,6 +911,43 @@ export default function App() {
           >
             Done
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Empty Trash Confirmation Dialog */}
+      <Dialog open={showEmptyTrashConfirm} onOpenChange={setShowEmptyTrashConfirm}>
+        <DialogContent className={`max-w-[400px] border shadow-2xl flex flex-col no-drag
+          ${darkMode ? 'bg-[#1a1a1f] border-white/10 text-gray-200' : 'bg-white border-black/10 text-gray-800'}`}>
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-red-500 select-none">
+              <Trash2 className="w-5 h-5 text-red-500" />
+              Empty Trash Bin?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-xs text-gray-400 select-none leading-relaxed">
+            Are you sure you want to permanently delete all items in the Trash? This action cannot be undone and notes will be permanently erased.
+          </div>
+          <DialogFooter className="mt-4 flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowEmptyTrashConfirm(false)}
+              className="text-xs font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                emptyTrash()
+                setShowEmptyTrashConfirm(false)
+              }}
+              className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold"
+            >
+              Empty Trash
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

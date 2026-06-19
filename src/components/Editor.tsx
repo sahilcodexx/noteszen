@@ -92,12 +92,15 @@ export default function Editor() {
     }
   })
 
-  // Synchronize note contents on select
+  // Synchronize note contents on select and toggle editable state if note is in trash
   useEffect(() => {
-    if (editor && activeNote && editor.getHTML() !== activeNote.content) {
-      editor.commands.setContent(activeNote.content || '')
+    if (editor && activeNote) {
+      if (editor.getHTML() !== activeNote.content) {
+        editor.commands.setContent(activeNote.content || '')
+      }
+      editor.setEditable(activeNote.folder !== 'trash')
     }
-  }, [selectedNoteId, editor])
+  }, [selectedNoteId, editor, activeNote?.folder])
 
   // Simple clean-up slash menu when content is deleted
   useEffect(() => {
