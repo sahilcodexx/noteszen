@@ -10,6 +10,7 @@ import {
   Search,
   Sparkles
 } from 'lucide-react'
+import { cn } from "@/lib/utils"
 
 export default function CommandPalette() {
   const {
@@ -187,17 +188,17 @@ export default function CommandPalette() {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-xs select-none">
       <div 
         ref={modalRef}
-        className="w-[550px] rounded-2xl shadow-2xl border flex flex-col overflow-hidden bg-white dark:bg-[#1a1a1f] border-black/10 dark:border-white/10"
+        className="w-[550px] rounded-2xl shadow-2xl border flex flex-col overflow-hidden bg-popover text-popover-foreground border-border"
       >
         {/* Search header bar */}
-        <div className="flex items-center px-4 py-3 gap-2 border-b border-black/5 dark:border-white/5">
-          <Search className="w-5 h-5 text-gray-400" />
+        <div className="flex items-center px-4 py-3 gap-2 border-b border-border">
+          <Search className="w-5 h-5 text-muted-foreground" />
           <input
             type="text"
             placeholder="Type a command or search notes..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-grow bg-transparent border-0 outline-none text-sm placeholder-gray-400 focus:ring-0"
+            className="flex-grow bg-transparent border-0 outline-none text-sm placeholder-muted-foreground focus:ring-0"
             autoFocus
           />
         </div>
@@ -205,7 +206,7 @@ export default function CommandPalette() {
         {/* Results list */}
         <div className="max-h-[330px] overflow-y-auto p-2 scrollbar-thin">
           {filteredItems.length === 0 ? (
-            <div className="p-8 text-center text-xs text-gray-400 font-semibold">
+            <div className="p-8 text-center text-xs text-muted-foreground font-semibold">
               No actions or notes found matching "{search}"
             </div>
           ) : (
@@ -217,7 +218,7 @@ export default function CommandPalette() {
                 
                 return (
                   <div key={cat} className="space-y-0.5">
-                    <p className="text-[9px] font-bold tracking-wider text-gray-400/80 uppercase px-2 py-1 mt-1">{cat}</p>
+                    <p className="text-[9px] font-bold tracking-wider text-muted-foreground/80 uppercase px-2 py-1 mt-1">{cat}</p>
                     {catItems.map((item) => {
                       const absoluteIndex = filteredItems.indexOf(item)
                       const isSelected = absoluteIndex === selectedIndex
@@ -228,17 +229,23 @@ export default function CommandPalette() {
                           key={item.id}
                           onClick={item.action}
                           onMouseEnter={() => setSelectedIndex(absoluteIndex)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-left
-                            ${isSelected 
-                              ? 'bg-amber-500 text-white shadow-sm' 
-                              : 'text-gray-600 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-left",
+                            isSelected 
+                              ? "bg-primary text-primary-foreground shadow-sm" 
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          )}
                         >
                           <div className="flex items-center gap-2.5">
                             <Icon className="w-4 h-4 shrink-0 opacity-80" />
                             <span className="truncate max-w-[340px]">{item.title}</span>
                           </div>
-                          <kbd className={`font-mono text-[9px] px-1.5 py-0.5 rounded
-                            ${isSelected ? 'bg-white/20 text-white' : 'bg-black/10 dark:bg-white/10 text-gray-400'}`}>
+                          <kbd className={cn(
+                            "font-mono text-[9px] px-1.5 py-0.5 rounded",
+                            isSelected 
+                              ? "bg-primary-foreground/20 text-primary-foreground" 
+                              : "bg-muted text-muted-foreground"
+                          )}>
                             {item.shortcut}
                           </kbd>
                         </button>
@@ -252,9 +259,9 @@ export default function CommandPalette() {
         </div>
 
         {/* Command palette footer info */}
-        <div className="px-4 py-2 bg-black/[0.02] dark:bg-white/[0.02] border-t border-black/5 dark:border-white/5 flex items-center justify-between text-[10px] text-gray-400">
+        <div className="px-4 py-2 bg-muted/20 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
           <div className="flex items-center gap-1.5 font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
             <span>Search or command via keyboard-first flow</span>
           </div>
           <div className="flex gap-2">

@@ -27,6 +27,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 // App Components
 import Editor from './components/Editor'
@@ -396,12 +398,12 @@ export default function App() {
                     <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                     <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground'}>{folder.name}</span>
                   </div>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium transition-all
-                    ${isSelected 
-                      ? 'bg-primary/15 text-primary' 
-                      : 'bg-secondary/65 text-muted-foreground group-hover/item:text-foreground'}`}>
+                  <Badge 
+                    variant={isSelected ? "default" : "secondary"}
+                    className="text-[9px] font-medium h-4.5 px-1.5"
+                  >
                     {count}
-                  </span>
+                  </Badge>
                 </Button>
               )
             })}
@@ -426,12 +428,12 @@ export default function App() {
                       <Tag className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground truncate max-w-[120px]'}>{tag}</span>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium transition-all
-                      ${isSelected 
-                        ? 'bg-primary/15 text-primary' 
-                        : 'bg-secondary/65 text-muted-foreground'}`}>
+                    <Badge 
+                      variant={isSelected ? "default" : "secondary"}
+                      className="text-[9px] font-medium h-4.5 px-1.5"
+                    >
                       {tagCount}
-                    </span>
+                    </Badge>
                   </Button>
                 )
               })}
@@ -522,7 +524,7 @@ export default function App() {
         </div>
 
         {/* Note List Items (Shadcn Scroll Area) */}
-        <ScrollArea className="flex-1 divide-y divide-border/30">
+        <ScrollArea className="flex-grow py-2">
           {sortedNotes.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground/60 mt-12 select-none">
               <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2 opacity-55" />
@@ -530,100 +532,108 @@ export default function App() {
               <p className="text-[10px] text-muted-foreground mt-1">Press ⌘N to make a new note</p>
             </div>
           ) : (
-            sortedNotes.map((note) => {
-              const isSelected = note.id === selectedNoteId
-              const previewText = note.content
-                ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 80)
-                : 'No additional text'
-              
-              const formattedDate = formatRelativeTime(note.updatedAt)
+            <div className="flex flex-col gap-1 px-2">
+              {sortedNotes.map((note) => {
+                const isSelected = note.id === selectedNoteId
+                const previewText = note.content
+                  ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 80)
+                  : 'No additional text'
+                
+                const formattedDate = formatRelativeTime(note.updatedAt)
 
-              return (
-                <div
-                  key={note.id}
-                  onClick={() => setSelectedNoteId(note.id)}
-                  className={`p-3.5 cursor-pointer relative transition-all group border-l-2 flex flex-col gap-1.5
-                    ${isSelected 
-                      ? 'bg-primary/5 border-primary' 
-                      : 'border-transparent hover:bg-muted/30'}`}
-                >
-                  <div className="flex items-start justify-between gap-1 mb-0.5">
-                    <h3 className={`font-semibold text-xs truncate flex-grow ${isSelected ? 'text-primary' : 'text-foreground/90'}`}>
-                      {note.title || 'Untitled Note'}
-                    </h3>
-                    <div className="flex items-center gap-1.5 shrink-0 select-none">
-                      {note.isPinned && (
-                        <Pin className="w-3 h-3 text-primary fill-primary" />
-                      )}
-                      
-                      {activeFolder !== 'trash' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            deleteNote(note.id)
-                          }}
-                          className="opacity-0 group-hover:opacity-100 w-4 h-4 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
-                          title="Move to Trash"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                return (
+                  <div
+                    key={note.id}
+                    onClick={() => setSelectedNoteId(note.id)}
+                    className={cn(
+                      "p-3 cursor-pointer relative transition-all rounded-lg border flex flex-col gap-1.5",
+                      isSelected 
+                        ? "bg-card border-border shadow-xs scale-[1.01]" 
+                        : "border-transparent bg-transparent hover:bg-muted/40"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-1 mb-0.5">
+                      <h3 className={cn(
+                        "font-semibold text-xs truncate flex-grow",
+                        isSelected ? "text-primary" : "text-foreground/90"
+                      )}>
+                        {note.title || 'Untitled Note'}
+                      </h3>
+                      <div className="flex items-center gap-1.5 shrink-0 select-none">
+                        {note.isPinned && (
+                          <Pin className="w-3 h-3 text-primary fill-primary" />
+                        )}
+                        
+                        {activeFolder !== 'trash' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteNote(note.id)
+                            }}
+                            className="opacity-0 group-hover:opacity-100 w-4 h-4 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
+                            title="Move to Trash"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] line-clamp-2 text-muted-foreground leading-normal font-normal">
+                      {previewText}
+                    </p>
+
+                    <div className="flex items-center justify-between select-none mt-1">
+                      <span className="text-[9px] text-muted-foreground/80 font-medium">
+                        {formattedDate}
+                      </span>
+
+                      {/* Tag list within item card */}
+                      {note.tags && note.tags.length > 0 && (
+                        <div className="flex gap-1 max-w-[120px] overflow-hidden">
+                          {note.tags.slice(0, 2).map(tag => (
+                            <Badge 
+                              key={tag}
+                              variant={isSelected ? "outline" : "secondary"}
+                              className="text-[8px] h-4 px-1 rounded truncate"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <p className="text-[11px] line-clamp-2 text-muted-foreground leading-normal font-normal">
-                    {previewText}
-                  </p>
-
-                  <div className="flex items-center justify-between select-none mt-1">
-                    <span className="text-[9px] text-muted-foreground/80 font-medium">
-                      {formattedDate}
-                    </span>
-
-                    {/* Tag list within item card */}
-                    {note.tags && note.tags.length > 0 && (
-                      <div className="flex gap-1 max-w-[120px] overflow-hidden">
-                        {note.tags.slice(0, 2).map(tag => (
-                          <span 
-                            key={tag}
-                            className="text-[8px] px-1.5 py-0.5 rounded bg-secondary/80 text-muted-foreground truncate"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                    {note.folder === 'trash' && (
+                      <div className="absolute right-3.5 top-3.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                        <Button
+                          variant="link"
+                          size="xs"
+                          onClick={() => restoreNote(note.id)}
+                          className="text-[9px] h-auto p-0 text-primary hover:underline font-bold"
+                        >
+                          Restore
+                        </Button>
+                        <Button
+                          variant="link"
+                          size="xs"
+                          onClick={() => deleteNote(note.id)}
+                          className="text-[9px] h-auto p-0 text-destructive hover:underline font-bold"
+                        >
+                          Delete
+                        </Button>
                       </div>
                     )}
                   </div>
-
-                  {note.folder === 'trash' && (
-                    <div className="absolute right-3.5 top-3.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                      <Button
-                        variant="link"
-                        size="xs"
-                        onClick={() => restoreNote(note.id)}
-                        className="text-[9px] h-auto p-0 text-primary hover:underline font-bold"
-                      >
-                        Restore
-                      </Button>
-                      <Button
-                        variant="link"
-                        size="xs"
-                        onClick={() => deleteNote(note.id)}
-                        className="text-[9px] h-auto p-0 text-destructive hover:underline font-bold"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )
-            })
+                )
+              })}
+            </div>
           )}
         </ScrollArea>
       </section>
 
       {/* 3. MAIN EDITOR PANEL */}
-      <main className="flex-grow flex flex-col min-w-0 bg-[#ffffff] dark:bg-[#151518]">
+      <main className="flex-grow flex flex-col min-w-0 bg-background">
         
         {/* Editor panel toolbar */}
         <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none">
@@ -815,22 +825,22 @@ export default function App() {
               Create a new note or start a Daily log inbox. Everything is saved locally.
             </p>
 
-            <div className="w-[300px] border border-border/50 rounded-xl bg-card/45 p-3 space-y-1.5 text-[10px] text-muted-foreground font-medium">
-              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
+            <div className="w-[300px] border border-border/50 rounded-xl bg-card p-4 flex flex-col gap-2.5 text-[11px] text-muted-foreground shadow-xs">
+              <div className="flex items-center justify-between py-1 border-b border-border/40">
                 <span>New Note</span>
-                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘N</kbd>
+                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘N</kbd>
               </div>
-              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
+              <div className="flex items-center justify-between py-1 border-b border-border/40">
                 <span>Daily Log</span>
-                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘D</kbd>
+                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘D</kbd>
               </div>
-              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
+              <div className="flex items-center justify-between py-1 border-b border-border/40">
                 <span>Command Palette</span>
-                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘K</kbd>
+                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘K</kbd>
               </div>
-              <div className="flex justify-between p-1 bg-secondary/80 rounded px-2">
+              <div className="flex items-center justify-between py-1">
                 <span>Global Search</span>
-                <kbd className="font-mono bg-background px-1 rounded text-[9px]">⌘⇧F</kbd>
+                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘⇧F</kbd>
               </div>
             </div>
           </div>
@@ -844,70 +854,69 @@ export default function App() {
 
       {/* Settings Modal (Shadcn Dialog Component overlay) */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className={`max-w-[450px] border shadow-2xl flex flex-col no-drag
-          ${darkMode ? 'bg-[#1a1a1f] border-white/10 text-gray-200' : 'bg-white border-black/10 text-gray-800'}`}>
+        <DialogContent className="max-w-[450px] border shadow-2xl flex flex-col no-drag">
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-1.5 select-none">
-              <Settings className="w-5 h-5 text-amber-500" />
+              <Settings className="w-5 h-5 text-primary" />
               NotesZen Preferences
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2 select-none">
-            <div className="flex items-center justify-between border-b pb-3 border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between border-b pb-3 border-border">
               <div>
                 <p className="text-xs font-semibold">Local SQLite File Sync</p>
-                <p className="text-[10px] text-gray-500">
+                <p className="text-[10px] text-muted-foreground">
                   {window.electronAPI ? 'Offline SQLite Database active' : 'Web storage caching active'}
                 </p>
               </div>
-              <span className={`text-[9px] px-2 py-0.5 rounded font-bold
-                ${window.electronAPI ? 'bg-green-500/10 text-green-500 border border-green-500/10' : 'bg-amber-500/10 text-amber-500 border border-amber-500/10'}`}>
+              <Badge variant={window.electronAPI ? "default" : "outline"} className="text-[9px] font-bold">
                 {window.electronAPI ? 'SQLITE STORAGE' : 'WEB FALLBACK'}
-              </span>
+              </Badge>
             </div>
 
-            <div className="flex items-center justify-between border-b pb-3 border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between border-b pb-3 border-border">
               <div>
                 <p className="text-xs font-semibold">Local Data Backup</p>
-                <p className="text-[10px] text-gray-500">Download backup JSON copy of notes</p>
+                <p className="text-[10px] text-muted-foreground">Download backup JSON copy of notes</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleLocalBackup}
-                className="text-[10px] px-2.5 font-bold transition-all border-black/10 dark:border-white/10"
+                className="text-[10px] px-2.5 font-bold transition-all"
               >
                 Export JSON
               </Button>
             </div>
 
-            <div className="flex items-center justify-between border-b pb-3 border-black/5 dark:border-white/5">
+            <div className="flex items-center justify-between border-b pb-3 border-border">
               <div>
                 <p className="text-xs font-semibold">Appearance Theme</p>
-                <p className="text-[10px] text-gray-500">Switch editor theme interface</p>
+                <p className="text-[10px] text-muted-foreground">Switch editor theme interface</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setDarkMode(!darkMode)}
-                className="text-[10px] px-3 font-semibold transition-all border-black/10 dark:border-white/10"
+                className="text-[10px] px-3 font-semibold transition-all"
               >
                 {darkMode ? 'Switch to Light' : 'Switch to Dark'}
               </Button>
             </div>
 
-            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
-              <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-[10px] text-gray-400 leading-normal font-normal">
-                Quick Capture toggles anywhere on your Arch system via <kbd className="font-mono bg-black/20 dark:bg-white/10 px-1.5 rounded">Ctrl+Shift+Space</kbd>.
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted border border-border">
+              <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <p className="text-[10px] text-muted-foreground leading-normal font-normal">
+                Quick Capture toggles anywhere on your Arch system via <kbd className="font-mono bg-muted-foreground/20 px-1.5 rounded">Ctrl+Shift+Space</kbd>.
               </p>
             </div>
           </div>
 
           <Button
             onClick={() => setShowSettings(false)}
-            className="mt-4 w-full py-2 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-bold rounded-lg transition-all"
+            variant="default"
+            className="mt-4 w-full"
           >
             Done
           </Button>
@@ -916,15 +925,14 @@ export default function App() {
 
       {/* Empty Trash Confirmation Dialog */}
       <Dialog open={showEmptyTrashConfirm} onOpenChange={setShowEmptyTrashConfirm}>
-        <DialogContent className={`max-w-[400px] border shadow-2xl flex flex-col no-drag
-          ${darkMode ? 'bg-[#1a1a1f] border-white/10 text-gray-200' : 'bg-white border-black/10 text-gray-800'}`}>
+        <DialogContent className="max-w-[400px] border shadow-2xl flex flex-col no-drag">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-red-500 select-none">
-              <Trash2 className="w-5 h-5 text-red-500" />
+            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-destructive select-none">
+              <Trash2 className="w-5 h-5 text-destructive" />
               Empty Trash Bin?
             </DialogTitle>
           </DialogHeader>
-          <div className="py-2 text-xs text-gray-400 select-none leading-relaxed">
+          <div className="py-2 text-xs text-muted-foreground select-none leading-relaxed">
             Are you sure you want to permanently delete all items in the Trash? This action cannot be undone and notes will be permanently erased.
           </div>
           <DialogFooter className="mt-4 flex gap-2 justify-end">
@@ -937,13 +945,12 @@ export default function App() {
               Cancel
             </Button>
             <Button
-              variant="default"
+              variant="destructive"
               size="sm"
               onClick={() => {
                 emptyTrash()
                 setShowEmptyTrashConfirm(false)
               }}
-              className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold"
             >
               Empty Trash
             </Button>

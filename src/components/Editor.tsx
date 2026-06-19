@@ -16,6 +16,7 @@ import {
   Code, 
   Quote 
 } from 'lucide-react'
+import { cn } from "@/lib/utils"
 
 export default function Editor() {
   const { notes, selectedNoteId, updateNote } = useNotesStore()
@@ -171,7 +172,7 @@ export default function Editor() {
 
   if (!activeNote) {
     return (
-      <div className="flex-grow flex items-center justify-center text-gray-500">
+      <div className="flex-grow flex items-center justify-center text-muted-foreground">
         No active note
       </div>
     )
@@ -184,7 +185,7 @@ export default function Editor() {
       {/* Floating Slash Commands Menu */}
       {showSlashMenu && (
         <div 
-          className="absolute z-50 w-52 rounded-xl shadow-xl border bg-white dark:bg-[#1a1a1f] border-black/10 dark:border-white/10 p-1 divide-y divide-black/5 dark:divide-white/5"
+          className="absolute z-50 w-52 rounded-xl shadow-xl border bg-popover text-popover-foreground border-border p-1 divide-y divide-border"
           style={{
             top: `${slashCoords.current.top}px`,
             left: `${slashCoords.current.left}px`,
@@ -199,10 +200,12 @@ export default function Editor() {
                 <button
                   key={cmd.name}
                   onClick={() => executeCommand(cmd)}
-                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors text-left
-                    ${isSelected 
-                      ? 'bg-amber-500 text-white shadow-sm' 
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors text-left",
+                    isSelected 
+                      ? "bg-primary text-primary-foreground shadow-sm" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
                   <span>{cmd.name}</span>
@@ -215,8 +218,8 @@ export default function Editor() {
 
       {/* Backlinks Panel (Linked references) */}
       {backlinks.length > 0 && (
-        <div className="mt-auto border-t border-black/5 dark:border-white/5 pt-6 pb-4">
-          <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-400/80 mb-2">Linked References ({backlinks.length})</h4>
+        <div className="mt-auto border-t border-border pt-6 pb-4">
+          <h4 className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/80 mb-2">Linked References ({backlinks.length})</h4>
           <div className="space-y-1.5">
             {backlinks.map((linkNote: any) => (
               <button
@@ -225,10 +228,10 @@ export default function Editor() {
                   const state = useNotesStore.getState()
                   state.setSelectedNoteId(linkNote.id)
                 }}
-                className="w-full flex items-center justify-between text-xs text-gray-500 hover:text-amber-500 p-2 rounded-lg bg-black/[0.01] dark:bg-white/[0.01] hover:bg-amber-500/5 transition-all text-left"
+                className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-primary p-2 rounded-lg bg-muted/10 hover:bg-primary/5 transition-all text-left"
               >
                 <span className="font-semibold truncate max-w-[400px]">{linkNote.title}</span>
-                <span className="text-[9px] text-gray-400 font-medium">[[{linkNote.title}]]</span>
+                <span className="text-[9px] text-muted-foreground font-medium">[[{linkNote.title}]]</span>
               </button>
             ))}
           </div>

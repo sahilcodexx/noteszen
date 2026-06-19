@@ -21,61 +21,62 @@ export default function Onboarding() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md select-none p-4">
-      <div className="w-[520px] rounded-2xl border shadow-2xl p-6 bg-white dark:bg-[#1a1a1f] border-black/10 dark:border-white/10 flex flex-col items-center text-center">
+      <div className="w-[520px] rounded-2xl border shadow-2xl p-6 bg-popover text-popover-foreground border-border flex flex-col items-center text-center">
         
         {/* Animated Brand Logo Icon */}
-        <div className="p-3 rounded-full bg-amber-500/10 text-amber-500 mb-4 animate-bounce">
+        <div className="p-3 rounded-full bg-primary/10 text-primary mb-4 animate-bounce">
           <Sparkles className="w-8 h-8" />
         </div>
 
-        <h2 className="text-xl font-bold mb-1 bg-gradient-to-r from-amber-500 to-orange-600 bg-clip-text text-transparent">
+        <h2 className="text-xl font-bold mb-1 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
           Welcome to NotesZen
         </h2>
-        <p className="text-xs text-gray-500 max-w-sm mb-6 leading-relaxed">
+        <p className="text-xs text-muted-foreground max-w-sm mb-6 leading-relaxed">
           The fastest desktop app for capturing and finding thoughts.
         </p>
 
         {/* Feature Highlights Grid */}
         <div className="grid grid-cols-2 gap-4 w-full text-left mb-8">
-          <div className="p-3.5 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] flex items-start gap-2.5">
-            <Zap className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl border border-border bg-muted/30 flex items-start gap-2.5">
+            <Zap className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-bold leading-none mb-1">Quick Capture</p>
-              <p className="text-[10px] text-gray-500 leading-normal">Press <kbd className="font-mono bg-black/10 dark:bg-white/10 px-1 rounded text-[9px]">Ctrl+Shift+Space</kbd> to open the thought jotter anywhere.</p>
+              <p className="text-[10px] text-muted-foreground leading-normal">Press <kbd className="font-mono bg-muted px-1 rounded text-[9px]">Ctrl+Shift+Space</kbd> to open the thought jotter anywhere.</p>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] flex items-start gap-2.5">
-            <Terminal className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl border border-border bg-muted/30 flex items-start gap-2.5">
+            <Terminal className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-bold leading-none mb-1">Command Palette</p>
-              <p className="text-[10px] text-gray-500 leading-normal">Press <kbd className="font-mono bg-black/10 dark:bg-white/10 px-1 rounded text-[9px]">Ctrl+K</kbd> to execute actions entirely via keyboard.</p>
+              <p className="text-[10px] text-muted-foreground leading-normal">Press <kbd className="font-mono bg-muted px-1 rounded text-[9px]">Ctrl+K</kbd> to execute actions entirely via keyboard.</p>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] flex items-start gap-2.5">
-            <Calendar className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl border border-border bg-muted/30 flex items-start gap-2.5">
+            <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-bold leading-none mb-1">Daily Log</p>
-              <p className="text-[10px] text-gray-500 leading-normal">Use date-based notes for structured logs. Trigger via <kbd className="font-mono bg-black/10 dark:bg-white/10 px-1 rounded text-[9px]">Ctrl+D</kbd>.</p>
+              <p className="text-[10px] text-muted-foreground leading-normal">Use date-based notes for structured logs. Trigger via <kbd className="font-mono bg-muted px-1 rounded text-[9px]">Ctrl+D</kbd>.</p>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl border border-black/5 dark:border-white/5 bg-black/[0.01] dark:bg-white/[0.01] flex items-start gap-2.5">
-            <Search className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl border border-border bg-muted/30 flex items-start gap-2.5">
+            <Search className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-bold leading-none mb-1">Fuzzy Search</p>
-              <p className="text-[10px] text-gray-500 leading-normal">Fuzzy match over everything. Open global search via <kbd className="font-mono bg-black/10 dark:bg-white/10 px-1 rounded text-[9px]">Ctrl+Shift+F</kbd>.</p>
+              <p className="text-[10px] text-muted-foreground leading-normal">Fuzzy match over everything. Open global search via <kbd className="font-mono bg-muted px-1 rounded text-[9px]">Ctrl+Shift+F</kbd>.</p>
             </div>
           </div>
         </div>
 
         <Button
           onClick={handleFinish}
-          className="w-full h-10 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          variant="default"
+          className="w-full hover:scale-[1.02] active:scale-[0.98] transition-transform"
         >
           Start Writing Thoughts
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight data-icon="inline-end" />
         </Button>
       </div>
     </div>
