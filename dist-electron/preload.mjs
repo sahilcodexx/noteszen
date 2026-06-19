@@ -1,0 +1,1 @@
+let e=require("electron");e.contextBridge.exposeInMainWorld(`electronAPI`,{getNotes:()=>e.ipcRenderer.invoke(`get-notes`),saveNote:t=>e.ipcRenderer.invoke(`save-note`,t),deleteNote:t=>e.ipcRenderer.invoke(`delete-note`,t),minimize:()=>e.ipcRenderer.send(`window-min`),maximize:()=>e.ipcRenderer.send(`window-max`),close:()=>e.ipcRenderer.send(`window-close`)});

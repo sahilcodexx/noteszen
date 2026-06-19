@@ -15,16 +15,13 @@ import {
   CheckCircle,
   FolderOpen,
   Sparkles,
-  ChevronRight,
   Info,
-  Archive,
   Lightbulb,
-  X,
-  PlusCircle
+  X
 } from 'lucide-react'
 
 // Types
-import { Note } from './electron'
+import type { Note } from './electron'
 
 const DEFAULT_FOLDERS = [
   { id: 'all', name: 'All Notes', icon: FileText, color: 'text-amber-500' },
@@ -48,7 +45,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
 
   // Ref for debouncing save
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Fetch initial notes
   useEffect(() => {
@@ -286,8 +283,6 @@ export default function App() {
     if (!text) return <p className="text-gray-400 italic">Start writing something beautiful...</p>
 
     const lines = text.split('\n')
-    let inList = false
-    let listItems: string[] = []
 
     return (
       <div className="prose-editor">
