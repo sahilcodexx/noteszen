@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Sparkles, Terminal, Search, Zap, Calendar, ArrowRight } from 'lucide-react'
+import { Terminal, Search, Zap, Calendar, ArrowRight } from 'lucide-react'
 import { Button } from './ui/button'
 
 export default function Onboarding() {
@@ -23,10 +23,6 @@ export default function Onboarding() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md select-none p-4">
       <div className="w-[520px] rounded-2xl border shadow-2xl p-6 bg-popover text-popover-foreground border-border flex flex-col items-center text-center">
         
-        {/* Animated Brand Logo Icon */}
-        <div className="p-3 rounded-full bg-primary/10 text-primary mb-4 animate-bounce">
-          <Sparkles className="w-8 h-8" />
-        </div>
 
         <h2 className="text-xl font-bold mb-1 bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
           Welcome to NotesZen

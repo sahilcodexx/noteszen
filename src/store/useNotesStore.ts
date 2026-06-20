@@ -8,6 +8,7 @@ interface NotesState {
   activeFolder: string // 'notes' | 'favorites' | 'daily' | 'archive' | 'settings' | 'trash'
   selectedTag: string | null
   isSidebarCollapsed: boolean
+  isNoteListCollapsed: boolean
   isCommandPaletteOpen: boolean
   isGlobalSearchOpen: boolean
   saveStatus: 'saved' | 'saving' | 'error'
@@ -19,6 +20,7 @@ interface NotesState {
   setActiveFolder: (folder: string) => void
   setSelectedTag: (tag: string | null) => void
   toggleSidebar: () => void
+  toggleNoteList: () => void
   setCommandPaletteOpen: (open: boolean) => void
   setGlobalSearchOpen: (open: boolean) => void
   setSaveStatus: (status: 'saved' | 'saving' | 'error') => void
@@ -72,6 +74,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   activeFolder: 'notes',
   selectedTag: null,
   isSidebarCollapsed: false,
+  isNoteListCollapsed: false,
   isCommandPaletteOpen: false,
   isGlobalSearchOpen: false,
   saveStatus: 'saved',
@@ -107,6 +110,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setActiveFolder: (folder) => set({ activeFolder: folder, selectedTag: null }),
   setSelectedTag: (tag) => set({ selectedTag: tag, ...(tag ? { activeFolder: 'notes' } : {}) }),
   toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
+  toggleNoteList: () => set((state) => ({ isNoteListCollapsed: !state.isNoteListCollapsed })),
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setGlobalSearchOpen: (open) => set({ isGlobalSearchOpen: open }),
   setSaveStatus: (status) => set({ saveStatus: status }),

@@ -15,11 +15,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Sparkles,
   Command,
   X,
   CheckCircle,
-  RotateCcw
+  RotateCcw,
+  Menu
 } from 'lucide-react'
 
 // UI Components
@@ -83,6 +83,7 @@ export default function App() {
     activeFolder,
     selectedTag,
     isSidebarCollapsed,
+    isNoteListCollapsed,
     isCommandPaletteOpen,
     isGlobalSearchOpen,
     saveStatus,
@@ -92,6 +93,7 @@ export default function App() {
     setActiveFolder,
     setSelectedTag,
     toggleSidebar,
+    toggleNoteList,
     setCommandPaletteOpen,
     setGlobalSearchOpen,
     createNote,
@@ -255,9 +257,14 @@ export default function App() {
         if (selectedNoteId) togglePin(selectedNoteId)
       }
       // 7. Ctrl + B (Toggle Sidebar expand)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b' && !e.shiftKey) {
         e.preventDefault()
         toggleSidebar()
+      }
+      // 7.5. Ctrl + Shift + B (Toggle Note List expand)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'b') {
+        e.preventDefault()
+        toggleNoteList()
       }
       // 8. Alt + ArrowUp / ArrowDown (Navigate list notes)
       if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -327,11 +334,13 @@ export default function App() {
       
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <aside 
-        className={`flex flex-col border-r border-border shrink-0 drag-region transition-all duration-300 backdrop-blur-md bg-sidebar
-          ${isSidebarCollapsed ? 'w-0 opacity-0 -translate-x-[200px] overflow-hidden' : 'w-[220px] opacity-100 translate-x-0'}`}
+        className={cn(
+          "flex flex-col border-r border-border shrink-0 drag-region transition-all duration-300 backdrop-blur-md bg-sidebar overflow-hidden",
+          isSidebarCollapsed ? 'w-[80px]' : 'w-[220px]'
+        )}
       >
         {/* macOS Custom Traffic lights window triggers */}
-        <div className="h-12 flex items-center pl-4 gap-2 no-drag shrink-0">
+        <div className="h-12 flex items-center pl-5 gap-2 no-drag shrink-0">
           <button 
             onClick={handleWinClose}
             className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default"
@@ -356,15 +365,26 @@ export default function App() {
         </div>
 
         {/* Brand header title */}
-        <div className="px-4 py-1.5 flex items-center justify-between no-drag">
-          <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight">
-            NotesZen
-          </span>
+        <div className={cn(
+          "py-1.5 flex items-center no-drag transition-all duration-300",
+          isSidebarCollapsed ? 'px-1 justify-center' : 'px-4 justify-between'
+        )}>
+          {isSidebarCollapsed ? (
+            <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
+              NZ
+            </span>
+          ) : (
+            <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
+              NotesZen
+            </span>
+          )}
         </div>
 
         {/* Sidebar Nav Actions (Shadcn Custom Scroll Container) */}
         <ScrollArea className="flex-grow px-2 py-3 space-y-1.5 no-drag select-none scrollbar-none">
-          <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2">Views</p>
+          {!isSidebarCollapsed && (
+            <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2 animate-in fade-in duration-200">Views</p>
+          )}
           
           <div className="space-y-1">
             {[
@@ -391,18 +411,28 @@ export default function App() {
                   key={folder.id}
                   variant={isSelected ? 'secondary' : 'ghost'}
                   onClick={() => setActiveFolder(folder.id)}
-                  className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-xs font-medium transition-all group/item"
+                  className={cn(
+                    "w-full flex items-center h-8 rounded-lg text-xs font-medium transition-all group/item",
+                    isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'
+                  )}
+                  title={isSidebarCollapsed ? folder.name : undefined}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                    <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground'}>{folder.name}</span>
+                    <Icon className={cn("w-3.5 h-3.5 shrink-0", isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                    {!isSidebarCollapsed && (
+                      <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground'}>
+                        {folder.name}
+                      </span>
+                    )}
                   </div>
-                  <Badge 
-                    variant={isSelected ? "default" : "secondary"}
-                    className="text-[9px] font-medium h-4.5 px-1.5"
-                  >
-                    {count}
-                  </Badge>
+                  {!isSidebarCollapsed && (
+                    <Badge 
+                      variant={isSelected ? "default" : "secondary"}
+                      className="text-[9px] font-medium h-4.5 px-1.5"
+                    >
+                      {count}
+                    </Badge>
+                  )}
                 </Button>
               )
             })}
@@ -411,7 +441,9 @@ export default function App() {
           {/* Sidebar Tags view */}
           {allTags.length > 0 && (
             <div className="pt-4 space-y-1">
-              <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2">Tags</p>
+              {!isSidebarCollapsed && (
+                <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2 animate-in fade-in duration-200">Tags</p>
+              )}
               {allTags.map((tag) => {
                 const isSelected = selectedTag === tag
                 const tagCount = notes.filter(n => n.folder !== 'trash' && n.tags && n.tags.includes(tag)).length
@@ -421,18 +453,28 @@ export default function App() {
                     key={tag}
                     variant={isSelected ? 'secondary' : 'ghost'}
                     onClick={() => setSelectedTag(tag)}
-                    className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-xs font-medium transition-all group/item"
+                    className={cn(
+                      "w-full flex items-center h-8 rounded-lg text-xs font-medium transition-all group/item",
+                      isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'
+                    )}
+                    title={isSidebarCollapsed ? tag : undefined}
                   >
                     <div className="flex items-center gap-2.5">
-                      <Tag className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground truncate max-w-[120px]'}>{tag}</span>
+                      <Tag className={cn("w-3.5 h-3.5 shrink-0", isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                      {!isSidebarCollapsed && (
+                        <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground truncate max-w-[120px]'}>
+                          {tag}
+                        </span>
+                      )}
                     </div>
-                    <Badge 
-                      variant={isSelected ? "default" : "secondary"}
-                      className="text-[9px] font-medium h-4.5 px-1.5"
-                    >
-                      {tagCount}
-                    </Badge>
+                    {!isSidebarCollapsed && (
+                      <Badge 
+                        variant={isSelected ? "default" : "secondary"}
+                        className="text-[9px] font-medium h-4.5 px-1.5"
+                      >
+                        {tagCount}
+                      </Badge>
+                    )}
                   </Button>
                 )
               })}
@@ -441,23 +483,29 @@ export default function App() {
         </ScrollArea>
 
         {/* Sidebar settings controls */}
-        <div className="p-4 border-t border-border/40 no-drag flex items-center justify-between shrink-0 select-none bg-sidebar/80 backdrop-blur-md">
+        <div className={cn(
+          "p-4 border-t border-border/40 no-drag flex shrink-0 select-none bg-sidebar/80 backdrop-blur-md transition-all duration-300",
+          isSidebarCollapsed ? 'flex-col items-center gap-3 px-2 py-4' : 'flex-row items-center justify-between'
+        )}>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setDarkMode(!darkMode)}
-            className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary"
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            title={darkMode ? "Light Mode" : "Dark Mode"}
           >
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
           <Button
             variant="ghost"
+            size={isSidebarCollapsed ? "icon" : "default"}
             onClick={() => setShowSettings(true)}
-            className="h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary flex items-center gap-1.5"
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            title="Settings"
           >
             <Settings className="w-4 h-4" />
-            Settings
+            {!isSidebarCollapsed && <span>Settings</span>}
           </Button>
         </div>
       </aside>
@@ -472,10 +520,9 @@ export default function App() {
                   variant="ghost"
                   size="icon"
                   onClick={toggleSidebar}
-                  className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
                   title="Expand Sidebar"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight data-icon="inline-start" />
                 </Button>
               )}
               {!isSidebarCollapsed && (
@@ -483,10 +530,9 @@ export default function App() {
                   variant="ghost"
                   size="icon"
                   onClick={toggleSidebar}
-                  className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
                   title="Collapse Sidebar"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft data-icon="inline-start" />
                 </Button>
               )}
               
@@ -526,9 +572,8 @@ export default function App() {
                   onClick={() => setShowEmptyTrashConfirm(true)}
                   variant="destructive"
                   size="sm"
-                  className="h-8 text-xs font-semibold gap-1.5 px-3 rounded-lg shadow-sm"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 data-icon="inline-start" />
                   Empty Trash
                 </Button>
               )}
@@ -596,18 +641,16 @@ export default function App() {
                             variant="outline"
                             size="xs"
                             onClick={() => restoreNote(note.id)}
-                            className="text-[10px] h-7 font-bold border-primary/20 text-primary hover:bg-primary/5 gap-1"
                           >
-                            <RotateCcw className="w-3 h-3" />
+                            <RotateCcw data-icon="inline-start" />
                             Restore
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="destructive"
                             size="xs"
                             onClick={() => deleteNote(note.id)}
-                            className="text-[10px] h-7 font-bold border-destructive/20 text-destructive hover:bg-destructive/5 gap-1"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 data-icon="inline-start" />
                             Delete
                           </Button>
                         </div>
@@ -633,10 +676,10 @@ export default function App() {
                     variant="ghost"
                     size="icon"
                     onClick={toggleSidebar}
-                    className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
+                    className="text-muted-foreground hover:text-foreground"
                     title="Expand Sidebar"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight data-icon="inline-start" />
                   </Button>
                 )}
                 {!isSidebarCollapsed && (
@@ -644,10 +687,10 @@ export default function App() {
                     variant="ghost"
                     size="icon"
                     onClick={toggleSidebar}
-                    className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
+                    className="text-muted-foreground hover:text-foreground"
                     title="Collapse Sidebar"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft data-icon="inline-start" />
                   </Button>
                 )}
 
@@ -674,11 +717,10 @@ export default function App() {
                 <Button
                   variant="outline"
                   onClick={() => setCommandPaletteOpen(true)}
-                  className="h-8 px-2.5 rounded-lg border-border bg-card/45 text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5 text-xs font-semibold"
                   title="Command Palette (⌘K)"
                 >
-                  <Command className="w-3.5 h-3.5" />
-                  <kbd className="font-mono text-[9px] bg-secondary/80 px-1 rounded">⌘K</kbd>
+                  <Command data-icon="inline-start" />
+                  <kbd className="font-mono text-[9px] bg-secondary/80 px-1 rounded ml-1">⌘K</kbd>
                 </Button>
 
                 {activeNote && activeNote.folder !== 'trash' && (
@@ -688,11 +730,14 @@ export default function App() {
                       variant="outline"
                       size="icon"
                       onClick={() => togglePin(activeNote.id)}
-                      className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
-                        ${activeNote.isPinned ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={cn(
+                        activeNote.isPinned 
+                          ? "text-primary bg-primary/10 hover:bg-primary/20" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                       title="Pin Note (⌘P)"
                     >
-                      <Pin className={`w-4 h-4 ${activeNote.isPinned ? 'fill-primary' : ''}`} />
+                      <Pin className={cn(activeNote.isPinned && "fill-primary")} data-icon="inline-start" />
                     </Button>
 
                     {/* Favorite Note */}
@@ -700,11 +745,14 @@ export default function App() {
                       variant="outline"
                       size="icon"
                       onClick={() => toggleFavorite(activeNote.id)}
-                      className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
-                        ${activeNote.isFavorite ? 'text-amber-500 hover:bg-amber-500/8' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={cn(
+                        activeNote.isFavorite 
+                          ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                       title="Favorite Note"
                     >
-                      <Star className={`w-4 h-4 ${activeNote.isFavorite ? 'fill-amber-500' : ''}`} />
+                      <Star className={cn(activeNote.isFavorite && "fill-amber-500")} data-icon="inline-start" />
                     </Button>
 
                     {/* Archive Note */}
@@ -712,14 +760,32 @@ export default function App() {
                       variant="outline"
                       size="icon"
                       onClick={() => toggleArchive(activeNote.id)}
-                      className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
-                        ${activeNote.isArchived ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={cn(
+                        activeNote.isArchived 
+                          ? "text-primary bg-primary/10 hover:bg-primary/20" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                       title="Archive Note"
                     >
-                      <Archive className={`w-4 h-4 ${activeNote.isArchived ? 'fill-primary' : ''}`} />
+                      <Archive className={cn(activeNote.isArchived && "fill-primary")} data-icon="inline-start" />
                     </Button>
                   </>
                 )}
+
+                {/* Toggle Note List (Right Sidebar) */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={toggleNoteList}
+                  className="text-muted-foreground hover:text-foreground"
+                  title={isNoteListCollapsed ? "Expand Note List (⌘⇧B)" : "Collapse Note List (⌘⇧B)"}
+                >
+                  {isNoteListCollapsed ? (
+                    <ChevronLeft className="w-4 h-4" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4" />
+                  )}
+                </Button>
               </div>
             </div>
 
@@ -736,7 +802,6 @@ export default function App() {
                       <Button 
                         size="xs" 
                         variant="outline" 
-                        className="h-6 text-[10px] border-destructive/25 text-destructive hover:bg-destructive/10 font-bold bg-transparent" 
                         onClick={() => restoreNote(activeNote.id)}
                       >
                         Restore
@@ -744,10 +809,7 @@ export default function App() {
                       <Button 
                         size="xs" 
                         variant="destructive" 
-                        className="h-6 text-[10px] font-bold" 
-                        onClick={() => {
-                          deleteNote(activeNote.id)
-                        }}
+                        onClick={() => deleteNote(activeNote.id)}
                       >
                         Delete Permanently
                       </Button>
@@ -821,9 +883,17 @@ export default function App() {
                     <span className="font-medium text-foreground/80">Command Palette</span>
                     <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘K</kbd>
                   </div>
-                  <div className="flex items-center justify-between py-1.5">
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
                     <span className="font-medium text-foreground/80">Global Search</span>
                     <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧F</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                    <span className="font-medium text-foreground/80">Toggle Sidebar</span>
+                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘B</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="font-medium text-foreground/80">Toggle Note List</span>
+                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧B</kbd>
                   </div>
                 </div>
               </div>
@@ -831,7 +901,10 @@ export default function App() {
           </main>
 
           {/* 2. NOTE LIST PANEL */}
-          <section className="w-[270px] flex flex-col border-l border-border shrink-0 bg-background/50 backdrop-blur-sm animate-in slide-in-from-right duration-200">
+          <section className={cn(
+            "flex flex-col border-l border-border shrink-0 bg-background/50 backdrop-blur-sm transition-all duration-300",
+            isNoteListCollapsed ? "w-0 opacity-0 border-l-0 overflow-hidden" : "w-[270px] opacity-100 animate-in slide-in-from-right duration-200"
+          )}>
             
             {/* Note List Header controls */}
             <div className="h-14 px-4 flex items-center gap-2 border-b border-border/40 shrink-0 select-none">
@@ -857,11 +930,10 @@ export default function App() {
 
               <Button
                 onClick={() => createNote()}
-                className="w-7.5 h-7.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-sm"
                 size="icon"
                 title="Create Note"
               >
-                <Plus className="w-4 h-4" />
+                <Plus data-icon="inline-start" />
               </Button>
             </div>
 
@@ -992,7 +1064,6 @@ export default function App() {
                 variant="outline"
                 size="sm"
                 onClick={handleLocalBackup}
-                className="text-[10px] px-2.5 font-bold transition-all"
               >
                 Export JSON
               </Button>
@@ -1007,7 +1078,6 @@ export default function App() {
                 variant="outline"
                 size="sm"
                 onClick={() => setDarkMode(!darkMode)}
-                className="text-[10px] px-3 font-semibold transition-all"
               >
                 {darkMode ? 'Switch to Light' : 'Switch to Dark'}
               </Button>
@@ -1048,7 +1118,6 @@ export default function App() {
               variant="outline"
               size="sm"
               onClick={() => setShowEmptyTrashConfirm(false)}
-              className="text-xs font-semibold"
             >
               Cancel
             </Button>
