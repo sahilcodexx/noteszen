@@ -12,14 +12,14 @@ import {
   Moon,
   Sun,
   Trash2,
-  Menu,
   ChevronLeft,
   ChevronRight,
   Info,
   Sparkles,
   Command,
   X,
-  CheckCircle
+  CheckCircle,
+  RotateCcw
 } from 'lucide-react'
 
 // UI Components
@@ -357,8 +357,7 @@ export default function App() {
 
         {/* Brand header title */}
         <div className="px-4 py-1.5 flex items-center justify-between no-drag">
-          <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent flex items-center gap-1.5 font-sans tracking-tight">
-            <Sparkles className="w-4 h-4 text-primary" />
+          <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight">
             NotesZen
           </span>
         </div>
@@ -462,390 +461,499 @@ export default function App() {
           </Button>
         </div>
       </aside>
+      {activeFolder === 'trash' ? (
+        <main className="flex-grow flex flex-col min-w-0 bg-background">
+          {/* Trash Header Controls */}
+          <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none bg-background/50 backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              {/* Collapse / Expand Toggle */}
+              {isSidebarCollapsed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSidebar}
+                  className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
+                  title="Expand Sidebar"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              )}
+              {!isSidebarCollapsed && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSidebar}
+                  className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
+                  title="Collapse Sidebar"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              )}
+              
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-destructive" />
+                <h1 className="text-sm font-bold text-foreground">Trash Bin</h1>
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                  {sortedNotes.length} {sortedNotes.length === 1 ? 'item' : 'items'}
+                </Badge>
+              </div>
+            </div>
 
-      {/* 2. NOTE LIST PANEL */}
-      <section className="w-[270px] flex flex-col border-r border-border shrink-0 bg-background/50 backdrop-blur-sm">
-        
-        {/* Note List Header controls */}
-        <div className="h-14 px-4 flex items-center gap-2 border-b border-border/40 shrink-0 select-none">
-          {isSidebarCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
-              title="Expand Sidebar"
-            >
-              <Menu className="w-4 h-4" />
-            </Button>
-          )}
+            <div className="flex items-center gap-3">
+              {/* Local Search inside Trash */}
+              <div className="relative w-48 md:w-64 flex items-center">
+                <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search in trash..."
+                  value={searchQuery}
+                  onChange={(e: any) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
-          <div className="relative flex-grow flex items-center">
-            <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
-            <Input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e: any) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
+              {sortedNotes.length > 0 && (
+                <Button
+                  onClick={() => setShowEmptyTrashConfirm(true)}
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 text-xs font-semibold gap-1.5 px-3 rounded-lg shadow-sm"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Empty Trash
+                </Button>
+              )}
+            </div>
           </div>
 
-          {activeFolder === 'trash' ? (
-            sortedNotes.length > 0 && (
-              <Button
-                onClick={() => setShowEmptyTrashConfirm(true)}
-                className="w-7.5 h-7.5 rounded-full bg-destructive hover:bg-destructive/90 text-destructive-foreground shrink-0 flex items-center justify-center transition-all shadow-sm"
-                size="icon"
-                title="Empty Trash Bin"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            )
-          ) : (
-            <Button
-              onClick={() => createNote()}
-              className="w-7.5 h-7.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-sm"
-              size="icon"
-              title="Create Note"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+          {/* Trash Cards Content Grid */}
+          <ScrollArea className="flex-grow p-6 animate-in fade-in duration-200">
+            {sortedNotes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 mt-16 select-none text-center">
+                <div className="p-4 rounded-full bg-destructive/5 text-destructive/80 mb-4 animate-pulse">
+                  <Trash2 className="w-8 h-8" />
+                </div>
+                <h2 className="text-sm font-bold text-foreground/80 tracking-tight">Trash is empty</h2>
+                <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
+                  Notes you delete will appear here. Trashed notes can be restored or permanently deleted.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
+                {sortedNotes.map((note) => {
+                  const previewText = note.content
+                    ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 160)
+                    : 'No additional text'
+                  const formattedDate = formatRelativeTime(note.updatedAt)
 
-        {/* Note List Items (Shadcn Scroll Area) */}
-        <ScrollArea className="flex-grow py-2">
-          {sortedNotes.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground/60 mt-12 select-none">
-              <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2 opacity-55" />
-              <p className="text-xs font-bold text-foreground/80">No notes found</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Press ⌘N to make a new note</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1 px-2">
-              {sortedNotes.map((note) => {
-                const isSelected = note.id === selectedNoteId
-                const previewText = note.content
-                  ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 80)
-                  : 'No additional text'
-                
-                const formattedDate = formatRelativeTime(note.updatedAt)
-
-                return (
-                  <div
-                    key={note.id}
-                    onClick={() => setSelectedNoteId(note.id)}
-                    className={cn(
-                      "p-3 cursor-pointer relative transition-all rounded-lg border flex flex-col gap-1.5",
-                      isSelected 
-                        ? "bg-card border-border shadow-xs scale-[1.01]" 
-                        : "border-transparent bg-transparent hover:bg-muted/40"
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-1 mb-0.5">
-                      <h3 className={cn(
-                        "font-semibold text-xs truncate flex-grow",
-                        isSelected ? "text-primary" : "text-foreground/90"
-                      )}>
-                        {note.title || 'Untitled Note'}
-                      </h3>
-                      <div className="flex items-center gap-1.5 shrink-0 select-none">
-                        {note.isPinned && (
-                          <Pin className="w-3 h-3 text-primary fill-primary" />
-                        )}
+                  return (
+                    <div
+                      key={note.id}
+                      className="group relative flex flex-col justify-between p-4 rounded-xl border border-border bg-card hover:bg-card/75 hover:border-destructive/30 hover:scale-[1.01] hover:shadow-md transition-all duration-200"
+                    >
+                      <div className="mb-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="font-bold text-xs text-foreground/95 line-clamp-1 flex-grow">
+                            {note.title || 'Untitled Note'}
+                          </h3>
+                          <span className="text-[9px] text-muted-foreground/80 font-medium shrink-0 mt-0.5">
+                            {formattedDate}
+                          </span>
+                        </div>
                         
-                        {activeFolder !== 'trash' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              deleteNote(note.id)
-                            }}
-                            className="opacity-0 group-hover:opacity-100 w-4 h-4 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
-                            title="Move to Trash"
+                        <p className="text-[11px] line-clamp-4 text-muted-foreground leading-normal font-normal break-words">
+                          {previewText}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-2 mt-auto">
+                        {/* Tags inside card if any */}
+                        {note.tags && note.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {note.tags.slice(0, 3).map(tag => (
+                              <Badge 
+                                key={tag}
+                                variant="secondary"
+                                className="text-[8px] h-4 px-1.5 rounded truncate"
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-end gap-1.5 border-t border-border/40 pt-3">
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => restoreNote(note.id)}
+                            className="text-[10px] h-7 font-bold border-primary/20 text-primary hover:bg-primary/5 gap-1"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Restore
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            onClick={() => deleteNote(note.id)}
+                            className="text-[10px] h-7 font-bold border-destructive/20 text-destructive hover:bg-destructive/5 gap-1"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] line-clamp-2 text-muted-foreground leading-normal font-normal">
-                      {previewText}
-                    </p>
-
-                    <div className="flex items-center justify-between select-none mt-1">
-                      <span className="text-[9px] text-muted-foreground/80 font-medium">
-                        {formattedDate}
-                      </span>
-
-                      {/* Tag list within item card */}
-                      {note.tags && note.tags.length > 0 && (
-                        <div className="flex gap-1 max-w-[120px] overflow-hidden">
-                          {note.tags.slice(0, 2).map(tag => (
-                            <Badge 
-                              key={tag}
-                              variant={isSelected ? "outline" : "secondary"}
-                              className="text-[8px] h-4 px-1 rounded truncate"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
+                            Delete
+                          </Button>
                         </div>
-                      )}
-                    </div>
-
-                    {note.folder === 'trash' && (
-                      <div className="absolute right-3.5 top-3.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                        <Button
-                          variant="link"
-                          size="xs"
-                          onClick={() => restoreNote(note.id)}
-                          className="text-[9px] h-auto p-0 text-primary hover:underline font-bold"
-                        >
-                          Restore
-                        </Button>
-                        <Button
-                          variant="link"
-                          size="xs"
-                          onClick={() => deleteNote(note.id)}
-                          className="text-[9px] h-auto p-0 text-destructive hover:underline font-bold"
-                        >
-                          Delete
-                        </Button>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </ScrollArea>
-      </section>
-
-      {/* 3. MAIN EDITOR PANEL */}
-      <main className="flex-grow flex flex-col min-w-0 bg-background">
-        
-        {/* Editor panel toolbar */}
-        <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none">
-          <div className="flex items-center gap-3">
-            {/* Collapse / Expand Toggle */}
-            {isSidebarCollapsed && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
-                title="Expand Sidebar"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            )}
-            {!isSidebarCollapsed && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
-                title="Collapse Sidebar"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-            )}
-
-            {/* Auto-save indicators */}
-            {activeNote && (
-              <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1.5">
-                {saveStatus === 'saving' ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-                    Autosaving...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5 text-primary/80" />
-                    Saved local
-                  </>
-                )}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Quick Actions trigger command palette */}
-            <Button
-              variant="outline"
-              onClick={() => setCommandPaletteOpen(true)}
-              className="h-8 px-2.5 rounded-lg border-border bg-card/45 text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5 text-xs font-semibold"
-              title="Command Palette (⌘K)"
-            >
-              <Command className="w-3.5 h-3.5" />
-              <kbd className="font-mono text-[9px] bg-secondary/80 px-1 rounded">⌘K</kbd>
-            </Button>
-
-            {activeNote && activeNote.folder !== 'trash' && (
-              <>
-                {/* Pin note */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => togglePin(activeNote.id)}
-                  className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
-                    ${activeNote.isPinned ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
-                  title="Pin Note (⌘P)"
-                >
-                  <Pin className={`w-4 h-4 ${activeNote.isPinned ? 'fill-primary' : ''}`} />
-                </Button>
-
-                {/* Favorite Note */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => toggleFavorite(activeNote.id)}
-                  className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
-                    ${activeNote.isFavorite ? 'text-amber-500 hover:bg-amber-500/8' : 'text-muted-foreground hover:text-foreground'}`}
-                  title="Favorite Note"
-                >
-                  <Star className={`w-4 h-4 ${activeNote.isFavorite ? 'fill-amber-500' : ''}`} />
-                </Button>
-
-                {/* Archive Note */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => toggleArchive(activeNote.id)}
-                  className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
-                    ${activeNote.isArchived ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
-                  title="Archive Note"
-                >
-                  <Archive className={`w-4 h-4 ${activeNote.isArchived ? 'fill-primary' : ''}`} />
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Note Editor Area */}
-        {activeNote ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {activeNote.folder === 'trash' && (
-              <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4 text-destructive/80 animate-pulse" />
-                  <span>This note is in the Trash. Restore it to edit.</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Button 
-                    size="xs" 
-                    variant="outline" 
-                    className="h-6 text-[10px] border-destructive/25 text-destructive hover:bg-destructive/10 font-bold bg-transparent" 
-                    onClick={() => restoreNote(activeNote.id)}
-                  >
-                    Restore
-                  </Button>
-                  <Button 
-                    size="xs" 
-                    variant="destructive" 
-                    className="h-6 text-[10px] font-bold" 
-                    onClick={() => {
-                      deleteNote(activeNote.id)
-                    }}
-                  >
-                    Delete Permanently
-                  </Button>
-                </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
-
-            {/* Big Note Title Input */}
-            <div className="px-10 pt-8 pb-3 shrink-0">
-              <input
-                type="text"
-                placeholder="Untitled Note"
-                value={activeNote.title}
-                onChange={(e: any) => updateNote(activeNote.id, { title: e.target.value })}
-                disabled={activeNote.folder === 'trash'}
-                className="w-full bg-transparent text-2xl font-bold border-0 shadow-none outline-none placeholder-muted-foreground/50 focus:ring-0 focus:ring-offset-0 p-0 text-foreground tracking-tight"
-              />
-
-              {/* Tags editor row */}
-              <div className="flex items-center flex-wrap gap-1.5 mt-3 select-none">
-                <Tag className="w-3.5 h-3.5 text-muted-foreground/60" />
-                {activeNote.tags && activeNote.tags.map(t => (
-                  <span 
-                    key={t}
-                    className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/10"
+          </ScrollArea>
+        </main>
+      ) : (
+        <>
+          {/* 3. MAIN EDITOR PANEL */}
+          <main className="flex-grow flex flex-col min-w-0 bg-background">
+            
+            {/* Editor panel toolbar */}
+            <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none">
+              <div className="flex items-center gap-3">
+                {/* Collapse / Expand Toggle */}
+                {isSidebarCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSidebar}
+                    className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
+                    title="Expand Sidebar"
                   >
-                    {t}
-                    {activeNote.folder !== 'trash' && (
-                      <button 
-                        onClick={() => handleRemoveTagFromActiveNote(t)}
-                        className="hover:text-primary/70 transition-colors"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                )}
+                {!isSidebarCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSidebar}
+                    className="w-8 h-8 rounded-lg text-muted-foreground hover:bg-secondary"
+                    title="Collapse Sidebar"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                )}
+
+                {/* Auto-save indicators */}
+                {activeNote && (
+                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1.5">
+                    {saveStatus === 'saving' ? (
+                      <>
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
+                        Autosaving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-3.5 h-3.5 text-primary/80" />
+                        Saved local
+                      </>
                     )}
                   </span>
-                ))}
+                )}
+              </div>
 
-                {activeNote.folder !== 'trash' && (
-                  <form onSubmit={handleAddTagToActiveNote} className="inline-flex items-center">
-                    <input
-                      type="text"
-                      placeholder="Add tag..."
-                      value={tagFilterInput}
-                      onChange={(e) => setTagFilterInput(e.target.value)}
-                      className="border-none bg-transparent text-[11px] text-muted-foreground outline-none w-16 focus:w-24 transition-all focus:ring-0 placeholder-muted-foreground/60 py-0"
-                    />
-                  </form>
+              <div className="flex items-center gap-2">
+                {/* Quick Actions trigger command palette */}
+                <Button
+                  variant="outline"
+                  onClick={() => setCommandPaletteOpen(true)}
+                  className="h-8 px-2.5 rounded-lg border-border bg-card/45 text-muted-foreground hover:text-foreground hover:bg-secondary flex items-center gap-1.5 text-xs font-semibold"
+                  title="Command Palette (⌘K)"
+                >
+                  <Command className="w-3.5 h-3.5" />
+                  <kbd className="font-mono text-[9px] bg-secondary/80 px-1 rounded">⌘K</kbd>
+                </Button>
+
+                {activeNote && activeNote.folder !== 'trash' && (
+                  <>
+                    {/* Pin note */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => togglePin(activeNote.id)}
+                      className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
+                        ${activeNote.isPinned ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
+                      title="Pin Note (⌘P)"
+                    >
+                      <Pin className={`w-4 h-4 ${activeNote.isPinned ? 'fill-primary' : ''}`} />
+                    </Button>
+
+                    {/* Favorite Note */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toggleFavorite(activeNote.id)}
+                      className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
+                        ${activeNote.isFavorite ? 'text-amber-500 hover:bg-amber-500/8' : 'text-muted-foreground hover:text-foreground'}`}
+                      title="Favorite Note"
+                    >
+                      <Star className={`w-4 h-4 ${activeNote.isFavorite ? 'fill-amber-500' : ''}`} />
+                    </Button>
+
+                    {/* Archive Note */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toggleArchive(activeNote.id)}
+                      className={`w-8 h-8 rounded-lg border-border bg-card/45 hover:bg-secondary
+                        ${activeNote.isArchived ? 'text-primary hover:bg-primary/8' : 'text-muted-foreground hover:text-foreground'}`}
+                      title="Archive Note"
+                    >
+                      <Archive className={`w-4 h-4 ${activeNote.isArchived ? 'fill-primary' : ''}`} />
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* TipTap Rich Editor */}
-            <Editor />
-          </div>
-        ) : (
-          /* Premium Empty state */
-          <div className="flex-1 flex flex-col items-center justify-center p-8 select-none">
-            <div className="p-4 rounded-full bg-primary/5 text-primary mb-4 animate-pulse">
-              <Sparkles className="w-7 h-7" />
-            </div>
-            <h2 className="text-sm font-bold text-foreground/80 tracking-tight">Focus your thoughts</h2>
-            <p className="text-xs text-muted-foreground max-w-sm text-center mb-6 leading-relaxed">
-              Create a new note or start a Daily log inbox. Everything is saved locally.
-            </p>
+            {/* Note Editor Area */}
+            {activeNote ? (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {activeNote.folder === 'trash' && (
+                  <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4 text-destructive/80 animate-pulse" />
+                      <span>This note is in the Trash. Restore it to edit.</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button 
+                        size="xs" 
+                        variant="outline" 
+                        className="h-6 text-[10px] border-destructive/25 text-destructive hover:bg-destructive/10 font-bold bg-transparent" 
+                        onClick={() => restoreNote(activeNote.id)}
+                      >
+                        Restore
+                      </Button>
+                      <Button 
+                        size="xs" 
+                        variant="destructive" 
+                        className="h-6 text-[10px] font-bold" 
+                        onClick={() => {
+                          deleteNote(activeNote.id)
+                        }}
+                      >
+                        Delete Permanently
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-            <div className="w-[300px] border border-border/50 rounded-xl bg-card p-4 flex flex-col gap-2.5 text-[11px] text-muted-foreground shadow-xs">
-              <div className="flex items-center justify-between py-1 border-b border-border/40">
-                <span>New Note</span>
-                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘N</kbd>
+                {/* Big Note Title Input */}
+                <div className="px-10 pt-8 pb-3 shrink-0">
+                  <input
+                    type="text"
+                    placeholder="Untitled Note"
+                    value={activeNote.title}
+                    onChange={(e: any) => updateNote(activeNote.id, { title: e.target.value })}
+                    disabled={activeNote.folder === 'trash'}
+                    className="w-full bg-transparent text-2xl font-bold border-0 shadow-none outline-none placeholder-muted-foreground/50 focus:ring-0 focus:ring-offset-0 p-0 text-foreground tracking-tight"
+                  />
+
+                  {/* Tags editor row */}
+                  <div className="flex items-center flex-wrap gap-1.5 mt-3 select-none">
+                    <Tag className="w-3.5 h-3.5 text-muted-foreground/60" />
+                    {activeNote.tags && activeNote.tags.map(t => (
+                      <span 
+                        key={t}
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/10"
+                      >
+                        {t}
+                        {activeNote.folder !== 'trash' && (
+                          <button 
+                            onClick={() => handleRemoveTagFromActiveNote(t)}
+                            className="hover:text-primary/70 transition-colors"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </span>
+                    ))}
+
+                    {activeNote.folder !== 'trash' && (
+                      <form onSubmit={handleAddTagToActiveNote} className="inline-flex items-center">
+                        <input
+                          type="text"
+                          placeholder="Add tag..."
+                          value={tagFilterInput}
+                          onChange={(e) => setTagFilterInput(e.target.value)}
+                          className="border-none bg-transparent text-[11px] text-muted-foreground outline-none w-16 focus:w-24 transition-all focus:ring-0 placeholder-muted-foreground/60 py-0"
+                        />
+                      </form>
+                    )}
+                  </div>
+                </div>
+
+                {/* TipTap Rich Editor */}
+                <Editor />
               </div>
-              <div className="flex items-center justify-between py-1 border-b border-border/40">
-                <span>Daily Log</span>
-                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘D</kbd>
+            ) : (
+              /* Premium Empty state */
+              <div className="flex-1 flex flex-col items-center justify-center p-8 select-none">
+                <h2 className="text-sm font-bold text-foreground/80 tracking-tight mb-6">Create a new note</h2>
+
+                <div className="w-[320px] border border-border/50 rounded-xl bg-card p-5 flex flex-col gap-3 text-xs text-muted-foreground shadow-sm animate-in fade-in duration-300">
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                    <span className="font-medium text-foreground/80">New Note</span>
+                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘N</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                    <span className="font-medium text-foreground/80">Daily Note</span>
+                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘D</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                    <span className="font-medium text-foreground/80">Command Palette</span>
+                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘K</kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="font-medium text-foreground/80">Global Search</span>
+                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧F</kbd>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-between py-1 border-b border-border/40">
-                <span>Command Palette</span>
-                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘K</kbd>
+            )}
+          </main>
+
+          {/* 2. NOTE LIST PANEL */}
+          <section className="w-[270px] flex flex-col border-l border-border shrink-0 bg-background/50 backdrop-blur-sm animate-in slide-in-from-right duration-200">
+            
+            {/* Note List Header controls */}
+            <div className="h-14 px-4 flex items-center gap-2 border-b border-border/40 shrink-0 select-none">
+              <div className="relative flex-grow flex items-center">
+                <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e: any) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
               </div>
-              <div className="flex items-center justify-between py-1">
-                <span>Global Search</span>
-                <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[10px] shadow-xs">⌘⇧F</kbd>
-              </div>
+
+              <Button
+                onClick={() => createNote()}
+                className="w-7.5 h-7.5 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-sm"
+                size="icon"
+                title="Create Note"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
             </div>
-          </div>
-        )}
-      </main>
+
+            {/* Note List Items (Shadcn Scroll Area) */}
+            <ScrollArea className="flex-grow py-2">
+              {sortedNotes.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground/60 mt-12 select-none">
+                  <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2 opacity-55" />
+                  <p className="text-xs font-bold text-foreground/80">No notes found</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">Press ⌘N to make a new note</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1 px-2">
+                  {sortedNotes.map((note) => {
+                    const isSelected = note.id === selectedNoteId
+                    const previewText = note.content
+                      ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 80)
+                      : 'No additional text'
+                    
+                    const formattedDate = formatRelativeTime(note.updatedAt)
+
+                    return (
+                      <div
+                        key={note.id}
+                        onClick={() => setSelectedNoteId(note.id)}
+                        className={cn(
+                          "p-3 cursor-pointer relative transition-all rounded-lg border flex flex-col gap-1.5",
+                          isSelected 
+                            ? "bg-card border-border shadow-xs scale-[1.01]" 
+                            : "border-transparent bg-transparent hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-1 mb-0.5">
+                          <h3 className={cn(
+                            "font-semibold text-xs truncate flex-grow",
+                            isSelected ? "text-primary" : "text-foreground/90"
+                          )}>
+                            {note.title || 'Untitled Note'}
+                          </h3>
+                          <div className="flex items-center gap-1.5 shrink-0 select-none">
+                            {note.isPinned && (
+                              <Pin className="w-3 h-3 text-primary fill-primary" />
+                            )}
+                            
+                            {activeFolder !== 'trash' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteNote(note.id)
+                                }}
+                                className="opacity-0 group-hover:opacity-100 w-4 h-4 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
+                                title="Move to Trash"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] line-clamp-2 text-muted-foreground leading-normal font-normal">
+                          {previewText}
+                        </p>
+
+                        <div className="flex items-center justify-between select-none mt-1">
+                          <span className="text-[9px] text-muted-foreground/80 font-medium">
+                            {formattedDate}
+                          </span>
+
+                          {/* Tag list within item card */}
+                          {note.tags && note.tags.length > 0 && (
+                            <div className="flex gap-1 max-w-[120px] overflow-hidden">
+                              {note.tags.slice(0, 2).map(tag => (
+                                <Badge 
+                                  key={tag}
+                                  variant={isSelected ? "outline" : "secondary"}
+                                  className="text-[8px] h-4 px-1 rounded truncate"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+          </section>
+        </>
+      )}
 
       {/* OVERLAY MENUS & ONBOARDINGS */}
       <CommandPalette />
