@@ -19,7 +19,8 @@ import {
   X,
   CheckCircle,
   RotateCcw,
-  Menu
+  ChevronsLeftRight,
+  MoreHorizontal
 } from 'lucide-react'
 
 // UI Components
@@ -29,6 +30,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu'
 
 // App Components
 import Editor from './components/Editor'
@@ -87,6 +96,7 @@ export default function App() {
     isCommandPaletteOpen,
     isGlobalSearchOpen,
     saveStatus,
+    isZenMode,
     fetchNotes,
     setSelectedNoteId,
     setSearchQuery,
@@ -99,6 +109,10 @@ export default function App() {
     createNote,
     createDailyNote,
     togglePin,
+    editorFont,
+    editorFontSize,
+    setEditorFont,
+    setEditorFontSize,
     toggleFavorite,
     toggleArchive,
     deleteNote,
@@ -113,6 +127,38 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(true)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Hover states for temporary right sidebar opening
+  const [isNoteListHoveredOpen, setIsNoteListHoveredOpen] = useState(false)
+  const hoverTimeoutRef = useRef<any>(null)
+
+  const handleMouseEnterTrigger = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsNoteListHoveredOpen(true)
+    }, 150)
+  }
+
+  const handleMouseLeaveTrigger = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+  }
+
+  const handleMouseEnterSidebar = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+  }
+
+  const handleMouseLeaveSidebar = () => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsNoteListHoveredOpen(false)
+    }, 200)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    }
+  }, [])
 
   // Load notes on mount
   useEffect(() => {
@@ -201,6 +247,8 @@ export default function App() {
     return notes.find(n => n.id === selectedNoteId) || null
   }, [notes, selectedNoteId])
 
+
+
   // Sync selected note when active view changes
   useEffect(() => {
     if (activeFolder === 'trash' || activeFolder === 'archive') {
@@ -265,6 +313,7 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'b') {
         e.preventDefault()
         toggleNoteList()
+        setIsNoteListHoveredOpen(false)
       }
       // 8. Alt + ArrowUp / ArrowDown (Navigate list notes)
       if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -330,13 +379,17 @@ export default function App() {
   }
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
+    <div className={`relative flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
       
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <aside 
         className={cn(
           "flex flex-col border-r border-border shrink-0 drag-region transition-all duration-300 backdrop-blur-md bg-sidebar overflow-hidden",
-          isSidebarCollapsed ? 'w-[80px]' : 'w-[220px]'
+          isZenMode 
+            ? 'w-0 border-r-0 opacity-0' 
+            : isSidebarCollapsed 
+              ? 'w-[80px]' 
+              : 'w-[220px]'
         )}
       >
         {/* macOS Custom Traffic lights window triggers */}
@@ -668,7 +721,10 @@ export default function App() {
           <main className="flex-grow flex flex-col min-w-0 bg-background">
             
             {/* Editor panel toolbar */}
-            <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none">
+            <div className={cn(
+              "px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none transition-all duration-300 overflow-hidden",
+              isZenMode ? "h-0 opacity-0 border-b-0 py-0" : "h-14"
+            )}>
               <div className="flex items-center gap-3">
                 {/* Collapse / Expand Toggle */}
                 {isSidebarCollapsed && (
@@ -776,7 +832,10 @@ export default function App() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={toggleNoteList}
+                  onClick={() => {
+                    toggleNoteList()
+                    setIsNoteListHoveredOpen(false)
+                  }}
                   className="text-muted-foreground hover:text-foreground"
                   title={isNoteListCollapsed ? "Expand Note List (⌘⇧B)" : "Collapse Note List (⌘⇧B)"}
                 >
@@ -900,41 +959,81 @@ export default function App() {
             )}
           </main>
 
+          {!isZenMode && isNoteListCollapsed && !isNoteListHoveredOpen && (
+            <div 
+              className="absolute right-0 top-0 bottom-0 w-3.5 z-40"
+              onMouseEnter={handleMouseEnterTrigger}
+              onMouseLeave={handleMouseLeaveTrigger}
+            />
+          )}
+
           {/* 2. NOTE LIST PANEL */}
-          <section className={cn(
-            "flex flex-col border-l border-border shrink-0 bg-background/50 backdrop-blur-sm transition-all duration-300",
-            isNoteListCollapsed ? "w-0 opacity-0 border-l-0 overflow-hidden" : "w-[270px] opacity-100 animate-in slide-in-from-right duration-200"
-          )}>
+          <section 
+            className={cn(
+              "flex flex-col border-l border-border shrink-0 transition-all duration-300",
+              isZenMode
+                ? "w-0 opacity-0 border-l-0 overflow-hidden"
+                : isNoteListCollapsed && isNoteListHoveredOpen
+                  ? "absolute right-0 top-0 bottom-0 z-40 w-[270px] opacity-100 shadow-2xl bg-background/95 backdrop-blur-md h-full animate-in slide-in-from-right duration-200"
+                  : !isNoteListCollapsed
+                    ? "relative w-[270px] opacity-100 bg-background/50 backdrop-blur-sm animate-in slide-in-from-right duration-200"
+                    : "w-0 opacity-0 border-l-0 overflow-hidden"
+            )}
+            onMouseEnter={handleMouseEnterSidebar}
+            onMouseLeave={handleMouseLeaveSidebar}
+          >
             
             {/* Note List Header controls */}
-            <div className="h-14 px-4 flex items-center gap-2 border-b border-border/40 shrink-0 select-none">
-              <div className="relative flex-grow flex items-center">
-                <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e: any) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
+            <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 shrink-0 select-none">
               <Button
-                onClick={() => createNote()}
+                variant="ghost"
                 size="icon"
-                title="Create Note"
+                onClick={() => {
+                  toggleNoteList()
+                  setIsNoteListHoveredOpen(false)
+                }}
+                className="text-muted-foreground hover:text-foreground h-8 w-8"
+                title="Collapse Note List (⌘⇧B)"
               >
-                <Plus data-icon="inline-start" />
+                <ChevronsLeftRight className="w-4 h-4" />
               </Button>
+
+              <span className="text-[11px] font-bold tracking-wider text-muted-foreground/80 uppercase">
+                Notes
+              </span>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground h-8 w-8"
+                    title="Actions"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel>List Actions</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => createNote()}>
+                    <Plus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    New Note
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => createDailyNote()}>
+                    <Calendar className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    Daily Note
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setCommandPaletteOpen(true)}>
+                    <Command className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    Command Menu
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setGlobalSearchOpen(true)}>
+                    <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    Global Search
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Note List Items (Shadcn Scroll Area) */}
@@ -1023,6 +1122,37 @@ export default function App() {
                 </div>
               )}
             </ScrollArea>
+
+            {/* Note List Footer controls */}
+            <div className="h-14 px-4 flex items-center gap-2 border-t border-border/40 shrink-0 select-none bg-background/20">
+              <div className="relative flex-grow flex items-center">
+                <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
+                <Input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e: any) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              <Button
+                onClick={() => createNote()}
+                size="icon"
+                title="Create Note"
+              >
+                <Plus data-icon="inline-start" />
+              </Button>
+            </div>
           </section>
         </>
       )}
@@ -1071,17 +1201,52 @@ export default function App() {
 
             <div className="flex items-center justify-between border-b pb-3 border-border">
               <div>
-                <p className="text-xs font-semibold">Appearance Theme</p>
-                <p className="text-[10px] text-muted-foreground">Switch editor theme interface</p>
+                <p className="text-xs font-semibold">Interface Theme</p>
+                <p className="text-[10px] text-muted-foreground">Toggle light or dark modes</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setDarkMode(!darkMode)}
               >
-                {darkMode ? 'Switch to Light' : 'Switch to Dark'}
+                {darkMode ? 'Light Mode' : 'Dark Mode'}
               </Button>
             </div>
+
+            <div className="flex items-center justify-between border-b pb-3 border-border">
+              <div>
+                <p className="text-xs font-semibold">Editor Font Family</p>
+                <p className="text-[10px] text-muted-foreground">Select note writing typeface</p>
+              </div>
+              <select
+                value={editorFont}
+                onChange={(e: any) => setEditorFont(e.target.value)}
+                className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none max-w-[140px] font-medium"
+              >
+                <option value="sans">Geist Sans</option>
+                <option value="serif">Georgia Serif</option>
+                <option value="mono">Geist Mono</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between border-b pb-3 border-border">
+              <div>
+                <p className="text-xs font-semibold">Editor Font Size</p>
+                <p className="text-[10px] text-muted-foreground">Adjust document reading scale</p>
+              </div>
+              <select
+                value={editorFontSize}
+                onChange={(e: any) => setEditorFontSize(e.target.value)}
+                className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none max-w-[140px] font-medium"
+              >
+                <option value="xs">12px (Compact)</option>
+                <option value="sm">14px (Normal)</option>
+                <option value="base">16px (Medium)</option>
+                <option value="lg">18px (Large)</option>
+                <option value="xl">20px (Readable)</option>
+              </select>
+            </div>
+
 
             <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted border border-border">
               <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />

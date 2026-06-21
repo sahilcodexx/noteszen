@@ -257,3 +257,33 @@ body {
     @apply font-sans;
   }
 }
+
+/* Custom Editor Typography and Font Sizing overrides */
+.ProseMirror {
+  outline: none;
+}
+.editor-font-sans .ProseMirror {
+  font-family: 'Geist Variable', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+.editor-font-serif .ProseMirror {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif !important;
+}
+.editor-font-mono .ProseMirror {
+  font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+.editor-size-xs .ProseMirror {
+  font-size: 12px !important;
+}
+.editor-size-sm .ProseMirror {
+  font-size: 14px !important;
+}
+.editor-size-base .ProseMirror {
+  font-size: 16px !important;
+}
+.editor-size-lg .ProseMirror {
+  font-size: 18px !important;
+}
+.editor-size-xl .ProseMirror {
+  font-size: 20px !important;
+}

@@ -12,6 +12,11 @@ interface NotesState {
   isCommandPaletteOpen: boolean
   isGlobalSearchOpen: boolean
   saveStatus: 'saved' | 'saving' | 'error'
+  isZenMode: boolean
+  
+  // Preferences
+  editorFont: 'sans' | 'serif' | 'mono'
+  editorFontSize: 'xs' | 'sm' | 'base' | 'lg' | 'xl'
   
   // Actions
   fetchNotes: () => Promise<void>
@@ -24,6 +29,10 @@ interface NotesState {
   setCommandPaletteOpen: (open: boolean) => void
   setGlobalSearchOpen: (open: boolean) => void
   setSaveStatus: (status: 'saved' | 'saving' | 'error') => void
+  setZenMode: (zen: boolean) => void
+  
+  setEditorFont: (font: 'sans' | 'serif' | 'mono') => void
+  setEditorFontSize: (size: 'xs' | 'sm' | 'base' | 'lg' | 'xl') => void
   
   createNote: (initialFields?: Partial<Note>) => void
   createDailyNote: () => void
@@ -67,6 +76,9 @@ function persistNote(note: Note, notesList: Note[]) {
   }
 }
 
+const initialEditorFont = (localStorage.getItem('noteszen-pref-font') || 'sans') as 'sans' | 'serif' | 'mono'
+const initialEditorFontSize = (localStorage.getItem('noteszen-pref-size') || 'sm') as 'xs' | 'sm' | 'base' | 'lg' | 'xl'
+
 export const useNotesStore = create<NotesState>((set, get) => ({
   notes: [],
   selectedNoteId: null,
@@ -78,6 +90,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   isCommandPaletteOpen: false,
   isGlobalSearchOpen: false,
   saveStatus: 'saved',
+  isZenMode: false,
+  
+  editorFont: initialEditorFont,
+  editorFontSize: initialEditorFontSize,
 
   fetchNotes: async () => {
     if (window.electronAPI) {
@@ -114,6 +130,16 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setGlobalSearchOpen: (open) => set({ isGlobalSearchOpen: open }),
   setSaveStatus: (status) => set({ saveStatus: status }),
+  setZenMode: (zen) => set({ isZenMode: zen }),
+  
+  setEditorFont: (font) => {
+    localStorage.setItem('noteszen-pref-font', font)
+    set({ editorFont: font })
+  },
+  setEditorFontSize: (size) => {
+    localStorage.setItem('noteszen-pref-size', size)
+    set({ editorFontSize: size })
+  },
 
   createNote: (initialFields = {}) => {
     const activeFolder = get().activeFolder
