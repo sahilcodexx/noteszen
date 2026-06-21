@@ -16,7 +16,7 @@ interface NotesState {
   
   // Preferences
   editorFont: 'sans' | 'serif' | 'mono'
-  editorFontSize: 'xs' | 'sm' | 'base' | 'lg' | 'xl'
+  editorFontSize: number
   
   // Actions
   fetchNotes: () => Promise<void>
@@ -32,7 +32,7 @@ interface NotesState {
   setZenMode: (zen: boolean) => void
   
   setEditorFont: (font: 'sans' | 'serif' | 'mono') => void
-  setEditorFontSize: (size: 'xs' | 'sm' | 'base' | 'lg' | 'xl') => void
+  setEditorFontSize: (size: number) => void
   
   createNote: (initialFields?: Partial<Note>) => void
   createDailyNote: () => void
@@ -77,7 +77,16 @@ function persistNote(note: Note, notesList: Note[]) {
 }
 
 const initialEditorFont = (localStorage.getItem('noteszen-pref-font') || 'sans') as 'sans' | 'serif' | 'mono'
-const initialEditorFontSize = (localStorage.getItem('noteszen-pref-size') || 'sm') as 'xs' | 'sm' | 'base' | 'lg' | 'xl'
+const initialEditorFontSize = (() => {
+  const stored = localStorage.getItem('noteszen-pref-size')
+  if (!stored) return 16
+  if (['xs', 'sm', 'base', 'lg', 'xl'].includes(stored)) {
+    const mapping: Record<string, number> = { xs: 12, sm: 14, base: 16, lg: 18, xl: 20 }
+    return mapping[stored] || 16
+  }
+  const parsed = parseInt(stored, 10)
+  return isNaN(parsed) ? 16 : parsed
+})()
 
 export const useNotesStore = create<NotesState>((set, get) => ({
   notes: [],
@@ -85,8 +94,8 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   searchQuery: '',
   activeFolder: 'notes',
   selectedTag: null,
-  isSidebarCollapsed: false,
-  isNoteListCollapsed: false,
+  isSidebarCollapsed: true,
+  isNoteListCollapsed: true,
   isCommandPaletteOpen: false,
   isGlobalSearchOpen: false,
   saveStatus: 'saved',
@@ -137,7 +146,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     set({ editorFont: font })
   },
   setEditorFontSize: (size) => {
-    localStorage.setItem('noteszen-pref-size', size)
+    localStorage.setItem('noteszen-pref-size', String(size))
     set({ editorFontSize: size })
   },
 

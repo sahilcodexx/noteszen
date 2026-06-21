@@ -17,7 +17,6 @@ import {
   Info,
   Command,
   X,
-  CheckCircle,
   RotateCcw,
   ChevronsLeftRight,
   MoreHorizontal
@@ -95,7 +94,6 @@ export default function App() {
     isNoteListCollapsed,
     isCommandPaletteOpen,
     isGlobalSearchOpen,
-    saveStatus,
     isZenMode,
     fetchNotes,
     setSelectedNoteId,
@@ -113,8 +111,6 @@ export default function App() {
     editorFontSize,
     setEditorFont,
     setEditorFontSize,
-    toggleFavorite,
-    toggleArchive,
     deleteNote,
     restoreNote,
     emptyTrash
@@ -152,9 +148,36 @@ export default function App() {
     }, 200)
   }
 
+  // Hover states for temporary left sidebar opening
+  const [isSidebarHoveredOpen, setIsSidebarHoveredOpen] = useState(false)
+  const leftHoverTimeoutRef = useRef<any>(null)
+
+  const handleMouseEnterLeftTrigger = () => {
+    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
+    leftHoverTimeoutRef.current = setTimeout(() => {
+      setIsSidebarHoveredOpen(true)
+    }, 150)
+  }
+
+  const handleMouseLeaveLeftTrigger = () => {
+    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
+  }
+
+  const handleMouseEnterLeftSidebar = () => {
+    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
+  }
+
+  const handleMouseLeaveLeftSidebar = () => {
+    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
+    leftHoverTimeoutRef.current = setTimeout(() => {
+      setIsSidebarHoveredOpen(false)
+    }, 200)
+  }
+
   useEffect(() => {
     return () => {
       if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+      if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
     }
   }, [])
 
@@ -360,19 +383,34 @@ export default function App() {
 
 
 
+  const isLeftSidebarOpen = !isSidebarCollapsed || isSidebarHoveredOpen
+
   return (
     <div className={`relative flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
       
+      {/* Left Sidebar hover trigger zone */}
+      {!isZenMode && isSidebarCollapsed && !isSidebarHoveredOpen && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-3.5 z-40"
+          onMouseEnter={handleMouseEnterLeftTrigger}
+          onMouseLeave={handleMouseLeaveLeftTrigger}
+        />
+      )}
+
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <aside 
         className={cn(
           "flex flex-col border-r border-border shrink-0 drag-region transition-all duration-300 backdrop-blur-md bg-sidebar overflow-hidden",
           isZenMode 
             ? 'w-0 border-r-0 opacity-0' 
-            : isSidebarCollapsed 
-              ? 'w-[80px]' 
-              : 'w-[220px]'
+            : isSidebarCollapsed && isSidebarHoveredOpen
+              ? 'absolute left-0 top-0 bottom-0 z-40 w-[220px] opacity-100 shadow-2xl bg-sidebar/95 h-full animate-in slide-in-from-left duration-200 border-r border-border'
+              : !isSidebarCollapsed
+                ? 'relative w-[220px] opacity-100 bg-sidebar border-r border-border'
+                : 'w-0 border-r-0 opacity-0 overflow-hidden'
         )}
+        onMouseEnter={handleMouseEnterLeftSidebar}
+        onMouseLeave={handleMouseLeaveLeftSidebar}
       >
         {/* macOS Custom Traffic lights window triggers */}
         <div className="h-12 flex items-center pl-5 gap-2 no-drag shrink-0">
@@ -402,9 +440,9 @@ export default function App() {
         {/* Brand header title */}
         <div className={cn(
           "py-1.5 flex items-center no-drag transition-all duration-300",
-          isSidebarCollapsed ? 'px-1 justify-center' : 'px-4 justify-between'
+          !isLeftSidebarOpen ? 'px-1 justify-center' : 'px-4 justify-between'
         )}>
-          {isSidebarCollapsed ? (
+          {!isLeftSidebarOpen ? (
             <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
               NZ
             </span>
@@ -417,7 +455,7 @@ export default function App() {
 
         {/* Sidebar Nav Actions (Shadcn Custom Scroll Container) */}
         <ScrollArea className="flex-grow px-2 py-3 space-y-1.5 no-drag select-none scrollbar-none">
-          {!isSidebarCollapsed && (
+          {isLeftSidebarOpen && (
             <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2 animate-in fade-in duration-200">Views</p>
           )}
           
@@ -442,33 +480,39 @@ export default function App() {
               }).length
 
               return (
-                <Button
+                <button
                   key={folder.id}
-                  variant={isSelected ? 'secondary' : 'ghost'}
                   onClick={() => setActiveFolder(folder.id)}
                   className={cn(
-                    "w-full flex items-center h-8 rounded-lg text-xs font-medium transition-all group/item",
-                    isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'
+                    "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 group/item select-none px-3 justify-between",
+                    isSelected 
+                      ? "bg-primary/8 text-foreground font-bold shadow-xs" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   )}
-                  title={isSidebarCollapsed ? folder.name : undefined}
+                  title={!isLeftSidebarOpen ? folder.name : undefined}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={cn("w-3.5 h-3.5 shrink-0", isSelected ? 'text-primary' : 'text-muted-foreground')} />
-                    {!isSidebarCollapsed && (
-                      <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground'}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Icon className={cn("w-3.5 h-3.5 shrink-0 transition-colors", isSelected ? folder.color : "text-muted-foreground group-hover/item:text-foreground")} />
+                    {isLeftSidebarOpen && (
+                      <span className="truncate">
                         {folder.name}
                       </span>
                     )}
                   </div>
-                  {!isSidebarCollapsed && (
+                  {isLeftSidebarOpen && (
                     <Badge 
                       variant={isSelected ? "default" : "secondary"}
-                      className="text-[9px] font-medium h-4.5 px-1.5"
+                      className={cn(
+                        "text-[9px] font-bold h-4 px-1.5 min-w-[16px] text-center justify-center border-none",
+                        isSelected 
+                          ? "bg-primary/10 text-primary" 
+                          : "bg-muted-foreground/10 text-muted-foreground"
+                      )}
                     >
                       {count}
                     </Badge>
                   )}
-                </Button>
+                </button>
               )
             })}
           </div>
@@ -476,7 +520,7 @@ export default function App() {
           {/* Sidebar Tags view */}
           {allTags.length > 0 && (
             <div className="pt-4 space-y-1">
-              {!isSidebarCollapsed && (
+              {isLeftSidebarOpen && (
                 <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2 animate-in fade-in duration-200">Tags</p>
               )}
               {allTags.map((tag) => {
@@ -484,33 +528,39 @@ export default function App() {
                 const tagCount = notes.filter(n => n.folder !== 'trash' && n.tags && n.tags.includes(tag)).length
                 
                 return (
-                  <Button
+                  <button
                     key={tag}
-                    variant={isSelected ? 'secondary' : 'ghost'}
                     onClick={() => setSelectedTag(tag)}
                     className={cn(
-                      "w-full flex items-center h-8 rounded-lg text-xs font-medium transition-all group/item",
-                      isSidebarCollapsed ? 'justify-center px-0' : 'justify-between px-3'
+                      "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 group/item select-none px-3 justify-between",
+                      isSelected 
+                        ? "bg-primary/8 text-foreground font-bold shadow-xs" 
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     )}
-                    title={isSidebarCollapsed ? tag : undefined}
+                    title={!isLeftSidebarOpen ? tag : undefined}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Tag className={cn("w-3.5 h-3.5 shrink-0", isSelected ? 'text-primary' : 'text-muted-foreground')} />
-                      {!isSidebarCollapsed && (
-                        <span className={isSelected ? 'text-foreground font-semibold' : 'text-muted-foreground group-hover/item:text-foreground truncate max-w-[120px]'}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Tag className={cn("w-3.5 h-3.5 shrink-0 transition-colors", isSelected ? "text-primary" : "text-muted-foreground group-hover/item:text-foreground")} />
+                      {isLeftSidebarOpen && (
+                        <span className="truncate">
                           {tag}
                         </span>
                       )}
                     </div>
-                    {!isSidebarCollapsed && (
+                    {isLeftSidebarOpen && (
                       <Badge 
                         variant={isSelected ? "default" : "secondary"}
-                        className="text-[9px] font-medium h-4.5 px-1.5"
+                        className={cn(
+                          "text-[9px] font-bold h-4 px-1.5 min-w-[16px] text-center justify-center border-none",
+                          isSelected 
+                            ? "bg-primary/10 text-primary" 
+                            : "bg-muted-foreground/10 text-muted-foreground"
+                        )}
                       >
                         {tagCount}
                       </Badge>
                     )}
-                  </Button>
+                  </button>
                 )
               })}
             </div>
@@ -520,7 +570,7 @@ export default function App() {
         {/* Sidebar settings controls */}
         <div className={cn(
           "p-4 border-t border-border/40 no-drag flex shrink-0 select-none bg-sidebar/80 backdrop-blur-md transition-all duration-300",
-          isSidebarCollapsed ? 'flex-col items-center gap-3 px-2 py-4' : 'flex-row items-center justify-between'
+          !isLeftSidebarOpen ? 'flex-col items-center gap-3 px-2 py-4' : 'flex-row items-center justify-between'
         )}>
           <Button
             variant="ghost"
@@ -534,13 +584,13 @@ export default function App() {
 
           <Button
             variant="ghost"
-            size={isSidebarCollapsed ? "icon" : "default"}
+            size={!isLeftSidebarOpen ? "icon" : "default"}
             onClick={() => setShowSettings(true)}
             className="text-muted-foreground hover:text-foreground shrink-0"
             title="Settings"
           >
             <Settings className="w-4 h-4" />
-            {!isSidebarCollapsed && <span>Settings</span>}
+            {isLeftSidebarOpen && <span>Settings</span>}
           </Button>
         </div>
       </aside>
@@ -702,134 +752,6 @@ export default function App() {
           {/* 3. MAIN EDITOR PANEL */}
           <main className="flex-grow flex flex-col min-w-0 bg-background">
             
-            {/* Editor panel toolbar */}
-            <div className={cn(
-              "px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none transition-all duration-300 overflow-hidden",
-              isZenMode ? "h-0 opacity-0 border-b-0 py-0" : "h-14"
-            )}>
-              <div className="flex items-center gap-3">
-                {/* Collapse / Expand Toggle */}
-                {isSidebarCollapsed && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleSidebar}
-                    className="text-muted-foreground hover:text-foreground"
-                    title="Expand Sidebar"
-                  >
-                    <ChevronRight data-icon="inline-start" />
-                  </Button>
-                )}
-                {!isSidebarCollapsed && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={toggleSidebar}
-                    className="text-muted-foreground hover:text-foreground"
-                    title="Collapse Sidebar"
-                  >
-                    <ChevronLeft data-icon="inline-start" />
-                  </Button>
-                )}
-
-                {/* Auto-save indicators */}
-                {activeNote && (
-                  <span className="text-[10px] text-muted-foreground font-semibold flex items-center gap-1.5">
-                    {saveStatus === 'saving' ? (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>
-                        Autosaving...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-3.5 h-3.5 text-primary/80" />
-                        Saved local
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Quick Actions trigger command palette */}
-                <Button
-                  variant="outline"
-                  onClick={() => setCommandPaletteOpen(true)}
-                  title="Command Palette (⌘K)"
-                >
-                  <Command data-icon="inline-start" />
-                  <kbd className="font-mono text-[9px] bg-secondary/80 px-1 rounded ml-1">⌘K</kbd>
-                </Button>
-
-                {activeNote && activeNote.folder !== 'trash' && (
-                  <>
-                    {/* Pin note */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => togglePin(activeNote.id)}
-                      className={cn(
-                        activeNote.isPinned 
-                          ? "text-primary bg-primary/10 hover:bg-primary/20" 
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                      title="Pin Note (⌘P)"
-                    >
-                      <Pin className={cn(activeNote.isPinned && "fill-primary")} data-icon="inline-start" />
-                    </Button>
-
-                    {/* Favorite Note */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => toggleFavorite(activeNote.id)}
-                      className={cn(
-                        activeNote.isFavorite 
-                          ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20" 
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                      title="Favorite Note"
-                    >
-                      <Star className={cn(activeNote.isFavorite && "fill-amber-500")} data-icon="inline-start" />
-                    </Button>
-
-                    {/* Archive Note */}
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => toggleArchive(activeNote.id)}
-                      className={cn(
-                        activeNote.isArchived 
-                          ? "text-primary bg-primary/10 hover:bg-primary/20" 
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                      title="Archive Note"
-                    >
-                      <Archive className={cn(activeNote.isArchived && "fill-primary")} data-icon="inline-start" />
-                    </Button>
-                  </>
-                )}
-
-                {/* Toggle Note List (Right Sidebar) */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    toggleNoteList()
-                    setIsNoteListHoveredOpen(false)
-                  }}
-                  className="text-muted-foreground hover:text-foreground"
-                  title={isNoteListCollapsed ? "Expand Note List (⌘⇧B)" : "Collapse Note List (⌘⇧B)"}
-                >
-                  {isNoteListCollapsed ? (
-                    <ChevronLeft className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
             {/* Note Editor Area */}
             {activeNote ? (
               <div className="flex-1 flex flex-col overflow-hidden">
@@ -1168,20 +1090,25 @@ export default function App() {
 
             <div className="flex items-center justify-between border-b pb-3 border-border">
               <div>
-                <p className="text-xs font-semibold">Editor Font Size</p>
-                <p className="text-[10px] text-muted-foreground">Adjust document reading scale</p>
+                <p className="text-xs font-semibold">Editor Font Size (px)</p>
+                <p className="text-[10px] text-muted-foreground">Adjust document scale between 14px and 128px</p>
               </div>
-              <select
-                value={editorFontSize}
-                onChange={(e: any) => setEditorFontSize(e.target.value)}
-                className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none max-w-[140px] font-medium"
-              >
-                <option value="xs">12px (Compact)</option>
-                <option value="sm">14px (Normal)</option>
-                <option value="base">16px (Medium)</option>
-                <option value="lg">18px (Large)</option>
-                <option value="xl">20px (Readable)</option>
-              </select>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={14}
+                  max={128}
+                  value={editorFontSize}
+                  onChange={(e: any) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    if (!isNaN(parsed)) {
+                      setEditorFontSize(Math.max(14, Math.min(128, parsed)))
+                    }
+                  }}
+                  className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none w-20 font-semibold text-center"
+                />
+                <span className="text-xs text-muted-foreground font-semibold">px</span>
+              </div>
             </div>
 
 
