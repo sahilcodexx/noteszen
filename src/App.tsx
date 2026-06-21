@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import {
   FileText,
   Star,
@@ -117,12 +117,10 @@ export default function App() {
     toggleArchive,
     deleteNote,
     restoreNote,
-    updateNote,
     emptyTrash
   } = useNotesStore()
 
   // Local React states
-  const [tagFilterInput, setTagFilterInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
@@ -360,23 +358,7 @@ export default function App() {
     }
   }
 
-  // Tags list update helper
-  const handleAddTagToActiveNote = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!activeNote || !tagFilterInput.trim()) return
-    const tag = tagFilterInput.trim().toLowerCase()
-    if (!activeNote.tags.includes(tag)) {
-      const updatedTags = [...activeNote.tags, tag]
-      updateNote(activeNote.id, { tags: updatedTags })
-    }
-    setTagFilterInput('')
-  }
 
-  const handleRemoveTagFromActiveNote = (tag: string) => {
-    if (!activeNote) return
-    const updatedTags = activeNote.tags.filter(t => t !== tag)
-    updateNote(activeNote.id, { tags: updatedTags })
-  }
 
   return (
     <div className={`relative flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
@@ -875,51 +857,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
-                {/* Big Note Title Input */}
-                <div className="px-10 pt-8 pb-3 shrink-0">
-                  <input
-                    type="text"
-                    placeholder="Untitled Note"
-                    value={activeNote.title}
-                    onChange={(e: any) => updateNote(activeNote.id, { title: e.target.value })}
-                    disabled={activeNote.folder === 'trash'}
-                    className="w-full bg-transparent text-2xl font-bold border-0 shadow-none outline-none placeholder-muted-foreground/50 focus:ring-0 focus:ring-offset-0 p-0 text-foreground tracking-tight"
-                  />
-
-                  {/* Tags editor row */}
-                  <div className="flex items-center flex-wrap gap-1.5 mt-3 select-none">
-                    <Tag className="w-3.5 h-3.5 text-muted-foreground/60" />
-                    {activeNote.tags && activeNote.tags.map(t => (
-                      <span 
-                        key={t}
-                        className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/10"
-                      >
-                        {t}
-                        {activeNote.folder !== 'trash' && (
-                          <button 
-                            onClick={() => handleRemoveTagFromActiveNote(t)}
-                            className="hover:text-primary/70 transition-colors"
-                          >
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-
-                    {activeNote.folder !== 'trash' && (
-                      <form onSubmit={handleAddTagToActiveNote} className="inline-flex items-center">
-                        <input
-                          type="text"
-                          placeholder="Add tag..."
-                          value={tagFilterInput}
-                          onChange={(e) => setTagFilterInput(e.target.value)}
-                          className="border-none bg-transparent text-[11px] text-muted-foreground outline-none w-16 focus:w-24 transition-all focus:ring-0 placeholder-muted-foreground/60 py-0"
-                        />
-                      </form>
-                    )}
-                  </div>
-                </div>
 
                 {/* TipTap Rich Editor */}
                 <Editor />

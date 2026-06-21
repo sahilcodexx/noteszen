@@ -1,13 +1,1 @@
-let electron = require("electron");
-//#region electron/preload.ts
-electron.contextBridge.exposeInMainWorld("electronAPI", {
-	getNotes: () => electron.ipcRenderer.invoke("get-notes"),
-	saveNote: (note) => electron.ipcRenderer.invoke("save-note", note),
-	deleteNote: (noteId) => electron.ipcRenderer.invoke("delete-note", noteId),
-	minimize: () => electron.ipcRenderer.send("window-min"),
-	maximize: () => electron.ipcRenderer.send("window-max"),
-	close: () => electron.ipcRenderer.send("window-close"),
-	closeQuickCapture: () => electron.ipcRenderer.send("close-quick-capture"),
-	log: (...args) => electron.ipcRenderer.send("log", args)
-});
-//#endregion
+let e=require("electron");e.contextBridge.exposeInMainWorld(`electronAPI`,{getNotes:()=>e.ipcRenderer.invoke(`get-notes`),saveNote:t=>e.ipcRenderer.invoke(`save-note`,t),deleteNote:t=>e.ipcRenderer.invoke(`delete-note`,t),minimize:()=>e.ipcRenderer.send(`window-min`),maximize:()=>e.ipcRenderer.send(`window-max`),close:()=>e.ipcRenderer.send(`window-close`),closeQuickCapture:()=>e.ipcRenderer.send(`close-quick-capture`),log:(...t)=>e.ipcRenderer.send(`log`,t)});

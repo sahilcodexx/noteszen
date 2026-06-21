@@ -29,7 +29,9 @@ import {
   Check,
   Sparkles,
   Link as LinkIcon,
-  FileText
+  FileText,
+  Tag,
+  X
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from '@/components/ui/button'
@@ -108,7 +110,25 @@ export default function Editor() {
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [tagInput, setTagInput] = useState('')
   const slashCoords = useRef({ top: 0, left: 0 })
+
+  const handleAddTag = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeNote || !tagInput.trim()) return
+    const tag = tagInput.trim().toLowerCase()
+    if (!activeNote.tags.includes(tag)) {
+      const updatedTags = [...activeNote.tags, tag]
+      updateNote(activeNote.id, { tags: updatedTags })
+    }
+    setTagInput('')
+  }
+
+  const handleRemoveTag = (tag: string) => {
+    if (!activeNote) return
+    const updatedTags = activeNote.tags.filter(t => t !== tag)
+    updateNote(activeNote.id, { tags: updatedTags })
+  }
 
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
 
@@ -132,7 +152,7 @@ export default function Editor() {
     ],
     editorProps: {
       attributes: {
-        class: 'focus:outline-none prose prose-stone dark:prose-invert max-w-none min-h-[450px] leading-relaxed pb-24 font-normal'
+        class: 'focus:outline-none prose-editor max-w-none min-h-[450px] leading-relaxed pb-24 font-normal'
       },
       handleKeyDown(view, event) {
         if (event.key === '/') {
@@ -633,11 +653,57 @@ export default function Editor() {
           "flex-grow overflow-y-auto w-full transition-all duration-300",
           isZenMode 
             ? "max-w-2xl mx-auto px-6 md:px-0 py-12 scrollbar-none" 
-            : "px-6 md:px-10 py-6",
+            : "px-6 md:px-10 py-8",
           `editor-font-${editorFont}`,
           `editor-size-${editorFontSize}`
         )}
       >
+        {/* Note Title Input */}
+        <input
+          type="text"
+          placeholder="Untitled Note"
+          value={activeNote.title || ''}
+          onChange={(e: any) => updateNote(activeNote.id, { title: e.target.value })}
+          disabled={isTrashNote}
+          className="w-full bg-transparent text-3xl font-extrabold border-0 shadow-none outline-none placeholder-muted-foreground/30 focus:ring-0 focus:ring-offset-0 p-0 text-foreground tracking-tight mb-2 font-sans animate-in fade-in duration-200"
+        />
+
+        {/* Tags Editor Row */}
+        <div className="flex items-center flex-wrap gap-1.5 mb-6 select-none">
+          <Tag className="w-3.5 h-3.5 text-muted-foreground/45 animate-in fade-in duration-200" />
+          {activeNote.tags && activeNote.tags.map(t => (
+            <span 
+              key={t}
+              className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-primary/8 text-primary border border-primary/10 transition-all hover:bg-primary/12 animate-in zoom-in-95 duration-150"
+            >
+              {t}
+              {!isTrashNote && (
+                <button 
+                  onClick={() => handleRemoveTag(t)}
+                  className="hover:text-primary/70 transition-colors"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              )}
+            </span>
+          ))}
+
+          {!isTrashNote && (
+            <form onSubmit={handleAddTag} className="inline-flex items-center animate-in fade-in duration-200">
+              <input
+                type="text"
+                placeholder="Add tag..."
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                className="border-none bg-transparent text-[11px] text-muted-foreground outline-none w-16 focus:w-24 transition-all focus:ring-0 placeholder-muted-foreground/40 py-0"
+              />
+            </form>
+          )}
+        </div>
+
+        {/* Divider line before editor content */}
+        <div className="h-px bg-border/20 w-full mb-6 animate-in fade-in duration-255" />
+
         <EditorContent editor={editor} />
 
         {/* Backlinks Panel (Linked references) */}
