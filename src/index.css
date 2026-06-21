@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -68,22 +69,25 @@ body {
 
 /* Prose markdown rendering styles */
 .prose-editor h1 {
+  font-family: 'Inter', sans-serif;
   font-size: 1.8em;
-  font-weight: 700;
+  font-weight: 600;
   margin-top: 0.8em;
   margin-bottom: 0.4em;
   color: inherit;
 }
 .prose-editor h2 {
+  font-family: 'Inter', sans-serif;
   font-size: 1.4em;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 0.8em;
   margin-bottom: 0.4em;
   color: inherit;
 }
 .prose-editor h3 {
+  font-family: 'Inter', sans-serif;
   font-size: 1.2em;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 0.8em;
   margin-bottom: 0.4em;
   color: inherit;
@@ -135,7 +139,7 @@ body {
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  --font-heading: 'Inter', sans-serif;
   --font-sans: 'Geist Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -256,6 +260,9 @@ body {
   html {
     @apply font-sans;
   }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+  }
 }
 
 /* Custom Editor Typography and Font Sizing overrides */
@@ -274,6 +281,20 @@ body {
 
 .ProseMirror {
   font-size: var(--editor-font-size, 16px) !important;
+  color: #000000 !important;
+}
+
+.dark .ProseMirror {
+  color: #ffffff !important;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  font-family: 'Inter', sans-serif !important;
 }
 
 /* Tiptap Task List Styles */
@@ -311,4 +332,13 @@ body {
 .prose-editor ul[data-type="taskList"] li[data-checked="true"] > div {
   text-decoration: line-through;
   opacity: 0.65;
+}
+
+/* Utility to hide scrollbars */
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }

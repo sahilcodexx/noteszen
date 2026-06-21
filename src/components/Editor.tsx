@@ -53,7 +53,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
-  DropdownMenuSubContent
+  DropdownMenuSubContent,
+  DropdownMenuPortal
 } from '@/components/ui/dropdown-menu'
 
 // Gradients list
@@ -479,8 +480,8 @@ export default function Editor() {
 
   return (
     <div className={cn(
-      "flex-grow flex flex-col h-full overflow-hidden select-text relative bg-background transition-all duration-300",
-      isZenMode && "bg-background/95"
+      "flex-grow flex flex-col h-full overflow-hidden select-text relative bg-transparent transition-all duration-300",
+      isZenMode && "bg-white dark:bg-black"
     )}>
       
       {/* 1. STICKY FORMATTING TOOLBAR */}
@@ -822,8 +823,7 @@ export default function Editor() {
       {/* 4. MAIN SCROLLABLE EDITOR CONTAINER */}
       <div 
         className={cn(
-          "flex-grow overflow-y-auto w-full transition-all duration-300 relative group/editor-container max-w-2xl mx-auto px-6 md:px-0 py-12",
-          isZenMode && "scrollbar-none",
+          "flex-grow overflow-y-auto w-full transition-all duration-300 relative group/editor-container max-w-2xl mx-auto bg-background/80 border-x border-border/30 px-6 md:px-8 py-12 scrollbar-none",
           `editor-font-${editorFont}`
         )}
         style={{ '--editor-font-size': `${editorFontSize}px` } as React.CSSProperties}
@@ -910,7 +910,7 @@ export default function Editor() {
           value={activeNote.title || ''}
           onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
           disabled={isTrashNote}
-          className="text-3xl font-extrabold tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 w-full placeholder-muted-foreground/20 mb-6 text-foreground"
+          className="text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 w-full placeholder-muted-foreground/20 mb-6 text-black dark:text-white opacity-70 focus:opacity-100 transition-opacity duration-200"
         />
 
         {/* D. Clean Writing Slate (Tiptap Content) */}
@@ -921,7 +921,7 @@ export default function Editor() {
         {/* Backlinks Panel (Linked references) */}
         {backlinks.length > 0 && !isZenMode && (
           <div className="mt-16 border-t border-border/40 pt-8 pb-12 select-none animate-in fade-in duration-300">
-            <h4 className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60 mb-3 flex items-center gap-1.5">
+            <h4 className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mb-3 flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-primary/70 animate-pulse" />
               Linked References ({backlinks.length})
             </h4>
@@ -1051,17 +1051,19 @@ export default function Editor() {
                             ? '📅 Daily Notes' 
                             : '📝 Notes'}
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-40 bg-popover border-border">
-                        <DropdownMenuItem onClick={() => updateNote(activeNote.id, { folder: 'notes', isArchived: false })}>
-                          📝 Notes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => updateNote(activeNote.id, { folder: 'daily', isArchived: false })}>
-                          📅 Daily Notes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => updateNote(activeNote.id, { isArchived: true })}>
-                          📦 Archive
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-40 bg-popover border-border">
+                          <DropdownMenuItem onClick={() => updateNote(activeNote.id, { folder: 'notes', isArchived: false })}>
+                            📝 Notes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateNote(activeNote.id, { folder: 'daily', isArchived: false })}>
+                            📅 Daily Notes
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateNote(activeNote.id, { isArchived: true })}>
+                            📦 Archive
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
                     </DropdownMenuSub>
                   </div>
 
@@ -1081,20 +1083,22 @@ export default function Editor() {
                               ? '⏳ Todo'
                               : '📋 Draft'}
                       </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-40 bg-popover border-border">
-                        <DropdownMenuItem onClick={() => updateMetadata({ status: 'draft' })}>
-                          📋 Draft
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => updateMetadata({ status: 'todo' })}>
-                          ⏳ Todo
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => updateMetadata({ status: 'in-progress' })}>
-                          ⚡ In Progress
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => updateMetadata({ status: 'completed' })}>
-                          ✅ Completed
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-40 bg-popover border-border">
+                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'draft' })}>
+                            📋 Draft
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'todo' })}>
+                            ⏳ Todo
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'in-progress' })}>
+                            ⚡ In Progress
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'completed' })}>
+                            ✅ Completed
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
                     </DropdownMenuSub>
                   </div>
 

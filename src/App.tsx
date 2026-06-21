@@ -18,7 +18,6 @@ import {
   Command,
   X,
   RotateCcw,
-  ChevronsLeftRight,
   MoreHorizontal
 } from 'lucide-react'
 
@@ -107,6 +106,7 @@ export default function App() {
     createNote,
     createDailyNote,
     togglePin,
+    toggleFavorite,
     editorFont,
     editorFontSize,
     setEditorFont,
@@ -121,6 +121,9 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(true)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
+  const noteListRef = useRef<HTMLElement>(null)
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, noteId: string } | null>(null)
 
   // Hover states for temporary right sidebar opening
   const [isNoteListHoveredOpen, setIsNoteListHoveredOpen] = useState(false)
@@ -130,7 +133,7 @@ export default function App() {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
     hoverTimeoutRef.current = setTimeout(() => {
       setIsNoteListHoveredOpen(true)
-    }, 150)
+    }, 50)
   }
 
   const handleMouseLeaveTrigger = () => {
@@ -156,7 +159,7 @@ export default function App() {
     if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
     leftHoverTimeoutRef.current = setTimeout(() => {
       setIsSidebarHoveredOpen(true)
-    }, 150)
+    }, 50)
   }
 
   const handleMouseLeaveLeftTrigger = () => {
@@ -195,6 +198,38 @@ export default function App() {
       root.classList.remove('dark')
     }
   }, [darkMode])
+
+  // Click-outside listener to collapse sidebars
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      
+      // If we are clicking on standard dialogs, dropdowns, or context menus, do not close the sidebars.
+      if (
+        target.closest('[role="dialog"]') ||
+        target.closest('[role="menu"]') ||
+        target.closest('.fixed.z-50')
+      ) {
+        return
+      }
+
+      const { isSidebarCollapsed, isNoteListCollapsed } = useNotesStore.getState()
+      
+      if (!isSidebarCollapsed || !isNoteListCollapsed || isSidebarHoveredOpen || isNoteListHoveredOpen) {
+        const clickedInsideSidebar = sidebarRef.current?.contains(target)
+        const clickedInsideNoteList = noteListRef.current?.contains(target)
+
+        if (!clickedInsideSidebar && !clickedInsideNoteList) {
+          useNotesStore.setState({ isSidebarCollapsed: true, isNoteListCollapsed: true })
+          setIsSidebarHoveredOpen(false)
+          setIsNoteListHoveredOpen(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isSidebarHoveredOpen, isNoteListHoveredOpen])
 
   // All unique tags extracted from non-trash notes
   const allTags = useMemo(() => {
@@ -391,23 +426,49 @@ export default function App() {
       {/* Left Sidebar hover trigger zone */}
       {!isZenMode && isSidebarCollapsed && !isSidebarHoveredOpen && (
         <div 
-          className="absolute left-0 top-0 bottom-0 w-3.5 z-40"
+          className="absolute left-0 top-12 bottom-0 w-6 z-40 bg-transparent"
           onMouseEnter={handleMouseEnterLeftTrigger}
           onMouseLeave={handleMouseLeaveLeftTrigger}
         />
       )}
 
+      {/* Floating Traffic Lights when Sidebar is collapsed */}
+      {!isZenMode && isSidebarCollapsed && !isSidebarHoveredOpen && (
+        <div className="absolute left-5 top-4 flex items-center gap-2 z-30 no-drag animate-in fade-in duration-200">
+          <button 
+            onClick={handleWinClose}
+            className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default shadow-xs"
+            title="Close"
+          >
+            <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
+          </button>
+          <button 
+            onClick={handleWinMin}
+            className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default shadow-xs"
+            title="Minimize"
+          >
+            <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
+          </button>
+          <button 
+            onClick={handleWinMax}
+            className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default shadow-xs"
+            title="Maximize"
+          >
+            <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
+          </button>
+        </div>
+      )}
+
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <aside 
+        ref={sidebarRef}
         className={cn(
-          "flex flex-col border-r border-border shrink-0 drag-region transition-all duration-300 backdrop-blur-md bg-sidebar overflow-hidden",
+          "absolute left-0 top-0 bottom-0 z-40 flex flex-col drag-region transition-all duration-300 backdrop-blur-md bg-sidebar/80 overflow-hidden h-full shadow-2xl",
           isZenMode 
-            ? 'w-0 border-r-0 opacity-0' 
-            : isSidebarCollapsed && isSidebarHoveredOpen
-              ? 'absolute left-0 top-0 bottom-0 z-40 w-[220px] opacity-100 shadow-2xl bg-sidebar/95 h-full animate-in slide-in-from-left duration-200 border-r border-border'
-              : !isSidebarCollapsed
-                ? 'relative w-[220px] opacity-100 bg-sidebar border-r border-border'
-                : 'w-0 border-r-0 opacity-0 overflow-hidden'
+            ? 'w-0 border-r-0 opacity-0 pointer-events-none' 
+            : isLeftSidebarOpen
+              ? 'w-[220px] opacity-100 border-r border-border pointer-events-auto animate-in slide-in-from-left duration-200'
+              : 'w-0 border-r-0 opacity-0 pointer-events-none'
         )}
         onMouseEnter={handleMouseEnterLeftSidebar}
         onMouseLeave={handleMouseLeaveLeftSidebar}
@@ -415,23 +476,33 @@ export default function App() {
         {/* macOS Custom Traffic lights window triggers */}
         <div className="h-12 flex items-center pl-5 gap-2 no-drag shrink-0">
           <button 
-            onClick={handleWinClose}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleSidebar()
+              setIsSidebarHoveredOpen(false)
+            }}
             className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default"
-            title="Close"
+            title="Collapse Sidebar"
           >
             <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
           </button>
           <button 
-            onClick={handleWinMin}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleSidebar()
+              setIsSidebarHoveredOpen(false)
+            }}
             className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default"
-            title="Minimize"
+            title="Minimize Sidebar"
           >
             <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
           </button>
           <button 
-            onClick={handleWinMax}
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
             className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default"
-            title="Maximize"
+            title="Maximize Sidebar"
           >
             <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
           </button>
@@ -482,7 +553,11 @@ export default function App() {
               return (
                 <button
                   key={folder.id}
-                  onClick={() => setActiveFolder(folder.id)}
+                  onClick={() => {
+                    setActiveFolder(folder.id)
+                    useNotesStore.setState({ isSidebarCollapsed: false })
+                    setIsSidebarHoveredOpen(false)
+                  }}
                   className={cn(
                     "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 group/item select-none px-3 justify-between",
                     isSelected 
@@ -530,7 +605,11 @@ export default function App() {
                 return (
                   <button
                     key={tag}
-                    onClick={() => setSelectedTag(tag)}
+                    onClick={() => {
+                      setSelectedTag(tag)
+                      useNotesStore.setState({ isSidebarCollapsed: false })
+                      setIsSidebarHoveredOpen(false)
+                    }}
                     className={cn(
                       "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 group/item select-none px-3 justify-between",
                       isSelected 
@@ -595,162 +674,173 @@ export default function App() {
         </div>
       </aside>
       {activeFolder === 'trash' ? (
-        <main className="flex-grow flex flex-col min-w-0 bg-background">
+        <main className="flex-grow flex flex-col min-w-0 bg-background/80 backdrop-blur-md">
           {/* Trash Header Controls */}
-          <div className="h-14 px-6 border-b border-border/40 flex items-center justify-between shrink-0 select-none bg-background/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3">
-              {/* Collapse / Expand Toggle */}
-              {isSidebarCollapsed && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  title="Expand Sidebar"
-                >
-                  <ChevronRight data-icon="inline-start" />
-                </Button>
-              )}
-              {!isSidebarCollapsed && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleSidebar}
-                  title="Collapse Sidebar"
-                >
-                  <ChevronLeft data-icon="inline-start" />
-                </Button>
-              )}
-              
-              <div className="flex items-center gap-2">
-                <Trash2 className="w-4 h-4 text-destructive" />
-                <h1 className="text-sm font-bold text-foreground">Trash Bin</h1>
-                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 rounded-full font-semibold">
-                  {sortedNotes.length} {sortedNotes.length === 1 ? 'item' : 'items'}
-                </Badge>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Local Search inside Trash */}
-              <div className="relative w-48 md:w-64 flex items-center">
-                <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search in trash..."
-                  value={searchQuery}
-                  onChange={(e: any) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+          <div className="h-14 border-b border-border/40 flex items-center justify-between shrink-0 select-none bg-background/50 backdrop-blur-sm px-6 md:px-0">
+            <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {/* Collapse / Expand Toggle */}
+                {isSidebarCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleSidebar()
+                    }}
+                    title="Expand Sidebar"
                   >
-                    <X className="w-3 h-3" />
-                  </button>
+                    <ChevronRight data-icon="inline-start" />
+                  </Button>
+                )}
+                {!isSidebarCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleSidebar()
+                    }}
+                    title="Collapse Sidebar"
+                  >
+                    <ChevronLeft data-icon="inline-start" />
+                  </Button>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-destructive" />
+                  <h1 className="text-sm font-bold text-foreground">Trash Bin</h1>
+                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5 rounded-full font-semibold">
+                    {sortedNotes.length} {sortedNotes.length === 1 ? 'item' : 'items'}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Local Search inside Trash */}
+                <div className="relative w-48 flex items-center">
+                  <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search in trash..."
+                    value={searchQuery}
+                    onChange={(e: any) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all font-semibold"
+                  />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {sortedNotes.length > 0 && (
+                  <Button
+                    onClick={() => setShowEmptyTrashConfirm(true)}
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 text-xs px-3 font-semibold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    Empty Trash
+                  </Button>
                 )}
               </div>
-
-              {sortedNotes.length > 0 && (
-                <Button
-                  onClick={() => setShowEmptyTrashConfirm(true)}
-                  variant="destructive"
-                  size="sm"
-                >
-                  <Trash2 data-icon="inline-start" />
-                  Empty Trash
-                </Button>
-              )}
             </div>
           </div>
 
           {/* Trash Cards Content Grid */}
-          <ScrollArea className="flex-grow p-6 animate-in fade-in duration-200">
-            {sortedNotes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 mt-16 select-none text-center">
-                <div className="p-4 rounded-full bg-destructive/5 text-destructive/80 mb-4 animate-pulse">
-                  <Trash2 className="w-8 h-8" />
+          <ScrollArea className="flex-grow px-6 md:px-0 py-12 animate-in fade-in duration-200">
+            <div className="max-w-2xl mx-auto w-full pb-12">
+              {sortedNotes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 mt-16 select-none text-center">
+                  <div className="p-4 rounded-full bg-destructive/5 text-destructive/80 mb-4 animate-pulse">
+                    <Trash2 className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-sm font-bold text-foreground/80 tracking-tight">Trash is empty</h2>
+                  <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
+                    Notes you delete will appear here. Trashed notes can be restored or permanently deleted.
+                  </p>
                 </div>
-                <h2 className="text-sm font-bold text-foreground/80 tracking-tight">Trash is empty</h2>
-                <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
-                  Notes you delete will appear here. Trashed notes can be restored or permanently deleted.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-6">
-                {sortedNotes.map((note) => {
-                  const previewText = note.content
-                    ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 160)
-                    : 'No additional text'
-                  const formattedDate = formatRelativeTime(note.updatedAt)
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
+                  {sortedNotes.map((note) => {
+                    const previewText = note.content
+                      ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 160)
+                      : 'No additional text'
+                    const formattedDate = formatRelativeTime(note.updatedAt)
 
-                  return (
-                    <div
-                      key={note.id}
-                      className="group relative flex flex-col justify-between p-4 rounded-xl border border-border bg-card hover:bg-card/75 hover:border-destructive/30 hover:scale-[1.01] hover:shadow-md transition-all duration-200"
-                    >
-                      <div className="mb-4">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <h3 className="font-bold text-xs text-foreground/95 line-clamp-1 flex-grow">
-                            {note.title || 'Untitled Note'}
-                          </h3>
-                          <span className="text-[9px] text-muted-foreground/80 font-medium shrink-0 mt-0.5">
-                            {formattedDate}
-                          </span>
-                        </div>
-                        
-                        <p className="text-[11px] line-clamp-4 text-muted-foreground leading-normal font-normal break-words">
-                          {previewText}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col gap-2 mt-auto">
-                        {/* Tags inside card if any */}
-                        {note.tags && note.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {note.tags.slice(0, 3).map(tag => (
-                              <Badge 
-                                key={tag}
-                                variant="secondary"
-                                className="text-[8px] h-4 px-1.5 rounded truncate"
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
+                    return (
+                      <div
+                        key={note.id}
+                        className="group relative flex flex-col justify-between p-4 rounded-xl border border-border bg-card hover:bg-card/75 hover:border-destructive/30 hover:scale-[1.01] hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="mb-4">
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <h3 className="font-bold text-xs text-foreground/95 line-clamp-1 flex-grow">
+                              {note.title || 'Untitled Note'}
+                            </h3>
+                            <span className="text-[9px] text-muted-foreground/80 font-medium shrink-0 mt-0.5">
+                              {formattedDate}
+                            </span>
                           </div>
-                        )}
+                          
+                          <p className="text-[11px] line-clamp-4 text-muted-foreground leading-normal font-normal break-words">
+                            {previewText}
+                          </p>
+                        </div>
 
-                        <div className="flex items-center justify-end gap-1.5 border-t border-border/40 pt-3">
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            onClick={() => restoreNote(note.id)}
-                          >
-                            <RotateCcw data-icon="inline-start" />
-                            Restore
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="xs"
-                            onClick={() => deleteNote(note.id)}
-                          >
-                            <Trash2 data-icon="inline-start" />
-                            Delete
-                          </Button>
+                        <div className="flex flex-col gap-2 mt-auto">
+                          {/* Tags inside card if any */}
+                          {note.tags && note.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {note.tags.slice(0, 3).map(tag => (
+                                <Badge 
+                                  key={tag}
+                                  variant="secondary"
+                                  className="text-[8px] h-4 px-1.5 rounded truncate"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-end gap-1.5 border-t border-border/40 pt-3">
+                            <Button
+                              variant="outline"
+                              size="xs"
+                              onClick={() => restoreNote(note.id)}
+                            >
+                              <RotateCcw data-icon="inline-start" />
+                              Restore
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="xs"
+                              onClick={() => deleteNote(note.id)}
+                            >
+                              <Trash2 data-icon="inline-start" />
+                              Delete
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </main>
       ) : (
         <>
           {/* 3. MAIN EDITOR PANEL */}
-          <main className="flex-grow flex flex-col min-w-0 bg-background">
+          <main className="flex-grow flex flex-col min-w-0 bg-background/80 backdrop-blur-md">
             
             {/* Note Editor Area */}
             {activeNote ? (
@@ -820,7 +910,7 @@ export default function App() {
 
           {!isZenMode && isNoteListCollapsed && !isNoteListHoveredOpen && (
             <div 
-              className="absolute right-0 top-0 bottom-0 w-3.5 z-40"
+              className="absolute right-0 top-14 bottom-0 w-6 z-40 bg-transparent"
               onMouseEnter={handleMouseEnterTrigger}
               onMouseLeave={handleMouseLeaveTrigger}
             />
@@ -828,15 +918,14 @@ export default function App() {
 
           {/* 2. NOTE LIST PANEL */}
           <section 
+            ref={noteListRef}
             className={cn(
-              "flex flex-col border-l border-border shrink-0 transition-all duration-300",
+              "absolute right-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 h-full shadow-2xl bg-background/80 backdrop-blur-md overflow-hidden",
               isZenMode
-                ? "w-0 opacity-0 border-l-0 overflow-hidden"
-                : isNoteListCollapsed && isNoteListHoveredOpen
-                  ? "absolute right-0 top-0 bottom-0 z-40 w-[270px] opacity-100 shadow-2xl bg-background/95 backdrop-blur-md h-full animate-in slide-in-from-right duration-200"
-                  : !isNoteListCollapsed
-                    ? "relative w-[270px] opacity-100 bg-background/50 backdrop-blur-sm animate-in slide-in-from-right duration-200"
-                    : "w-0 opacity-0 border-l-0 overflow-hidden"
+                ? "w-0 opacity-0 border-l-0 pointer-events-none"
+                : (!isNoteListCollapsed || isNoteListHoveredOpen)
+                  ? "w-[270px] opacity-100 border-l border-border pointer-events-auto animate-in slide-in-from-right duration-200"
+                  : "w-0 opacity-0 border-l-0 pointer-events-none"
             )}
             onMouseEnter={handleMouseEnterSidebar}
             onMouseLeave={handleMouseLeaveSidebar}
@@ -844,18 +933,39 @@ export default function App() {
             
             {/* Note List Header controls */}
             <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 shrink-0 select-none">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  toggleNoteList()
-                  setIsNoteListHoveredOpen(false)
-                }}
-                className="text-muted-foreground hover:text-foreground h-8 w-8"
-                title="Collapse Note List (⌘⇧B)"
-              >
-                <ChevronsLeftRight className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleNoteList()
+                    setIsNoteListHoveredOpen(false)
+                  }}
+                  className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default shadow-xs"
+                  title="Close Panel"
+                >
+                  <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleNoteList()
+                    setIsNoteListHoveredOpen(false)
+                  }}
+                  className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default shadow-xs"
+                  title="Minimize Panel"
+                >
+                  <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
+                </button>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation()
+                  }}
+                  className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default shadow-xs"
+                  title="Maximize Panel"
+                >
+                  <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
+                </button>
+              </div>
 
               <span className="text-[11px] font-bold tracking-wider text-muted-foreground/80 uppercase">
                 Notes
@@ -907,72 +1017,42 @@ export default function App() {
                 <div className="flex flex-col gap-1 px-2">
                   {sortedNotes.map((note) => {
                     const isSelected = note.id === selectedNoteId
-                    const previewText = note.content
-                      ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 80)
-                      : 'No additional text'
-                    
-                    const formattedDate = formatRelativeTime(note.updatedAt)
 
                     return (
                       <div
                         key={note.id}
-                        onClick={() => setSelectedNoteId(note.id)}
+                        onClick={() => {
+                          setSelectedNoteId(note.id)
+                          useNotesStore.setState({ isNoteListCollapsed: false })
+                          setIsNoteListHoveredOpen(false)
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          setContextMenu({
+                            x: e.clientX,
+                            y: e.clientY,
+                            noteId: note.id
+                          })
+                        }}
                         className={cn(
-                          "p-3 cursor-pointer relative transition-all rounded-lg border flex flex-col gap-1.5",
+                          "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none group",
                           isSelected 
                             ? "bg-card border-border shadow-xs scale-[1.01]" 
                             : "border-transparent bg-transparent hover:bg-muted/40"
                         )}
                       >
-                        <div className="flex items-start justify-between gap-1 mb-0.5">
-                          <h3 className={cn(
-                            "font-semibold text-xs truncate flex-grow",
-                            isSelected ? "text-primary" : "text-foreground/90"
-                          )}>
-                            {note.title || 'Untitled Note'}
-                          </h3>
-                          <div className="flex items-center gap-1.5 shrink-0 select-none">
-                            {note.isPinned && (
-                              <Pin className="w-3 h-3 text-primary fill-primary" />
-                            )}
-                            
-                            {activeFolder !== 'trash' && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  deleteNote(note.id)
-                                }}
-                                className="opacity-0 group-hover:opacity-100 w-4 h-4 text-muted-foreground hover:text-destructive transition-opacity flex items-center justify-center"
-                                title="Move to Trash"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        <p className="text-[11px] line-clamp-2 text-muted-foreground leading-normal font-normal">
-                          {previewText}
-                        </p>
-
-                        <div className="flex items-center justify-between select-none mt-1">
-                          <span className="text-[9px] text-muted-foreground/80 font-medium">
-                            {formattedDate}
-                          </span>
-
-                          {/* Tag list within item card */}
-                          {note.tags && note.tags.length > 0 && (
-                            <div className="flex gap-1 max-w-[120px] overflow-hidden">
-                              {note.tags.slice(0, 2).map(tag => (
-                                <Badge 
-                                  key={tag}
-                                  variant={isSelected ? "outline" : "secondary"}
-                                  className="text-[8px] h-4 px-1 rounded truncate"
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
+                        <h3 className={cn(
+                          "font-semibold text-xs truncate flex-grow",
+                          isSelected ? "text-primary font-bold" : "text-foreground/90"
+                        )}>
+                          {note.title || 'Untitled Note'}
+                        </h3>
+                        <div className="flex items-center gap-1.5 shrink-0 select-none">
+                          {note.isPinned && (
+                            <Pin className="w-3 h-3 text-sky-500 dark:text-sky-400 fill-sky-500 dark:fill-sky-400" />
+                          )}
+                          {note.isFavorite && (
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                           )}
                         </div>
                       </div>
@@ -1163,6 +1243,68 @@ export default function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Right-click Context Menu */}
+      {contextMenu && (
+        <>
+          <div 
+            className="fixed inset-0 z-50 bg-transparent" 
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setContextMenu(null)
+            }}
+          />
+          <div 
+            className="fixed z-50 min-w-[140px] rounded-xl border bg-popover/95 backdrop-blur-md text-popover-foreground border-border/60 p-1.5 shadow-xl divide-y divide-border/40 animate-in fade-in zoom-in-95 duration-100 font-semibold select-none text-[11px]"
+            style={{
+              top: `${contextMenu.y}px`,
+              left: `${contextMenu.x}px`
+            }}
+          >
+            <div className="p-1 space-y-0.5">
+              <button
+                onClick={() => {
+                  togglePin(contextMenu.noteId)
+                  setContextMenu(null)
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted text-foreground/90 hover:text-foreground font-semibold cursor-pointer"
+              >
+                <Pin className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>
+                  {notes.find(n => n.id === contextMenu.noteId)?.isPinned ? "Unpin Note" : "Pin Note"}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  toggleFavorite(contextMenu.noteId)
+                  setContextMenu(null)
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted text-foreground/90 hover:text-foreground font-semibold cursor-pointer"
+              >
+                <Star className="w-3.5 h-3.5 text-muted-foreground" />
+                <span>
+                  {notes.find(n => n.id === contextMenu.noteId)?.isFavorite ? "Unstar Note" : "Star Note"}
+                </span>
+              </button>
+            </div>
+
+            <div className="p-1">
+              <button
+                onClick={() => {
+                  deleteNote(contextMenu.noteId)
+                  setContextMenu(null)
+                }}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-destructive/10 text-destructive font-semibold cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Move to Trash</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   )

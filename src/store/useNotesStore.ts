@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Note } from '../electron'
+import type { Note } from '../types'
 
 interface NotesState {
   notes: Note[]

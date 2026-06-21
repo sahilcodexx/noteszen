@@ -12,7 +12,7 @@ export interface Note {
   updatedAt: string;
 }
 
-export interface ElectronAPI {
+export interface TauriAPI {
   getNotes: () => Promise<Note[]>;
   saveNote: (note: Note) => Promise<boolean>;
   deleteNote: (noteId: string) => Promise<boolean>;
@@ -25,6 +25,6 @@ export interface ElectronAPI {
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electronAPI: TauriAPI; // Kept as electronAPI to preserve compatibility with existing code
   }
 }
