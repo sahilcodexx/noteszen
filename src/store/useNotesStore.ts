@@ -13,11 +13,14 @@ interface NotesState {
   isGlobalSearchOpen: boolean
   saveStatus: 'saved' | 'saving' | 'error'
   isZenMode: boolean
-  
+  isSplitView: boolean
+  splitViewNoteId: string | null
+
   // Preferences
   editorFont: 'sans' | 'serif' | 'mono'
   editorFontSize: number
-  
+  colorTheme: string
+
   // Actions
   fetchNotes: () => Promise<void>
   setSelectedNoteId: (id: string | null) => void
@@ -30,10 +33,13 @@ interface NotesState {
   setGlobalSearchOpen: (open: boolean) => void
   setSaveStatus: (status: 'saved' | 'saving' | 'error') => void
   setZenMode: (zen: boolean) => void
-  
+  toggleSplitView: () => void
+  setSplitViewNoteId: (id: string | null) => void
+
   setEditorFont: (font: 'sans' | 'serif' | 'mono') => void
   setEditorFontSize: (size: number) => void
-  
+  setColorTheme: (theme: string) => void
+
   createNote: (initialFields?: Partial<Note>) => void
   createDailyNote: () => void
   updateNote: (id: string, fields: Partial<Note>) => void
@@ -87,6 +93,7 @@ const initialEditorFontSize = (() => {
   const parsed = parseInt(stored, 10)
   return isNaN(parsed) ? 16 : parsed
 })()
+const initialColorTheme = localStorage.getItem('noteszen-color-theme') || 'default'
 
 export const useNotesStore = create<NotesState>((set, get) => ({
   notes: [],
@@ -100,9 +107,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   isGlobalSearchOpen: false,
   saveStatus: 'saved',
   isZenMode: false,
-  
+  isSplitView: false,
+  splitViewNoteId: null,
+
   editorFont: initialEditorFont,
   editorFontSize: initialEditorFontSize,
+  colorTheme: initialColorTheme,
 
   fetchNotes: async () => {
     if (window.electronAPI) {
@@ -140,7 +150,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setGlobalSearchOpen: (open) => set({ isGlobalSearchOpen: open }),
   setSaveStatus: (status) => set({ saveStatus: status }),
   setZenMode: (zen) => set({ isZenMode: zen }),
-  
+  toggleSplitView: () => set((state) => ({
+    isSplitView: !state.isSplitView,
+    splitViewNoteId: !state.isSplitView ? state.notes.find(n => n.id !== state.selectedNoteId && n.folder !== 'trash')?.id || null : null
+  })),
+  setSplitViewNoteId: (id) => set({ splitViewNoteId: id }),
+
   setEditorFont: (font) => {
     localStorage.setItem('noteszen-pref-font', font)
     set({ editorFont: font })
@@ -148,6 +163,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setEditorFontSize: (size) => {
     localStorage.setItem('noteszen-pref-size', String(size))
     set({ editorFontSize: size })
+  },
+  setColorTheme: (theme) => {
+    localStorage.setItem('noteszen-color-theme', theme)
+    set({ colorTheme: theme })
   },
 
   createNote: (initialFields = {}) => {

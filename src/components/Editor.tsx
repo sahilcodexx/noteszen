@@ -171,15 +171,15 @@ function htmlToMarkdown(html: string): string {
   return md.trim()
 }
 
-export default function Editor() {
-  const { 
-    notes, 
-    selectedNoteId, 
-    updateNote, 
-    editorFont, 
-    editorFontSize, 
+export default function Editor({ noteId }: { noteId?: string } = {}) {
+  const {
+    notes,
+    selectedNoteId: storeSelectedNoteId,
+    updateNote,
+    editorFont,
+    editorFontSize,
     setEditorFontSize,
-    isZenMode, 
+    isZenMode,
     setZenMode,
     togglePin,
     toggleFavorite,
@@ -192,6 +192,7 @@ export default function Editor() {
   const [tagInput, setTagInput] = useState('')
   const slashCoords = useRef({ top: 0, left: 0 })
 
+  const selectedNoteId = noteId || storeSelectedNoteId
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
 
   // Zoom handlers for text sizing (14px to 128px)
@@ -248,7 +249,8 @@ export default function Editor() {
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3]
-        }
+        },
+        link: false
       }),
       Placeholder.configure({
         placeholder: 'Press / for commands, or write thoughts...'
@@ -311,7 +313,7 @@ export default function Editor() {
       }
     },
     onUpdate: ({ editor }) => {
-      if (selectedNoteId) {
+      if (selectedNoteId && editor.view && editor.view.state) {
         updateNote(selectedNoteId, { content: editor.getHTML() })
       }
     }
@@ -319,7 +321,7 @@ export default function Editor() {
 
   // Synchronize note contents on select and toggle editable state
   useEffect(() => {
-    if (editor && activeNote) {
+    if (editor && activeNote && editor.view && editor.view.state) {
       if (editor.getHTML() !== activeNote.content) {
         editor.commands.setContent(activeNote.content || '')
       }

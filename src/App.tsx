@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { Suspense, lazy, useEffect, useState, useMemo, useRef } from 'react'
 import {
   FileText,
   Star,
@@ -18,7 +18,8 @@ import {
   Command,
   X,
   RotateCcw,
-  MoreHorizontal
+  MoreHorizontal,
+  Columns2
 } from 'lucide-react'
 
 // UI Components
@@ -38,14 +39,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 // App Components
-import Editor from './components/Editor'
-import CommandPalette from './components/CommandPalette'
-import GlobalSearch from './components/GlobalSearch'
 import Onboarding from './components/Onboarding'
 import QuickCapture from './components/QuickCapture'
 
 // State Store
 import { useNotesStore } from './store/useNotesStore'
+
+const Editor = lazy(() => import('./components/Editor'))
+const CommandPalette = lazy(() => import('./components/CommandPalette'))
+const GlobalSearch = lazy(() => import('./components/GlobalSearch'))
 
 // Helper function to format relative times beautifully
 function formatRelativeTime(dateString: string): string {
@@ -74,14 +76,7 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
-export default function App() {
-  const isQuickCaptureWindow = window.location.hash === '#quick-capture'
-
-  // If this window is the Quick Capture popup, render the capture screen directly
-  if (isQuickCaptureWindow) {
-    return <QuickCapture />
-  }
-
+function MainApp() {
   // State bindings from Zustand Store
   const {
     notes,
@@ -94,6 +89,8 @@ export default function App() {
     isCommandPaletteOpen,
     isGlobalSearchOpen,
     isZenMode,
+    isSplitView,
+    splitViewNoteId,
     fetchNotes,
     setSelectedNoteId,
     setSearchQuery,
@@ -109,8 +106,12 @@ export default function App() {
     toggleFavorite,
     editorFont,
     editorFontSize,
+    colorTheme,
     setEditorFont,
     setEditorFontSize,
+    setColorTheme,
+    toggleSplitView,
+    setSplitViewNoteId,
     deleteNote,
     restoreNote,
     emptyTrash
@@ -198,6 +199,12 @@ export default function App() {
       root.classList.remove('dark')
     }
   }, [darkMode])
+
+  // Apply color theme
+  useEffect(() => {
+    const root = window.document.documentElement
+    root.setAttribute('data-theme', colorTheme)
+  }, [colorTheme])
 
   // Click-outside listener to collapse sidebars
   useEffect(() => {
@@ -302,8 +309,6 @@ export default function App() {
   const activeNote = useMemo(() => {
     return notes.find(n => n.id === selectedNoteId) || null
   }, [notes, selectedNoteId])
-
-
 
   // Sync selected note when active view changes
   useEffect(() => {
@@ -840,70 +845,131 @@ export default function App() {
       ) : (
         <>
           {/* 3. MAIN EDITOR PANEL */}
-          <main className="flex-grow flex flex-col min-w-0 bg-background/80 backdrop-blur-md">
-            
-            {/* Note Editor Area */}
-            {activeNote ? (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {activeNote.folder === 'trash' && (
-                  <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
-                    <div className="flex items-center gap-2">
-                      <Trash2 className="w-4 h-4 text-destructive/80 animate-pulse" />
-                      <span>This note is in the Trash. Restore it to edit.</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Button 
-                        size="xs" 
-                        variant="outline" 
-                        onClick={() => restoreNote(activeNote.id)}
-                      >
-                        Restore
-                      </Button>
-                      <Button 
-                        size="xs" 
-                        variant="destructive" 
-                        onClick={() => deleteNote(activeNote.id)}
-                      >
-                        Delete Permanently
-                      </Button>
-                    </div>
-                  </div>
-                )}
+          <main className={cn(
+            "flex-grow flex min-w-0 bg-background/80 backdrop-blur-md",
+            isSplitView ? "flex-row gap-px" : "flex-col"
+          )}>
 
-                {/* TipTap Rich Editor */}
-                <Editor />
-              </div>
-            ) : (
-              /* Premium Empty state */
-              <div className="flex-1 flex flex-col items-center justify-center p-8 select-none">
-                <h2 className="text-sm font-bold text-foreground/80 tracking-tight mb-6">Create a new note</h2>
+            {/* Primary Editor Panel */}
+            <div className={cn(
+              "flex flex-col overflow-hidden",
+              isSplitView ? "flex-1 border-r border-border/40" : "flex-1"
+            )}>
+              {activeNote ? (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  {activeNote.folder === 'trash' && (
+                    <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
+                      <div className="flex items-center gap-2">
+                        <Trash2 className="w-4 h-4 text-destructive/80 animate-pulse" />
+                        <span>This note is in the Trash. Restore it to edit.</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() => restoreNote(activeNote.id)}
+                        >
+                          Restore
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="destructive"
+                          onClick={() => deleteNote(activeNote.id)}
+                        >
+                          Delete Permanently
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
-                <div className="w-[320px] border border-border/50 rounded-xl bg-card p-5 flex flex-col gap-3 text-xs text-muted-foreground shadow-sm animate-in fade-in duration-300">
-                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                    <span className="font-medium text-foreground/80">New Note</span>
-                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘N</kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                    <span className="font-medium text-foreground/80">Daily Note</span>
-                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘D</kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                    <span className="font-medium text-foreground/80">Command Palette</span>
-                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘K</kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                    <span className="font-medium text-foreground/80">Global Search</span>
-                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧F</kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                    <span className="font-medium text-foreground/80">Toggle Sidebar</span>
-                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘B</kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1.5">
-                    <span className="font-medium text-foreground/80">Toggle Note List</span>
-                    <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧B</kbd>
+                  <Suspense
+                    fallback={
+                      <div className="flex-1 flex items-center justify-center text-xs font-semibold text-muted-foreground select-none">
+                        Loading editor...
+                      </div>
+                    }
+                  >
+                    <Editor />
+                  </Suspense>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-8 select-none">
+                  <h2 className="text-sm font-bold text-foreground/80 tracking-tight mb-6">Create a new note</h2>
+
+                  <div className="w-[320px] border border-border/50 rounded-xl bg-card p-5 flex flex-col gap-3 text-xs text-muted-foreground shadow-sm animate-in fade-in duration-300">
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                      <span className="font-medium text-foreground/80">New Note</span>
+                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘N</kbd>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                      <span className="font-medium text-foreground/80">Daily Note</span>
+                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘D</kbd>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                      <span className="font-medium text-foreground/80">Command Palette</span>
+                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘K</kbd>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                      <span className="font-medium text-foreground/80">Global Search</span>
+                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧F</kbd>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
+                      <span className="font-medium text-foreground/80">Toggle Sidebar</span>
+                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘B</kbd>
+                    </div>
+                    <div className="flex items-center justify-between py-1.5">
+                      <span className="font-medium text-foreground/80">Toggle Note List</span>
+                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧B</kbd>
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
+
+            {/* Split View Panel */}
+            {isSplitView && (
+              <div className="flex-1 flex flex-col overflow-hidden bg-background/60">
+                {/* Split Panel Header */}
+                <div className="h-12 px-4 flex items-center justify-between border-b border-border/40 shrink-0 bg-background/40">
+                  <select
+                    value={splitViewNoteId || ''}
+                    onChange={(e) => setSplitViewNoteId(e.target.value || null)}
+                    className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none flex-1 max-w-[300px] font-medium"
+                  >
+                    <option value="">Select a note...</option>
+                    {sortedNotes.filter(n => n.id !== selectedNoteId && n.folder !== 'trash').map(note => (
+                      <option key={note.id} value={note.id}>
+                        {note.title || 'Untitled Note'}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => toggleSplitView()}
+                    className="text-muted-foreground hover:text-foreground h-8 w-8"
+                    title="Close Split View"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {/* Split Panel Editor */}
+                {splitViewNoteId && notes.find(n => n.id === splitViewNoteId) ? (
+                  <Suspense
+                    fallback={
+                      <div className="flex-1 flex items-center justify-center text-xs font-semibold text-muted-foreground select-none">
+                        Loading editor...
+                      </div>
+                    }
+                  >
+                    <Editor noteId={splitViewNoteId} />
+                  </Suspense>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground select-none">
+                    Select a note to view
+                  </div>
+                )}
               </div>
             )}
           </main>
@@ -993,6 +1059,12 @@ export default function App() {
                     <Calendar className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                     Daily Note
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => toggleSplitView()}>
+                    <Columns2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                    {isSplitView ? 'Close' : 'Open'} Split View
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setCommandPaletteOpen(true)}>
                     <Command className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
                     Command Menu
@@ -1017,7 +1089,6 @@ export default function App() {
                 <div className="flex flex-col gap-1 px-2">
                   {sortedNotes.map((note) => {
                     const isSelected = note.id === selectedNoteId
-
                     return (
                       <div
                         key={note.id}
@@ -1035,9 +1106,9 @@ export default function App() {
                           })
                         }}
                         className={cn(
-                          "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none group",
-                          isSelected 
-                            ? "bg-card border-border shadow-xs scale-[1.01]" 
+                          "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none",
+                          isSelected
+                            ? "bg-card border-border shadow-xs scale-[1.01]"
                             : "border-transparent bg-transparent hover:bg-muted/40"
                         )}
                       >
@@ -1097,8 +1168,10 @@ export default function App() {
       )}
 
       {/* OVERLAY MENUS & ONBOARDINGS */}
-      <CommandPalette />
-      <GlobalSearch />
+      <Suspense fallback={null}>
+        {isCommandPaletteOpen && <CommandPalette />}
+        {isGlobalSearchOpen && <GlobalSearch />}
+      </Suspense>
       <Onboarding />
 
       {/* Settings Modal (Shadcn Dialog Component overlay) */}
@@ -1150,6 +1223,25 @@ export default function App() {
               >
                 {darkMode ? 'Light Mode' : 'Dark Mode'}
               </Button>
+            </div>
+
+            <div className="flex items-center justify-between border-b pb-3 border-border">
+              <div>
+                <p className="text-xs font-semibold">Color Theme</p>
+                <p className="text-[10px] text-muted-foreground">Choose accent color scheme</p>
+              </div>
+              <select
+                value={colorTheme}
+                onChange={(e: any) => setColorTheme(e.target.value)}
+                className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none max-w-[140px] font-medium"
+              >
+                <option value="default">Default</option>
+                <option value="ocean">Ocean Blue</option>
+                <option value="sunset">Sunset Orange</option>
+                <option value="forest">Forest Green</option>
+                <option value="lavender">Lavender Purple</option>
+                <option value="rose">Rose Pink</option>
+              </select>
             </div>
 
             <div className="flex items-center justify-between border-b pb-3 border-border">
@@ -1308,4 +1400,14 @@ export default function App() {
 
     </div>
   )
+}
+
+export default function App() {
+  const isQuickCaptureWindow = window.location.hash === '#quick-capture'
+
+  if (isQuickCaptureWindow) {
+    return <QuickCapture />
+  }
+
+  return <MainApp />
 }
