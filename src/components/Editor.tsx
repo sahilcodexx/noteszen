@@ -10,7 +10,17 @@ import Image from '@tiptap/extension-image'
 import Highlight from '@tiptap/extension-highlight'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Typography from '@tiptap/extension-typography'
-import { common, createLowlight } from 'lowlight'
+import { createLowlight } from 'lowlight'
+import js from 'highlight.js/lib/languages/javascript'
+import ts from 'highlight.js/lib/languages/typescript'
+import python from 'highlight.js/lib/languages/python'
+import html from 'highlight.js/lib/languages/xml'
+import css from 'highlight.js/lib/languages/css'
+import json from 'highlight.js/lib/languages/json'
+import bash from 'highlight.js/lib/languages/bash'
+import sql from 'highlight.js/lib/languages/sql'
+import rust from 'highlight.js/lib/languages/rust'
+import cpp from 'highlight.js/lib/languages/cpp'
 import { useNotesStore } from '../store/useNotesStore'
 import { 
   Heading1, 
@@ -225,7 +235,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   selectedNoteIdRef.current = selectedNoteId
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
 
-  const lowlight = useMemo(() => createLowlight(common), [])
+  const lowlight = useMemo(() => createLowlight({ js, ts, python, html, css, json, bash, sql, rust, cpp }), [])
 
   const extensions = useMemo(
     () => [
@@ -363,6 +373,18 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
         return false
       },
+      handleDOMEvents: {
+        wheel: (_view, event) => {
+          const we = event as WheelEvent
+          if (we.ctrlKey || we.metaKey) {
+            event.preventDefault()
+            if (we.deltaY < 0) handleZoomIn()
+            else handleZoomOut()
+            return true
+          }
+          return false
+        }
+      },
     },
     onUpdate: ({ editor: activeEditor }) => {
       const noteIdToUpdate = selectedNoteIdRef.current
@@ -385,6 +407,26 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     editor.setEditable(activeNote.folder !== 'trash')
   }, [selectedNoteId, isEditorReady, activeNote?.id, activeNote?.folder, editor])
 
+  const resizeImage = (file: File, maxDim = 1920): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = (height / width) * maxDim; width = maxDim }
+          else { width = (width / height) * maxDim; height = maxDim }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL(file.type || 'image/jpeg', 0.85))
+      }
+      img.onerror = reject
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   // Handle paste for images
   useEffect(() => {
     if (!editor) return
@@ -402,12 +444,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       event.preventDefault()
       event.stopPropagation()
       event.stopImmediatePropagation()
-      const reader = new FileReader()
-      reader.onload = () => {
-        const url = reader.result as string
+      resizeImage(imageFile).then(url => {
         editor.chain().focus().setImage({ src: url }).run()
-      }
-      reader.readAsDataURL(imageFile)
+      })
     }
     document.addEventListener('paste', onPaste, true)
     return () => document.removeEventListener('paste', onPaste, true)
@@ -420,12 +459,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const handleImageFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      const url = reader.result as string
+    resizeImage(file).then(url => {
       editor?.chain().focus().setImage({ src: url }).run()
-    }
-    reader.readAsDataURL(file)
+    })
     e.target.value = ''
   }
 

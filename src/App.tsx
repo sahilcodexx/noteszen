@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState, useMemo, useRef } from 'react'
+import { memo, Suspense, lazy, useEffect, useState, useMemo, useRef } from 'react'
 import {
   FileText,
   Star,
@@ -59,6 +59,7 @@ import QuickCapture from './components/QuickCapture'
 
 // State Store
 import { useNotesStore } from './store/useNotesStore'
+import type { Note } from './types'
 
 const Editor = lazy(() => import('./components/Editor'))
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
@@ -1112,58 +1113,21 @@ function MainApp() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-1 px-2">
-                  {sortedNotes.map((note) => {
-                    const isSelected = note.id === selectedNoteId
-                    return (
-                      <ContextMenu key={note.id}>
-                        <ContextMenuTrigger asChild>
-                          <div
-                            onClick={() => {
-                              setSelectedNoteId(note.id)
-                              useNotesStore.setState({ isNoteListCollapsed: false })
-                              setIsNoteListHoveredOpen(false)
-                            }}
-                            className={cn(
-                              "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none",
-                              isSelected
-                                ? "bg-card border-border shadow-xs scale-[1.01]"
-                                : "border-transparent bg-transparent hover:bg-muted/40"
-                            )}
-                          >
-                            <h3 className={cn(
-                              "font-semibold text-xs truncate flex-grow",
-                              isSelected ? "text-primary font-bold" : "text-foreground/90"
-                            )}>
-                              {note.title || 'Untitled Note'}
-                            </h3>
-                            <div className="flex items-center gap-1.5 shrink-0 select-none">
-                              {note.isPinned && (
-                                <Pin className="w-3 h-3 text-sky-500 dark:text-sky-400 fill-sky-500 dark:fill-sky-400" />
-                              )}
-                              {note.isFavorite && (
-                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                              )}
-                            </div>
-                          </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem onClick={() => togglePin(note.id)}>
-                            <Pin />
-                            {note.isPinned ? 'Unpin Note' : 'Pin Note'}
-                          </ContextMenuItem>
-                          <ContextMenuItem onClick={() => toggleFavorite(note.id)}>
-                            <Star />
-                            {note.isFavorite ? 'Unstar Note' : 'Star Note'}
-                          </ContextMenuItem>
-                          <ContextMenuSeparator />
-                          <ContextMenuItem variant="destructive" onClick={() => deleteNote(note.id)}>
-                            <Trash2 />
-                            Move to Trash
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    )
-                  })}
+                  {sortedNotes.map((note) => (
+                    <NoteListItem
+                      key={note.id}
+                      note={note}
+                      isSelected={note.id === selectedNoteId}
+                      onSelect={() => {
+                        setSelectedNoteId(note.id)
+                        useNotesStore.setState({ isNoteListCollapsed: false })
+                        setIsNoteListHoveredOpen(false)
+                      }}
+                      togglePin={() => togglePin(note.id)}
+                      toggleFavorite={() => toggleFavorite(note.id)}
+                      deleteNote={() => deleteNote(note.id)}
+                    />
+                  ))}
                 </div>
               )}
             </ScrollArea>
@@ -1376,6 +1340,61 @@ function MainApp() {
     </div>
   )
 }
+
+const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect, togglePin, toggleFavorite, deleteNote }: {
+  note: Note
+  isSelected: boolean
+  onSelect: () => void
+  togglePin: () => void
+  toggleFavorite: () => void
+  deleteNote: () => void
+}) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          onClick={onSelect}
+          className={cn(
+            "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none",
+            isSelected
+              ? "bg-card border-border shadow-xs scale-[1.01]"
+              : "border-transparent bg-transparent hover:bg-muted/40"
+          )}
+        >
+          <h3 className={cn(
+            "font-semibold text-xs truncate flex-grow",
+            isSelected ? "text-primary font-bold" : "text-foreground/90"
+          )}>
+            {note.title || 'Untitled Note'}
+          </h3>
+          <div className="flex items-center gap-1.5 shrink-0 select-none">
+            {note.isPinned && (
+              <Pin className="w-3 h-3 text-sky-500 dark:text-sky-400 fill-sky-500 dark:fill-sky-400" />
+            )}
+            {note.isFavorite && (
+              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+            )}
+          </div>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onClick={togglePin}>
+          <Pin />
+          {note.isPinned ? 'Unpin Note' : 'Pin Note'}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={toggleFavorite}>
+          <Star />
+          {note.isFavorite ? 'Unstar Note' : 'Star Note'}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onClick={deleteNote}>
+          <Trash2 />
+          Move to Trash
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+})
 
 export default function App() {
   const isQuickCaptureWindow = window.location.hash === '#quick-capture'
