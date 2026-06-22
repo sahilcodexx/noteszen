@@ -6,6 +6,11 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import Image from '@tiptap/extension-image'
+import Highlight from '@tiptap/extension-highlight'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import Typography from '@tiptap/extension-typography'
+import { common, createLowlight } from 'lowlight'
 import { useNotesStore } from '../store/useNotesStore'
 import { 
   Heading1, 
@@ -40,7 +45,10 @@ import {
   Pin,
   Star,
   Archive,
-  Menu
+  Menu,
+  Highlighter,
+  Image as ImageIcon,
+  ChevronDown
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from '@/components/ui/button'
@@ -207,6 +215,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const selectedIndexRef = useRef(selectedIndex)
   const isZenModeRef = useRef(isZenMode)
   const selectedNoteIdRef = useRef(noteId || storeSelectedNoteId)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   showSlashMenuRef.current = showSlashMenu
   selectedIndexRef.current = selectedIndex
@@ -216,13 +225,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   selectedNoteIdRef.current = selectedNoteId
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
 
+  const lowlight = useMemo(() => createLowlight(common), [])
+
   const extensions = useMemo(
     () => [
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3]
         },
-        link: false
+        link: false,
+        codeBlock: false
       }),
       Placeholder.configure({
         placeholder: 'Press / for commands, or write thoughts...'
@@ -233,9 +245,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       TaskList,
       TaskItem.configure({
         nested: true
-      })
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+      }),
+      CodeBlockLowlight.configure({ lowlight }),
+      Highlight.configure({ multicolor: true }),
+      Typography,
     ],
-    []
+    [lowlight]
   )
 
   // Zoom handlers for text sizing (14px to 128px)
@@ -293,7 +312,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     extensions,
     editorProps: {
       attributes: {
-        class: 'focus:outline-none prose-editor max-w-none min-h-[450px] leading-relaxed pb-24 font-normal'
+        class: 'focus:outline-none prose-editor max-w-none min-h-[450px] leading-relaxed pb-24 font-normal',
+        spellcheck: 'true'
       },
       handleKeyDown(view, event) {
         if (event.key === '/') {
@@ -342,11 +362,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         }
 
         return false
-      }
+      },
     },
     onUpdate: ({ editor: activeEditor }) => {
       const noteIdToUpdate = selectedNoteIdRef.current
-      if (noteIdToUpdate && !activeEditor.isDestroyed) {
+      if (noteIdToUpdate && !activeEditor.isDestroyed && activeEditor.schema) {
         updateNote(noteIdToUpdate, { content: activeEditor.getHTML() })
       }
     }
@@ -356,14 +376,58 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   // Synchronize note contents on select and toggle editable state
   useEffect(() => {
-    if (!isEditorReady || !activeNote) return
+    if (!isEditorReady || !activeNote || !editor?.schema) return
 
-    const currentContent = editor!.getHTML()
+    const currentContent = editor.getHTML()
     if (currentContent !== activeNote.content) {
-      editor!.commands.setContent(activeNote.content || '', { emitUpdate: false })
+      editor.commands.setContent(activeNote.content || '', { emitUpdate: false })
     }
-    editor!.setEditable(activeNote.folder !== 'trash')
+    editor.setEditable(activeNote.folder !== 'trash')
   }, [selectedNoteId, isEditorReady, activeNote?.id, activeNote?.folder, editor])
+
+  // Handle paste for images
+  useEffect(() => {
+    if (!editor) return
+    const onPaste = (event: ClipboardEvent) => {
+      const items = event.clipboardData?.items
+      const files = event.clipboardData?.files
+
+      const imageFile = [...(items || [])]
+        .find(i => i.type.startsWith('image/'))
+        ?.getAsFile()
+        || (files?.length ? files[0] : null)
+
+      if (!imageFile || !imageFile.type.startsWith('image/')) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      event.stopImmediatePropagation()
+      const reader = new FileReader()
+      reader.onload = () => {
+        const url = reader.result as string
+        editor.chain().focus().setImage({ src: url }).run()
+      }
+      reader.readAsDataURL(imageFile)
+    }
+    document.addEventListener('paste', onPaste, true)
+    return () => document.removeEventListener('paste', onPaste, true)
+  }, [editor])
+
+  const handleInsertImage = () => {
+    imageInputRef.current?.click()
+  }
+
+  const handleImageFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = reader.result as string
+      editor?.chain().focus().setImage({ src: url }).run()
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   // Simple clean-up slash menu when content is deleted
   useEffect(() => {
@@ -420,9 +484,19 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       action: () => editor?.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleBlockquote().run()
     },
     {
+      name: 'Highlight',
+      icon: Highlighter,
+      action: () => editor?.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleHighlight().run()
+    },
+    {
       name: 'Divider',
       icon: Minus,
       action: () => editor?.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).setHorizontalRule().run()
+    },
+    {
+      name: 'Image',
+      icon: ImageIcon,
+      action: () => { handleInsertImage() }
     }
   ]
 
@@ -492,7 +566,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       if (!activeEditor || activeEditor.isDestroyed || !activeEditor.schema) {
         return ''
       }
-      return activeEditor.getText()
+      try {
+        return activeEditor.getText()
+      } catch {
+        return ''
+      }
     },
   }) ?? ''
   const wordCount = useMemo(() => {
@@ -542,8 +620,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 Note is in Trash Bin (Read-Only)
               </div>
             ) : (
-              <div className="flex items-center flex-wrap gap-0.5">
-                {/* Text formatting styles */}
+              <>
+              <div className="flex items-center gap-0.5">
+                {/* Bold, Italic - always visible */}
                 <Button
                   size="xs"
                   variant="ghost"
@@ -553,7 +632,6 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 >
                   <Bold className="w-3.5 h-3.5" />
                 </Button>
-
                 <Button
                   size="xs"
                   variant="ghost"
@@ -564,137 +642,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   <Italic className="w-3.5 h-3.5" />
                 </Button>
 
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleStrike().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('strike') && "bg-muted text-foreground")}
-                  title="Strikethrough"
-                >
-                  <Strikethrough className="w-3.5 h-3.5" />
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleCode().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('code') && "bg-muted text-foreground")}
-                  title="Inline Code"
-                >
-                  <Code className="w-3.5 h-3.5" />
-                </Button>
-
-                <div className="h-4 w-px bg-border/50 mx-1.5 shrink-0" />
-
-                {/* Paragraph */}
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().setParagraph().run()}
-                  className={cn("h-7 w-7 p-0 text-xs font-semibold", editor?.isActive('paragraph') && !editor?.isActive('heading') && "bg-muted text-foreground")}
-                  title="Paragraph (Normal Text)"
-                >
-                  P
-                </Button>
-
-                {/* Headings */}
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-                  className={cn("h-7 w-7 p-0 text-xs font-extrabold", editor?.isActive('heading', { level: 1 }) && "bg-muted text-foreground")}
-                  title="Heading 1"
-                >
-                  H1
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-                  className={cn("h-7 w-7 p-0 text-xs font-bold", editor?.isActive('heading', { level: 2 }) && "bg-muted text-foreground")}
-                  title="Heading 2"
-                >
-                  H2
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-                  className={cn("h-7 w-7 p-0 text-xs font-semibold", editor?.isActive('heading', { level: 3 }) && "bg-muted text-foreground")}
-                  title="Heading 3"
-                >
-                  H3
-                </Button>
-
-                <div className="h-4 w-px bg-border/50 mx-1.5 shrink-0" />
-
-                {/* Lists */}
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('bulletList') && "bg-muted text-foreground")}
-                  title="Bullet List"
-                >
-                  <List className="w-3.5 h-3.5" />
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('orderedList') && "bg-muted text-foreground")}
-                  title="Numbered List"
-                >
-                  <ListOrdered className="w-3.5 h-3.5" />
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleTaskList().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('taskList') && "bg-muted text-foreground")}
-                  title="Task List"
-                >
-                  <CheckSquare className="w-3.5 h-3.5" />
-                </Button>
-
-                <div className="h-4 w-px bg-border/50 mx-1.5 shrink-0" />
-
-                {/* Blocks */}
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('blockquote') && "bg-muted text-foreground")}
-                  title="Blockquote"
-                >
-                  <Quote className="w-3.5 h-3.5" />
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('codeBlock') && "bg-muted text-foreground")}
-                  title="Code Block"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                </Button>
-
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().setHorizontalRule().run()}
-                  className="h-7 w-7 p-0"
-                  title="Horizontal Divider"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                </Button>
-
-                <div className="h-4 w-px bg-border/50 mx-1.5 shrink-0" />
+                <div className="h-4 w-px bg-border/50 mx-1 shrink-0" />
 
                 {/* Undo Redo */}
                 <Button
@@ -707,7 +655,6 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 >
                   <Undo className="w-3.5 h-3.5" />
                 </Button>
-
                 <Button
                   size="xs"
                   variant="ghost"
@@ -719,9 +666,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   <Redo className="w-3.5 h-3.5" />
                 </Button>
 
-                <div className="h-4 w-px bg-border/50 mx-1.5 shrink-0" />
+                <div className="h-4 w-px bg-border/50 mx-1 shrink-0" />
 
-                {/* Zoom out text size (-) */}
+                {/* Zoom */}
                 <Button
                   size="xs"
                   variant="ghost"
@@ -732,13 +679,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </Button>
-
-                {/* Text Size Label */}
                 <span className="text-[10px] uppercase font-bold text-muted-foreground/60 select-none px-1.5 min-w-[28px] text-center bg-muted/30 rounded py-0.5">
                   {editorFontSize}px
                 </span>
-
-                {/* Zoom in text size (+) */}
                 <Button
                   size="xs"
                   variant="ghost"
@@ -749,7 +692,113 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </Button>
+
+                <div className="h-4 w-px bg-border/50 mx-1 shrink-0" />
+
+                {/* Highlight */}
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => editor?.chain().focus().toggleHighlight().run()}
+                  className={cn("h-7 w-7 p-0", editor?.isActive('highlight') && "bg-muted text-foreground")}
+                  title="Highlight"
+                >
+                  <Highlighter className="w-3.5 h-3.5" />
+                </Button>
+
+                {/* Files */}
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={handleInsertImage}
+                  className="h-7 px-2 text-xs font-medium gap-1 bg-muted/50"
+                  title="Insert Image"
+                >
+                  <ImageIcon className="size-3.5" />
+                  <span className="leading-none">Files</span>
+                </Button>
+
+                <div className="w-2" />
+
+                {/* Style Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="xs" variant="outline" className="h-7 px-2 text-xs font-medium gap-1 bg-muted/50">
+                      <span className="leading-none">Format</span>
+                      <ChevronDown className="size-3 text-muted-foreground/60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuLabel>Text Style</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleStrike().run()}>
+                      <Strikethrough className="w-3.5 h-3.5 mr-2" />
+                      Strikethrough
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleCode().run()}>
+                      <Code className="w-3.5 h-3.5 mr-2" />
+                      Inline Code
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Block Style</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().setParagraph().run()}>
+                      <span className="w-3.5 h-3.5 mr-2 flex items-center justify-center text-xs font-semibold">P</span>
+                      Paragraph
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}>
+                      <span className="w-3.5 h-3.5 mr-2 flex items-center justify-center text-xs font-extrabold">H1</span>
+                      Heading 1
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>
+                      <span className="w-3.5 h-3.5 mr-2 flex items-center justify-center text-xs font-bold">H2</span>
+                      Heading 2
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}>
+                      <span className="w-3.5 h-3.5 mr-2 flex items-center justify-center text-xs font-semibold">H3</span>
+                      Heading 3
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Lists</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+                      <List className="w-3.5 h-3.5 mr-2" />
+                      Bullet List
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+                      <ListOrdered className="w-3.5 h-3.5 mr-2" />
+                      Numbered List
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleTaskList().run()}>
+                      <CheckSquare className="w-3.5 h-3.5 mr-2" />
+                      Task List
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Insert</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
+                      <Quote className="w-3.5 h-3.5 mr-2" />
+                      Blockquote
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().toggleCodeBlock().run()}>
+                      <FileText className="w-3.5 h-3.5 mr-2" />
+                      Code Block
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => editor?.chain().focus().setHorizontalRule().run()}>
+                      <Minus className="w-3.5 h-3.5 mr-2" />
+                      Divider
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFileSelected}
+              />
+              </>
             )}
           </div>
 
@@ -799,10 +848,10 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       )}
 
       {/* 2. FLOATING BUBBLE FORMATTING MENU */}
-      {isEditorReady && !isTrashNote && (
+      {isEditorReady && !isTrashNote && editor?.schema && (
         <BubbleMenu 
+          key={`bubble-${selectedNoteId}`}
           editor={editor!} 
-          options={{}}
           className="flex items-center gap-0.5 bg-card text-card-foreground border border-border shadow-xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100"
         >
           <Button
@@ -840,6 +889,15 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             title="Code"
           >
             <Code className="w-3.5 h-3.5" />
+          </Button>
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            className={cn("h-7 w-7 p-0", editor.isActive('highlight') && "bg-muted text-foreground")}
+            title="Highlight"
+          >
+            <Highlighter className="w-3.5 h-3.5" />
           </Button>
           <Button
             size="xs"

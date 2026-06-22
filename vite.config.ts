@@ -11,6 +11,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: [
+      '@tiptap/extension-highlight',
+      '@tiptap/extension-typography',
+      '@tiptap/extension-code-block-lowlight',
+      'lowlight',
+    ],
+  },
   plugins: [
     react(),
     tailwindcss(),

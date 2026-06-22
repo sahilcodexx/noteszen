@@ -392,3 +392,105 @@ body {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
+
+/* Text Highlighting */
+.prose-editor mark {
+  background-color: #fef08a;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.dark .prose-editor mark {
+  background-color: #854d0e;
+}
+
+.prose-editor mark[data-color="yellow"] {
+  background-color: #fef08a;
+}
+.dark .prose-editor mark[data-color="yellow"] {
+  background-color: #854d0e;
+}
+
+.prose-editor mark[data-color="green"] {
+  background-color: #bbf7d0;
+}
+.dark .prose-editor mark[data-color="green"] {
+  background-color: #166534;
+}
+
+.prose-editor mark[data-color="blue"] {
+  background-color: #bfdbfe;
+}
+.dark .prose-editor mark[data-color="blue"] {
+  background-color: #1e3a5f;
+}
+
+.prose-editor mark[data-color="red"] {
+  background-color: #fecaca;
+}
+.dark .prose-editor mark[data-color="red"] {
+  background-color: #7f1d1d;
+}
+
+.prose-editor mark[data-color="purple"] {
+  background-color: #e9d5ff;
+}
+.dark .prose-editor mark[data-color="purple"] {
+  background-color: #4c1d95;
+}
+
+.prose-editor mark[data-color="orange"] {
+  background-color: #fed7aa;
+}
+.dark .prose-editor mark[data-color="orange"] {
+  background-color: #7c2d12;
+}
+
+/* Syntax Highlighting in Code Blocks */
+.prose-editor pre {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.prose-editor pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+.hljs-keyword { color: #cba6f7; }
+.hljs-string { color: #a6e3a1; }
+.hljs-number { color: #fab387; }
+.hljs-comment { color: #6c7086; font-style: italic; }
+.hljs-function { color: #89b4fa; }
+.hljs-title { color: #89b4fa; }
+.hljs-built_in { color: #f38ba8; }
+.hljs-type { color: #f9e2af; }
+.hljs-attr { color: #89dceb; }
+.hljs-attribute { color: #89dceb; }
+.hljs-literal { color: #fab387; }
+.hljs-meta { color: #f38ba8; }
+.hljs-tag { color: #89b4fa; }
+.hljs-name { color: #89b4fa; }
+.hljs-selector-class { color: #a6e3a1; }
+.hljs-selector-id { color: #f38ba8; }
+.hljs-selector-tag { color: #cba6f7; }
+.hljs-section { color: #89b4fa; font-weight: bold; }
+.hljs-variable { color: #f38ba8; }
+.hljs-regexp { color: #a6e3a1; }
+.hljs-symbol { color: #fab387; }
+.hljs-bullet { color: #a6e3a1; }
+.hljs-code { color: #89dceb; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }
+.hljs-link { color: #89b4fa; text-decoration: underline; }
+.hljs-quote { color: #6c7086; font-style: italic; }
+.hljs-deletion { color: #f38ba8; }
+.hljs-addition { color: #a6e3a1; }
