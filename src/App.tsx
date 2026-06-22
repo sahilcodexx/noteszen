@@ -33,10 +33,25 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 // App Components
 import Onboarding from './components/Onboarding'
@@ -124,7 +139,7 @@ function MainApp() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
   const noteListRef = useRef<HTMLElement>(null)
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, noteId: string } | null>(null)
+
 
   // Hover states for temporary right sidebar opening
   const [isNoteListHoveredOpen, setIsNoteListHoveredOpen] = useState(false)
@@ -931,18 +946,22 @@ function MainApp() {
               <div className="flex-1 flex flex-col overflow-hidden bg-background/60">
                 {/* Split Panel Header */}
                 <div className="h-12 px-4 flex items-center justify-between border-b border-border/40 shrink-0 bg-background/40">
-                  <select
-                    value={splitViewNoteId || ''}
-                    onChange={(e) => setSplitViewNoteId(e.target.value || null)}
-                    className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none flex-1 max-w-[300px] font-medium"
+                  <Select
+                    value={splitViewNoteId ?? 'none'}
+                    onValueChange={(value) => setSplitViewNoteId(value === 'none' ? null : value)}
                   >
-                    <option value="">Select a note...</option>
-                    {sortedNotes.filter(n => n.id !== selectedNoteId && n.folder !== 'trash').map(note => (
-                      <option key={note.id} value={note.id}>
-                        {note.title || 'Untitled Note'}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" className="flex-1 max-w-[300px]">
+                      <SelectValue placeholder="Select a note..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select a note...</SelectItem>
+                      {sortedNotes.filter(n => n.id !== selectedNoteId && n.folder !== 'trash').map(note => (
+                        <SelectItem key={note.id} value={note.id}>
+                          {note.title || 'Untitled Note'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -1051,28 +1070,34 @@ function MainApp() {
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuLabel>List Actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => createNote()}>
-                    <Plus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    New Note
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => createDailyNote()}>
-                    <Calendar className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    Daily Note
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => createNote()}>
+                      <Plus />
+                      New Note
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => createDailyNote()}>
+                      <Calendar />
+                      Daily Note
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => toggleSplitView()}>
-                    <Columns2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    {isSplitView ? 'Close' : 'Open'} Split View
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => toggleSplitView()}>
+                      <Columns2 />
+                      {isSplitView ? 'Close' : 'Open'} Split View
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setCommandPaletteOpen(true)}>
-                    <Command className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    Command Menu
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setGlobalSearchOpen(true)}>
-                    <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                    Global Search
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => setCommandPaletteOpen(true)}>
+                      <Command />
+                      Command Menu
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setGlobalSearchOpen(true)}>
+                      <Search />
+                      Global Search
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1090,43 +1115,53 @@ function MainApp() {
                   {sortedNotes.map((note) => {
                     const isSelected = note.id === selectedNoteId
                     return (
-                      <div
-                        key={note.id}
-                        onClick={() => {
-                          setSelectedNoteId(note.id)
-                          useNotesStore.setState({ isNoteListCollapsed: false })
-                          setIsNoteListHoveredOpen(false)
-                        }}
-                        onContextMenu={(e) => {
-                          e.preventDefault()
-                          setContextMenu({
-                            x: e.clientX,
-                            y: e.clientY,
-                            noteId: note.id
-                          })
-                        }}
-                        className={cn(
-                          "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none",
-                          isSelected
-                            ? "bg-card border-border shadow-xs scale-[1.01]"
-                            : "border-transparent bg-transparent hover:bg-muted/40"
-                        )}
-                      >
-                        <h3 className={cn(
-                          "font-semibold text-xs truncate flex-grow",
-                          isSelected ? "text-primary font-bold" : "text-foreground/90"
-                        )}>
-                          {note.title || 'Untitled Note'}
-                        </h3>
-                        <div className="flex items-center gap-1.5 shrink-0 select-none">
-                          {note.isPinned && (
-                            <Pin className="w-3 h-3 text-sky-500 dark:text-sky-400 fill-sky-500 dark:fill-sky-400" />
-                          )}
-                          {note.isFavorite && (
-                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                          )}
-                        </div>
-                      </div>
+                      <ContextMenu key={note.id}>
+                        <ContextMenuTrigger asChild>
+                          <div
+                            onClick={() => {
+                              setSelectedNoteId(note.id)
+                              useNotesStore.setState({ isNoteListCollapsed: false })
+                              setIsNoteListHoveredOpen(false)
+                            }}
+                            className={cn(
+                              "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none",
+                              isSelected
+                                ? "bg-card border-border shadow-xs scale-[1.01]"
+                                : "border-transparent bg-transparent hover:bg-muted/40"
+                            )}
+                          >
+                            <h3 className={cn(
+                              "font-semibold text-xs truncate flex-grow",
+                              isSelected ? "text-primary font-bold" : "text-foreground/90"
+                            )}>
+                              {note.title || 'Untitled Note'}
+                            </h3>
+                            <div className="flex items-center gap-1.5 shrink-0 select-none">
+                              {note.isPinned && (
+                                <Pin className="w-3 h-3 text-sky-500 dark:text-sky-400 fill-sky-500 dark:fill-sky-400" />
+                              )}
+                              {note.isFavorite && (
+                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              )}
+                            </div>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => togglePin(note.id)}>
+                            <Pin />
+                            {note.isPinned ? 'Unpin Note' : 'Pin Note'}
+                          </ContextMenuItem>
+                          <ContextMenuItem onClick={() => toggleFavorite(note.id)}>
+                            <Star />
+                            {note.isFavorite ? 'Unstar Note' : 'Star Note'}
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem variant="destructive" onClick={() => deleteNote(note.id)}>
+                            <Trash2 />
+                            Move to Trash
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     )
                   })}
                 </div>
@@ -1230,18 +1265,19 @@ function MainApp() {
                 <p className="text-xs font-semibold">Color Theme</p>
                 <p className="text-[10px] text-muted-foreground">Choose accent color scheme</p>
               </div>
-              <select
-                value={colorTheme}
-                onChange={(e: any) => setColorTheme(e.target.value)}
-                className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none max-w-[140px] font-medium"
-              >
-                <option value="default">Default</option>
-                <option value="ocean">Ocean Blue</option>
-                <option value="sunset">Sunset Orange</option>
-                <option value="forest">Forest Green</option>
-                <option value="lavender">Lavender Purple</option>
-                <option value="rose">Rose Pink</option>
-              </select>
+              <Select value={colorTheme} onValueChange={setColorTheme}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
+                  <SelectItem value="ocean">Ocean Blue</SelectItem>
+                  <SelectItem value="sunset">Sunset Orange</SelectItem>
+                  <SelectItem value="forest">Forest Green</SelectItem>
+                  <SelectItem value="lavender">Lavender Purple</SelectItem>
+                  <SelectItem value="rose">Rose Pink</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between border-b pb-3 border-border">
@@ -1249,15 +1285,16 @@ function MainApp() {
                 <p className="text-xs font-semibold">Editor Font Family</p>
                 <p className="text-[10px] text-muted-foreground">Select note writing typeface</p>
               </div>
-              <select
-                value={editorFont}
-                onChange={(e: any) => setEditorFont(e.target.value)}
-                className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none max-w-[140px] font-medium"
-              >
-                <option value="sans">Geist Sans</option>
-                <option value="serif">Georgia Serif</option>
-                <option value="mono">Geist Mono</option>
-              </select>
+              <Select value={editorFont} onValueChange={setEditorFont}>
+                <SelectTrigger size="sm" className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sans">Geist Sans</SelectItem>
+                  <SelectItem value="serif">Georgia Serif</SelectItem>
+                  <SelectItem value="mono">Geist Mono</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between border-b pb-3 border-border">
@@ -1335,68 +1372,6 @@ function MainApp() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Right-click Context Menu */}
-      {contextMenu && (
-        <>
-          <div 
-            className="fixed inset-0 z-50 bg-transparent" 
-            onClick={() => setContextMenu(null)}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              setContextMenu(null)
-            }}
-          />
-          <div 
-            className="fixed z-50 min-w-[140px] rounded-xl border bg-popover/95 backdrop-blur-md text-popover-foreground border-border/60 p-1.5 shadow-xl divide-y divide-border/40 animate-in fade-in zoom-in-95 duration-100 font-semibold select-none text-[11px]"
-            style={{
-              top: `${contextMenu.y}px`,
-              left: `${contextMenu.x}px`
-            }}
-          >
-            <div className="p-1 space-y-0.5">
-              <button
-                onClick={() => {
-                  togglePin(contextMenu.noteId)
-                  setContextMenu(null)
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted text-foreground/90 hover:text-foreground font-semibold cursor-pointer"
-              >
-                <Pin className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>
-                  {notes.find(n => n.id === contextMenu.noteId)?.isPinned ? "Unpin Note" : "Pin Note"}
-                </span>
-              </button>
-
-              <button
-                onClick={() => {
-                  toggleFavorite(contextMenu.noteId)
-                  setContextMenu(null)
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-muted text-foreground/90 hover:text-foreground font-semibold cursor-pointer"
-              >
-                <Star className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>
-                  {notes.find(n => n.id === contextMenu.noteId)?.isFavorite ? "Unstar Note" : "Star Note"}
-                </span>
-              </button>
-            </div>
-
-            <div className="p-1">
-              <button
-                onClick={() => {
-                  deleteNote(contextMenu.noteId)
-                  setContextMenu(null)
-                }}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-destructive/10 text-destructive font-semibold cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Move to Trash</span>
-              </button>
-            </div>
-          </div>
-        </>
-      )}
 
     </div>
   )

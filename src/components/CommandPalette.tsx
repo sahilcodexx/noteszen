@@ -5,7 +5,9 @@ import {
   Pin,
   Star,
   Archive,
-  Trash
+  Trash,
+  Calendar,
+  Trash2
 } from 'lucide-react'
 import {
   CommandDialog,
@@ -23,6 +25,7 @@ export default function CommandPalette() {
     selectedNoteId,
     isCommandPaletteOpen,
     setCommandPaletteOpen,
+    setActiveFolder,
     createNote,
     createDailyNote,
     setSelectedNoteId,
@@ -33,6 +36,37 @@ export default function CommandPalette() {
   } = useNotesStore()
 
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
+
+  const navigation = [
+    {
+      id: 'go-notes',
+      title: 'Go to Notes',
+      keywords: 'notes all',
+      icon: FileText,
+      action: () => setActiveFolder('notes')
+    },
+    {
+      id: 'go-favorites',
+      title: 'Go to Favorites',
+      keywords: 'favorites starred fav',
+      icon: Star,
+      action: () => setActiveFolder('favorites')
+    },
+    {
+      id: 'go-daily',
+      title: 'Go to Daily Notes',
+      keywords: 'daily journal today',
+      icon: Calendar,
+      action: () => setActiveFolder('daily')
+    },
+    {
+      id: 'go-trash',
+      title: 'Go to Trash',
+      keywords: 'trash deleted bin',
+      icon: Trash2,
+      action: () => setActiveFolder('trash')
+    }
+  ]
 
   const actions = [
     {
@@ -93,7 +127,26 @@ export default function CommandPalette() {
       <CommandInput placeholder="Type a command or search notes..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        
+
+        <CommandGroup heading="Views">
+          {navigation.map((item) => {
+            const Icon = item.icon
+            return (
+              <CommandItem
+                key={item.id}
+                value={`${item.title} ${item.keywords}`}
+                onSelect={() => {
+                  item.action()
+                  setCommandPaletteOpen(false)
+                }}
+              >
+                <Icon data-icon="inline-start" />
+                <span>{item.title}</span>
+              </CommandItem>
+            )
+          })}
+        </CommandGroup>
+
         <CommandGroup heading="Actions">
           {actions.map((act) => {
             const Icon = act.icon

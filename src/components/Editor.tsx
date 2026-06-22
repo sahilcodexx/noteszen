@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -44,18 +44,30 @@ import {
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 // Gradients list
 const COVERS = {
@@ -191,9 +203,40 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const [copied, setCopied] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const slashCoords = useRef({ top: 0, left: 0 })
+  const showSlashMenuRef = useRef(showSlashMenu)
+  const selectedIndexRef = useRef(selectedIndex)
+  const isZenModeRef = useRef(isZenMode)
+  const selectedNoteIdRef = useRef(noteId || storeSelectedNoteId)
+
+  showSlashMenuRef.current = showSlashMenu
+  selectedIndexRef.current = selectedIndex
+  isZenModeRef.current = isZenMode
 
   const selectedNoteId = noteId || storeSelectedNoteId
+  selectedNoteIdRef.current = selectedNoteId
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
+
+  const extensions = useMemo(
+    () => [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3]
+        },
+        link: false
+      }),
+      Placeholder.configure({
+        placeholder: 'Press / for commands, or write thoughts...'
+      }),
+      Link.configure({
+        openOnClick: false
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true
+      })
+    ],
+    []
+  )
 
   // Zoom handlers for text sizing (14px to 128px)
   const handleZoomIn = () => {
@@ -244,25 +287,10 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     localStorage.setItem(`noteszen-meta-${activeNote.id}`, JSON.stringify(newMeta))
   }
 
+  const commandsRef = useRef<Array<{ name: string; icon: typeof Heading1; action: () => void }>>([])
+
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3]
-        },
-        link: false
-      }),
-      Placeholder.configure({
-        placeholder: 'Press / for commands, or write thoughts...'
-      }),
-      Link.configure({
-        openOnClick: false
-      }),
-      TaskList,
-      TaskItem.configure({
-        nested: true
-      })
-    ],
+    extensions,
     editorProps: {
       attributes: {
         class: 'focus:outline-none prose-editor max-w-none min-h-[450px] leading-relaxed pb-24 font-normal'
@@ -278,21 +306,26 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           setShowSlashMenu(true)
           setSelectedIndex(0)
         }
-        
-        if (showSlashMenu) {
+
+        if (showSlashMenuRef.current) {
+          const commands = commandsRef.current
           if (event.key === 'ArrowDown') {
             event.preventDefault()
-            setSelectedIndex(prev => (prev + 1) % COMMANDS.length)
+            setSelectedIndex(prev => (prev + 1) % commands.length)
             return true
           }
           if (event.key === 'ArrowUp') {
             event.preventDefault()
-            setSelectedIndex(prev => (prev - 1 + COMMANDS.length) % COMMANDS.length)
+            setSelectedIndex(prev => (prev - 1 + commands.length) % commands.length)
             return true
           }
           if (event.key === 'Enter') {
             event.preventDefault()
-            executeCommand(COMMANDS[selectedIndex])
+            const cmd = commands[selectedIndexRef.current]
+            if (cmd) {
+              cmd.action()
+              setShowSlashMenu(false)
+            }
             return true
           }
           if (event.key === 'Escape') {
@@ -301,9 +334,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             return true
           }
         }
-        
-        // Escape inside Zen Mode toggles Zen Mode back
-        if (event.key === 'Escape' && isZenMode && !showSlashMenu) {
+
+        if (event.key === 'Escape' && isZenModeRef.current && !showSlashMenuRef.current) {
           event.preventDefault()
           setZenMode(false)
           return true
@@ -312,35 +344,39 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         return false
       }
     },
-    onUpdate: ({ editor }) => {
-      if (selectedNoteId && editor.view && editor.view.state) {
-        updateNote(selectedNoteId, { content: editor.getHTML() })
+    onUpdate: ({ editor: activeEditor }) => {
+      const noteIdToUpdate = selectedNoteIdRef.current
+      if (noteIdToUpdate && !activeEditor.isDestroyed) {
+        updateNote(noteIdToUpdate, { content: activeEditor.getHTML() })
       }
     }
   })
 
+  const isEditorReady = Boolean(editor && !editor.isDestroyed && editor.schema)
+
   // Synchronize note contents on select and toggle editable state
   useEffect(() => {
-    if (editor && activeNote && editor.view && editor.view.state) {
-      if (editor.getHTML() !== activeNote.content) {
-        editor.commands.setContent(activeNote.content || '')
-      }
-      editor.setEditable(activeNote.folder !== 'trash')
+    if (!isEditorReady || !activeNote) return
+
+    const currentContent = editor!.getHTML()
+    if (currentContent !== activeNote.content) {
+      editor!.commands.setContent(activeNote.content || '', { emitUpdate: false })
     }
-  }, [selectedNoteId, editor, activeNote?.folder])
+    editor!.setEditable(activeNote.folder !== 'trash')
+  }, [selectedNoteId, isEditorReady, activeNote?.id, activeNote?.folder, editor])
 
   // Simple clean-up slash menu when content is deleted
   useEffect(() => {
-    if (editor && showSlashMenu) {
-      const textBefore = editor.state.doc.textBetween(
-        Math.max(0, editor.state.selection.from - 10),
-        editor.state.selection.from
-      )
-      if (!textBefore.includes('/')) {
-        setShowSlashMenu(false)
-      }
+    if (!isEditorReady || !showSlashMenu) return
+
+    const textBefore = editor!.state.doc.textBetween(
+      Math.max(0, editor!.state.selection.from - 10),
+      editor!.state.selection.from
+    )
+    if (!textBefore.includes('/')) {
+      setShowSlashMenu(false)
     }
-  }, [editor?.state.selection.from])
+  }, [isEditorReady, showSlashMenu, editor?.state.selection.from])
 
   const COMMANDS = [
     {
@@ -390,6 +426,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     }
   ]
 
+  commandsRef.current = COMMANDS
+
   const executeCommand = (cmd: typeof COMMANDS[0]) => {
     cmd.action()
     setShowSlashMenu(false)
@@ -414,7 +452,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   // Copy as Markdown handler
   const handleCopyMarkdown = () => {
-    if (!editor) return
+    if (!isEditorReady) return
     const md = htmlToMarkdown(editor.getHTML())
     navigator.clipboard.writeText(md)
     setCopied(true)
@@ -423,7 +461,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   // Export as Markdown handler
   const handleExportMarkdown = () => {
-    if (!editor || !activeNote) return
+    if (!isEditorReady || !activeNote) return
     const md = htmlToMarkdown(editor.getHTML())
     const blob = new Blob([md], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
@@ -436,7 +474,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   // Link trigger in bubble menu
   const setLink = () => {
-    if (!editor) return
+    if (!isEditorReady) return
     const previousUrl = editor.getAttributes('link').href
     const url = window.prompt('Enter Link URL:', previousUrl)
     if (url === null) return
@@ -447,8 +485,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
 
-  // Stats Counters
-  const textContent = editor ? editor.getText() : ''
+  // Stats Counters — only read from a live editor instance
+  const textContent = useEditorState({
+    editor,
+    selector: ({ editor: activeEditor }) => {
+      if (!activeEditor || activeEditor.isDestroyed || !activeEditor.schema) {
+        return ''
+      }
+      return activeEditor.getText()
+    },
+  }) ?? ''
   const wordCount = useMemo(() => {
     if (!textContent.trim()) return 0
     return textContent.trim().split(/\s+/).length
@@ -753,9 +799,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       )}
 
       {/* 2. FLOATING BUBBLE FORMATTING MENU */}
-      {editor && !isTrashNote && (
+      {isEditorReady && !isTrashNote && (
         <BubbleMenu 
-          editor={editor} 
+          editor={editor!} 
           options={{}}
           className="flex items-center gap-0.5 bg-card text-card-foreground border border-border shadow-xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100"
         >
@@ -846,14 +892,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuLabel>Select Gradient</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {Object.entries(COVERS).map(([key, value]) => (
-                      <DropdownMenuItem key={key} onClick={() => updateMetadata({ cover: value })}>
-                        <div className="flex items-center gap-2 w-full cursor-pointer">
-                          <div className={cn("w-4.5 h-4.5 rounded-full border border-border/30", value)} />
-                          <span className="text-xs font-semibold">{key}</span>
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
+                    <DropdownMenuGroup>
+                      {Object.entries(COVERS).map(([key, value]) => (
+                        <DropdownMenuItem key={key} onClick={() => updateMetadata({ cover: value })}>
+                          <div className={cn("size-4 rounded-full border border-border/30", value)} />
+                          {key}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button size="xs" variant="destructive" onClick={() => updateMetadata({ cover: null })} className="backdrop-blur-md">
@@ -874,32 +920,29 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
               <div className="absolute -top-1 -right-16 opacity-0 group-hover/icon:opacity-100 transition-opacity flex gap-1 animate-in zoom-in-95 duration-100 z-10">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="text-[9px] bg-card border rounded-md px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted font-bold transition-all shadow-xs">
+                    <Button size="xs" variant="outline">
                       Change
-                    </button>
+                    </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48 max-h-56 overflow-y-auto">
+                  <DropdownMenuContent align="start" className="w-44">
                     <DropdownMenuLabel>Select Emoji</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <div className="grid grid-cols-5 gap-1 p-2">
+                    <DropdownMenuGroup className="grid grid-cols-5 gap-0.5 p-1">
                       {EMOJIS.map(emoji => (
-                        <button
+                        <DropdownMenuItem
                           key={emoji}
                           onClick={() => updateMetadata({ icon: emoji })}
-                          className="text-xl p-1 hover:bg-muted rounded text-center transition-colors"
+                          className="justify-center p-1 text-lg"
                         >
                           {emoji}
-                        </button>
+                        </DropdownMenuItem>
                       ))}
-                    </div>
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <button 
-                  onClick={() => updateMetadata({ icon: null })}
-                  className="text-[9px] bg-destructive/10 border border-destructive/20 text-destructive rounded-md px-1.5 py-0.5 hover:bg-destructive/20 font-bold transition-all shadow-xs"
-                >
+                <Button size="xs" variant="destructive" onClick={() => updateMetadata({ icon: null })}>
                   Remove
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -916,7 +959,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         />
 
         {/* D. Clean Writing Slate (Tiptap Content) */}
-        <EditorContent editor={editor} />
+        {isEditorReady ? <EditorContent editor={editor} /> : null}
 
 
 
@@ -1021,149 +1064,134 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
               <Archive className={cn("w-3.5 h-3.5", activeNote.isArchived && "fill-indigo-500 dark:fill-indigo-400")} />
             </button>
 
-            {/* Note Info / Details Dropdown Menu (last hamburger) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="text-muted-foreground/60 hover:text-foreground transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer"
+            {/* Note properties */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="text-muted-foreground/60 hover:text-foreground"
                   title="Note Details"
                 >
-                  <Menu className="w-3.5 h-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 p-4 space-y-4 bg-popover/95 backdrop-blur-md border border-border/60 shadow-xl z-40">
-                {/* Note Header / Title */}
-                <div className="flex items-center justify-between border-b border-border/40 pb-2 select-none">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60">Note Properties</span>
-                </div>
+                  <Menu />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80">
+                <PopoverHeader>
+                  <PopoverTitle className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Note Properties
+                  </PopoverTitle>
+                </PopoverHeader>
 
-                {/* Details Grid */}
-                <div className="grid grid-cols-[80px_1fr] gap-y-3.5 text-[11px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-                  {/* Folder */}
-                  <div className="flex items-center gap-1.5 font-bold text-muted-foreground/60 select-none">
-                    <Folder className="w-3.5 h-3.5" />
-                    <span>Folder</span>
-                  </div>
-                  <div>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="h-6 px-2 hover:bg-muted text-[10.5px] font-bold text-foreground bg-muted/40 rounded-md cursor-pointer select-none">
-                        {activeNote.isArchived 
-                          ? '📦 Archive' 
-                          : activeNote.folder === 'daily' 
-                            ? '📅 Daily Notes' 
-                            : '📝 Notes'}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuPortal>
-                        <DropdownMenuSubContent className="w-40 bg-popover border-border">
-                          <DropdownMenuItem onClick={() => updateNote(activeNote.id, { folder: 'notes', isArchived: false })}>
-                            📝 Notes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateNote(activeNote.id, { folder: 'daily', isArchived: false })}>
-                            📅 Daily Notes
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateNote(activeNote.id, { isArchived: true })}>
-                            📦 Archive
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuPortal>
-                    </DropdownMenuSub>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Folder />
+                      <span>Folder</span>
+                    </div>
+                    <Select
+                      value={activeNote.isArchived ? 'archive' : activeNote.folder === 'daily' ? 'daily' : 'notes'}
+                      onValueChange={(value) => {
+                        if (value === 'archive') {
+                          updateNote(activeNote.id, { isArchived: true })
+                        } else {
+                          updateNote(activeNote.id, { folder: value, isArchived: false })
+                        }
+                      }}
+                      disabled={isTrashNote}
+                    >
+                      <SelectTrigger size="sm" className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="notes">📝 Notes</SelectItem>
+                        <SelectItem value="daily">📅 Daily Notes</SelectItem>
+                        <SelectItem value="archive">📦 Archive</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Status */}
-                  <div className="flex items-center gap-1.5 font-bold text-muted-foreground/60 select-none">
-                    <FileSpreadsheet className="w-3.5 h-3.5" />
-                    <span>Status</span>
-                  </div>
-                  <div>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger className="h-6 px-2 hover:bg-muted text-[10.5px] font-bold text-foreground bg-muted/40 rounded-md cursor-pointer select-none">
-                        {noteMetadata.status === 'in-progress' 
-                          ? '⚡ In Progress' 
-                          : noteMetadata.status === 'completed' 
-                            ? '✅ Completed' 
-                            : noteMetadata.status === 'todo'
-                              ? '⏳ Todo'
-                              : '📋 Draft'}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuPortal>
-                        <DropdownMenuSubContent className="w-40 bg-popover border-border">
-                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'draft' })}>
-                            📋 Draft
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'todo' })}>
-                            ⏳ Todo
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'in-progress' })}>
-                            ⚡ In Progress
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => updateMetadata({ status: 'completed' })}>
-                            ✅ Completed
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuPortal>
-                    </DropdownMenuSub>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <FileSpreadsheet />
+                      <span>Status</span>
+                    </div>
+                    <Select
+                      value={noteMetadata.status || 'draft'}
+                      onValueChange={(value) => updateMetadata({ status: value })}
+                      disabled={isTrashNote}
+                    >
+                      <SelectTrigger size="sm" className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">📋 Draft</SelectItem>
+                        <SelectItem value="todo">⏳ Todo</SelectItem>
+                        <SelectItem value="in-progress">⚡ In Progress</SelectItem>
+                        <SelectItem value="completed">✅ Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  {/* Created */}
-                  <div className="flex items-center gap-1.5 font-bold text-muted-foreground/60 select-none">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Created</span>
-                  </div>
-                  <div className="font-semibold text-foreground/80 self-center">
-                    {new Date(activeNote.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Calendar />
+                      <span>Created</span>
+                    </div>
+                    <span className="font-medium text-foreground/80">
+                      {new Date(activeNote.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </span>
                   </div>
 
-                  {/* Edited */}
-                  <div className="flex items-center gap-1.5 font-bold text-muted-foreground/60 select-none">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>Edited</span>
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Clock />
+                      <span>Edited</span>
+                    </div>
+                    <span className="font-medium text-foreground/80">
+                      {formatRelativeTime(activeNote.updatedAt)}
+                    </span>
                   </div>
-                  <div className="font-semibold text-foreground/80 self-center">
-                    {formatRelativeTime(activeNote.updatedAt)}
-                  </div>
-                </div>
 
-                {/* Tags Section */}
-                <div className="border-t border-border/40 pt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-muted-foreground/60 mb-1.5 select-none">
-                    <Tag className="w-3 h-3" />
-                    <span>Tags</span>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-1">
-                    {activeNote.tags && activeNote.tags.map(t => (
-                      <span 
-                        key={t}
-                        className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-primary/8 text-primary border border-primary/10 transition-all hover:bg-primary/12"
-                      >
-                        {t}
-                        {!isTrashNote && (
-                          <button 
-                            onClick={() => handleRemoveTag(t)}
-                            className="hover:text-primary/70 transition-colors cursor-pointer"
-                          >
-                            <X className="w-2.5 h-2.5" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                    
-                    {!isTrashNote && (
-                      <form onSubmit={handleAddTag} className="inline-flex items-center">
-                        <input
-                          type="text"
-                          placeholder="+ Add Tag"
-                          value={tagInput}
-                          onChange={(e) => setTagInput(e.target.value)}
-                          className="border-none bg-muted/30 hover:bg-muted/50 focus:bg-muted/50 rounded px-1.5 py-0.5 text-[9.5px] text-foreground font-semibold outline-none w-14 focus:w-20 transition-all focus:ring-0"
-                        />
-                      </form>
-                    )}
+                  <div className="border-t border-border pt-3 flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Tag />
+                      <span>Tags</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {activeNote.tags?.map(t => (
+                        <span
+                          key={t}
+                          className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-primary/8 text-primary border border-primary/10"
+                        >
+                          {t}
+                          {!isTrashNote && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTag(t)}
+                              className="hover:text-primary/70"
+                            >
+                              <X className="size-2.5" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {!isTrashNote && (
+                        <form onSubmit={handleAddTag} className="inline-flex items-center">
+                          <Input
+                            type="text"
+                            placeholder="+ Add tag"
+                            value={tagInput}
+                            onChange={(e) => setTagInput(e.target.value)}
+                            className="h-6 w-20 text-[10px]"
+                          />
+                        </form>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </PopoverContent>
+            </Popover>
 
           </div>
         </div>
@@ -1171,30 +1199,30 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
       {/* 6. FLOATING SLASH COMMANDS POPUP */}
       {showSlashMenu && (
-        <div 
-          className="absolute z-50 w-52 rounded-xl shadow-xl border bg-popover text-popover-foreground border-border p-1 divide-y divide-border animate-in fade-in slide-in-from-top-2 duration-100"
+        <div
+          className="absolute z-50 w-52 min-w-32 origin-top overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 animate-in fade-in slide-in-from-top-2 duration-100"
           style={{
             top: `${slashCoords.current.top}px`,
             left: `${slashCoords.current.left}px`,
-            position: 'absolute'
           }}
         >
-          <div className="p-1 space-y-0.5 max-h-[220px] overflow-y-auto scrollbar-thin">
+          <div className="max-h-[220px] overflow-y-auto">
             {COMMANDS.map((cmd, i) => {
               const Icon = cmd.icon
               const isSelected = i === selectedIndex
               return (
                 <button
                   key={cmd.name}
+                  type="button"
                   onClick={() => executeCommand(cmd)}
                   className={cn(
-                    "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors text-left",
-                    isSelected 
-                      ? "bg-primary text-primary-foreground shadow-sm" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none text-left",
+                    isSelected
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
+                  <Icon className="shrink-0" />
                   <span>{cmd.name}</span>
                 </button>
               )
