@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Sparkles,
   X,
   Paperclip,
   Send,
@@ -10,41 +9,46 @@ import {
   Plus,
   Maximize2,
   Minimize2,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
-import { useNotesStore } from '../store/useNotesStore'
-import AISavePreview, { type AISavePreviewData } from './AISavePreview'
-import { FREE_MODELS, getOpenRouterApiKey, getOpenRouterModel } from '../lib/ai-settings'
-import { buildNoteContext, streamChatCompletion } from '../lib/openrouter'
+  Code2Icon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { useNotesStore } from "../store/useNotesStore";
+import AISavePreview, { type AISavePreviewData } from "./AISavePreview";
+import {
+  FREE_MODELS,
+  getOpenRouterApiKey,
+  getOpenRouterModel,
+} from "../lib/ai-settings";
+import { buildNoteContext, streamChatCompletion } from "../lib/openrouter";
 import {
   appendAiContentToNote,
   markdownToChatHtml,
   prepareAiNoteFromOutput,
-} from '../lib/ai-output'
-import { notify } from '../lib/toast'
-import AITypingIndicator from './AITypingIndicator'
+} from "../lib/ai-output";
+import { notify } from "../lib/toast";
+import AITypingIndicator from "./AITypingIndicator";
 
 interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
+  id: string;
+  role: "user" | "assistant";
+  content: string;
 }
 
 const WELCOME: Message = {
-  id: 'welcome',
-  role: 'assistant',
+  id: "welcome",
+  role: "assistant",
   content:
-    'I can help summarize notes, draft outlines, and brainstorm ideas. Ask me anything about your notes.',
-}
+    "I can help summarize notes, draft outlines, and brainstorm ideas. Ask me anything about your notes.",
+};
 
 function makeWelcome(): Message {
-  return { ...WELCOME, id: `welcome-${Date.now()}` }
+  return { ...WELCOME, id: `welcome-${Date.now()}` };
 }
 
-type NotePreviewState = AISavePreviewData
+type NotePreviewState = AISavePreviewData;
 
 export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   const {
@@ -55,262 +59,289 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     openNote,
     isAIPanelExpanded,
     toggleAIPanelExpanded,
-  } = useNotesStore()
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([makeWelcome()])
-  const [isLoading, setIsLoading] = useState(false)
-  const [streamingId, setStreamingId] = useState<string | null>(null)
-  const [notePreview, setNotePreview] = useState<NotePreviewState | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
-  const streamingIdRef = useRef<string | null>(null)
-  const generationRef = useRef(0)
-  const chatScrollRef = useRef<HTMLDivElement>(null)
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const rafRef = useRef<number | null>(null)
-  const pendingStreamRef = useRef<{ id: string; content: string } | null>(null)
+  } = useNotesStore();
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([makeWelcome()]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
+  const [notePreview, setNotePreview] = useState<NotePreviewState | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const streamingIdRef = useRef<string | null>(null);
+  const generationRef = useRef(0);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingStreamRef = useRef<{ id: string; content: string } | null>(null);
 
   const activeModel =
-    FREE_MODELS.find((m) => m.id === getOpenRouterModel())?.label ?? getOpenRouterModel()
+    FREE_MODELS.find((m) => m.id === getOpenRouterModel())?.label ??
+    getOpenRouterModel();
 
-  const activeNote = notes.find((n) => n.id === selectedNoteId)
+  const activeNote = notes.find((n) => n.id === selectedNoteId);
 
-  const scrollChatToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
-    const viewport = chatScrollRef.current?.querySelector(
-      '[data-slot="scroll-area-viewport"]'
-    )
-    if (!(viewport instanceof HTMLElement)) return
-    viewport.scrollTo({ top: viewport.scrollHeight, behavior })
-  }, [])
+  const scrollChatToBottom = useCallback(
+    (behavior: ScrollBehavior = "auto") => {
+      const viewport = chatScrollRef.current?.querySelector(
+        '[data-slot="scroll-area-viewport"]',
+      );
+      if (!(viewport instanceof HTMLElement)) return;
+      viewport.scrollTo({ top: viewport.scrollHeight, behavior });
+    },
+    [],
+  );
 
   const cancelStreamRaf = useCallback(() => {
     if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
-    pendingStreamRef.current = null
-  }, [])
+    pendingStreamRef.current = null;
+  }, []);
 
   useEffect(() => {
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     scrollTimerRef.current = setTimeout(
-      () => scrollChatToBottom(isLoading ? 'auto' : 'smooth'),
-      isLoading ? 120 : 0
-    )
+      () => scrollChatToBottom(isLoading ? "auto" : "smooth"),
+      isLoading ? 120 : 0,
+    );
     return () => {
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-    }
-  }, [messages, isLoading, scrollChatToBottom])
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, [messages, isLoading, scrollChatToBottom]);
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort()
-      cancelStreamRaf()
-      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
-    }
-  }, [cancelStreamRaf])
+      abortRef.current?.abort();
+      cancelStreamRaf();
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, [cancelStreamRaf]);
 
   useEffect(() => {
-    streamingIdRef.current = streamingId
-  }, [streamingId])
+    streamingIdRef.current = streamingId;
+  }, [streamingId]);
 
   const stopGeneration = useCallback(() => {
-    cancelStreamRaf()
-    abortRef.current?.abort()
-    setIsLoading(false)
-    setStreamingId(null)
-    streamingIdRef.current = null
-  }, [cancelStreamRaf])
+    cancelStreamRaf();
+    abortRef.current?.abort();
+    setIsLoading(false);
+    setStreamingId(null);
+    streamingIdRef.current = null;
+  }, [cancelStreamRaf]);
 
   const resetChat = useCallback(
     (notifyUser?: boolean) => {
-      stopGeneration()
-      setInput('')
-      setMessages([makeWelcome()])
-      if (notifyUser) notify.success('New chat started')
+      stopGeneration();
+      setInput("");
+      setMessages([makeWelcome()]);
+      if (notifyUser) notify.success("New chat started");
     },
-    [stopGeneration]
-  )
+    [stopGeneration],
+  );
 
   const handleStop = () => {
-    const currentStreamId = streamingIdRef.current
-    generationRef.current += 1
-    cancelStreamRaf()
-    abortRef.current?.abort()
-    setIsLoading(false)
-    setStreamingId(null)
-    streamingIdRef.current = null
+    const currentStreamId = streamingIdRef.current;
+    generationRef.current += 1;
+    cancelStreamRaf();
+    abortRef.current?.abort();
+    setIsLoading(false);
+    setStreamingId(null);
+    streamingIdRef.current = null;
 
     if (currentStreamId) {
       setMessages((m) =>
         m.map((msg) =>
           msg.id === currentStreamId && !msg.content.trim()
-            ? { ...msg, content: 'Stopped.' }
-            : msg
-        )
-      )
+            ? { ...msg, content: "Stopped." }
+            : msg,
+        ),
+      );
     }
-  }
+  };
 
-  const handleClear = () => resetChat(false)
+  const handleClear = () => resetChat(false);
 
-  const handleNewChat = () => resetChat(true)
+  const handleNewChat = () => resetChat(true);
 
   const handleSend = async () => {
-    const text = input.trim()
-    if (!text || isLoading) return
+    const text = input.trim();
+    if (!text || isLoading) return;
 
-    const apiKey = getOpenRouterApiKey()
+    const apiKey = getOpenRouterApiKey();
     if (!apiKey) {
-      notify.error('Add your OpenRouter API key in Settings → AI')
-      return
+      notify.error("Add your OpenRouter API key in Settings → AI");
+      return;
     }
 
-    const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: text }
-    const assistantId = `a-${Date.now()}`
+    const userMsg: Message = {
+      id: `u-${Date.now()}`,
+      role: "user",
+      content: text,
+    };
+    const assistantId = `a-${Date.now()}`;
     const noteContext = activeNote
       ? buildNoteContext(activeNote.title, activeNote.content)
-      : null
+      : null;
 
-    setMessages((m) => [...m, userMsg, { id: assistantId, role: 'assistant', content: '' }])
-    setInput('')
-    setIsLoading(true)
-    setStreamingId(assistantId)
-    streamingIdRef.current = assistantId
+    setMessages((m) => [
+      ...m,
+      userMsg,
+      { id: assistantId, role: "assistant", content: "" },
+    ]);
+    setInput("");
+    setIsLoading(true);
+    setStreamingId(assistantId);
+    streamingIdRef.current = assistantId;
 
-    const controller = new AbortController()
-    abortRef.current = controller
-    const generation = ++generationRef.current
-    cancelStreamRaf()
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const generation = ++generationRef.current;
+    cancelStreamRaf();
 
     const systemParts = [
-      'You are a helpful writing assistant inside NotesZen, a note-taking app.',
+      "You are a helpful writing assistant inside NotesZen, a note-taking app.",
       'Answer the user directly. Start with the substance — never open with meta commentary about the app, copy/paste, or "here is a breakdown you can paste".',
-      'Be concise, practical, and friendly. Use markdown when helpful (headings, lists, bold).',
-      'Do not mention that you are formatting for notes unless the user explicitly asks.',
-    ]
+      "Be concise, practical, and friendly. Use markdown when helpful (headings, lists, bold).",
+      "Do not mention that you are formatting for notes unless the user explicitly asks.",
+    ];
     if (noteContext) {
-      systemParts.push(`The user has this note open:\n\n${noteContext}`)
+      systemParts.push(`The user has this note open:\n\n${noteContext}`);
     }
 
     const history = messages
-      .filter((m) => !m.id.startsWith('welcome'))
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      .filter((m) => !m.id.startsWith("welcome"))
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
 
     try {
       await streamChatCompletion({
         apiKey,
         model: getOpenRouterModel(),
         messages: [
-          { role: 'system', content: systemParts.join('\n\n') },
+          { role: "system", content: systemParts.join("\n\n") },
           ...history,
-          { role: 'user', content: text },
+          { role: "user", content: text },
         ],
         signal: controller.signal,
         onDelta: (content) => {
-          if (generation !== generationRef.current) return
-          if (controller.signal.aborted) return
-          pendingStreamRef.current = { id: assistantId, content }
-          if (rafRef.current != null) return
+          if (generation !== generationRef.current) return;
+          if (controller.signal.aborted) return;
+          pendingStreamRef.current = { id: assistantId, content };
+          if (rafRef.current != null) return;
           rafRef.current = requestAnimationFrame(() => {
-            rafRef.current = null
-            const pending = pendingStreamRef.current
-            if (!pending || generation !== generationRef.current) return
+            rafRef.current = null;
+            const pending = pendingStreamRef.current;
+            if (!pending || generation !== generationRef.current) return;
             setMessages((m) =>
-              m.map((msg) => (msg.id === pending.id ? { ...msg, content: pending.content } : msg))
-            )
-          })
+              m.map((msg) =>
+                msg.id === pending.id
+                  ? { ...msg, content: pending.content }
+                  : msg,
+              ),
+            );
+          });
         },
-      })
+      });
     } catch (err) {
-      if (generation !== generationRef.current) return
-      if ((err as Error).name === 'AbortError') {
+      if (generation !== generationRef.current) return;
+      if ((err as Error).name === "AbortError") {
         setMessages((m) =>
           m.map((msg) =>
             msg.id === assistantId && !msg.content.trim()
-              ? { ...msg, content: 'Stopped.' }
-              : msg
-          )
-        )
-        return
+              ? { ...msg, content: "Stopped." }
+              : msg,
+          ),
+        );
+        return;
       }
-      const errMsg = (err as Error).message || 'AI request failed'
+      const errMsg = (err as Error).message || "AI request failed";
       setMessages((m) =>
         m.map((msg) =>
-          msg.id === assistantId ? { ...msg, content: `Sorry, something went wrong: ${errMsg}` } : msg
-        )
-      )
+          msg.id === assistantId
+            ? { ...msg, content: `Sorry, something went wrong: ${errMsg}` }
+            : msg,
+        ),
+      );
     } finally {
-      const pending = pendingStreamRef.current
+      const pending = pendingStreamRef.current;
       if (pending && generation === generationRef.current) {
         setMessages((m) =>
-          m.map((msg) => (msg.id === pending.id ? { ...msg, content: pending.content } : msg))
-        )
+          m.map((msg) =>
+            msg.id === pending.id ? { ...msg, content: pending.content } : msg,
+          ),
+        );
       }
-      cancelStreamRaf()
+      cancelStreamRaf();
       if (generation === generationRef.current) {
-        setIsLoading(false)
-        setStreamingId(null)
-        streamingIdRef.current = null
-        abortRef.current = null
+        setIsLoading(false);
+        setStreamingId(null);
+        streamingIdRef.current = null;
+        abortRef.current = null;
       }
     }
-  }
+  };
 
   const copyMessage = (content: string) => {
-    navigator.clipboard.writeText(content)
-    notify.success('Copied to clipboard')
-  }
+    navigator.clipboard.writeText(content);
+    notify.success("Copied to clipboard");
+  };
 
   const openNotePreview = (content: string) => {
-    const prepared = prepareAiNoteFromOutput(content)
+    const prepared = prepareAiNoteFromOutput(content);
     setNotePreview({
       title: prepared.title,
       contentHtml: prepared.contentHtml,
       previewHtml: prepared.previewHtml,
       tags: prepared.tags,
-    })
-  }
+    });
+  };
 
   const handleCreateNoteFromPreview = () => {
-    if (!notePreview) return
-    const title = notePreview.title.trim() || 'AI Draft'
-    setNotePreview(null)
+    if (!notePreview) return;
+    const title = notePreview.title.trim() || "AI Draft";
+    setNotePreview(null);
     createNote({
       title,
       content: notePreview.contentHtml,
-      status: 'draft',
-      icon: '✨',
+      status: "draft",
+      icon: "✨",
       tags: notePreview.tags,
-      editorMode: 'wysiwyg',
-    })
-    notify.success('Note created')
-  }
+      editorMode: "wysiwyg",
+    });
+    notify.success("Note created");
+  };
 
   const handleAppendToOpenNote = () => {
-    if (!notePreview) return
-    const { notes: storeNotes, selectedNoteId: openId } = useNotesStore.getState()
-    const target = storeNotes.find((n) => n.id === openId)
+    if (!notePreview) return;
+    const { notes: storeNotes, selectedNoteId: openId } =
+      useNotesStore.getState();
+    const target = storeNotes.find((n) => n.id === openId);
     if (!target) {
-      notify.error('No open note to append to')
-      return
+      notify.error("No open note to append to");
+      return;
     }
-    const merged = appendAiContentToNote(target.content, notePreview.contentHtml)
-    const tags = [...new Set([...(target.tags || []), ...notePreview.tags])]
-    setNotePreview(null)
-    updateNote(target.id, { content: merged, tags })
-    openNote(target.id)
-    notify.success('Added to your note')
-  }
+    const merged = appendAiContentToNote(
+      target.content,
+      notePreview.contentHtml,
+    );
+    const tags = [...new Set([...(target.tags || []), ...notePreview.tags])];
+    setNotePreview(null);
+    updateNote(target.id, { content: merged, tags });
+    openNote(target.id);
+    notify.success("Added to your note");
+  };
 
   return (
     <div className="flex h-full flex-col workspace-surface min-w-0">
       <div className="flex items-center justify-between px-3 h-11 border-b border-[var(--workspace-border)] shrink-0 gap-2">
         <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
-          <Sparkles className="size-3.5 text-primary shrink-0" />
-          <span className="truncate">AI Workspace</span>
-          <span className="text-[10px] font-normal text-muted-foreground truncate hidden sm:inline">
+          <Code2Icon className="size-3.5 text-primary shrink-0" />
+          <span className="truncate">Chat</span>
+          {/*<span className="text-[10px] font-normal text-muted-foreground truncate hidden sm:inline">
             · {activeModel}
-          </span>
+          </span>*/}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <Button
@@ -346,7 +377,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
             variant="ghost"
             size="icon-xs"
             onClick={toggleAIPanelExpanded}
-            title={isAIPanelExpanded ? 'Shrink panel' : 'Expand panel'}
+            title={isAIPanelExpanded ? "Shrink panel" : "Expand panel"}
           >
             {isAIPanelExpanded ? (
               <Minimize2 className="size-3.5" />
@@ -363,68 +394,79 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div ref={chatScrollRef} className="flex-1 min-h-0">
-      <ScrollArea className="h-full px-4 py-4">
-        <div className="flex flex-col gap-3 min-w-0">
-          {messages.map((msg) => {
-            const isActiveStream = isLoading && msg.id === streamingId
-            const isWaitingForTokens = isActiveStream && !msg.content.trim()
-            const isWelcome = msg.id.startsWith('welcome')
-            return (
-              <div
-                key={msg.id}
-                className={cn(
-                  'rounded-xl px-3 py-2.5 text-xs leading-relaxed max-w-full min-w-0',
-                  msg.role === 'user'
-                    ? 'ml-auto max-w-[92%] bg-primary text-primary-foreground'
-                    : 'bg-[var(--workspace-subtle)] text-foreground border border-[var(--workspace-border)]'
-                )}
-              >
-                {isWaitingForTokens ? (
-                  <AITypingIndicator />
-                ) : msg.role === 'assistant' && !isWelcome && isActiveStream ? (
-                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                ) : msg.role === 'assistant' && !isWelcome ? (
-                  <div
-                    className="prose-editor ai-chat-prose break-words [&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
-                    dangerouslySetInnerHTML={{ __html: markdownToChatHtml(msg.content) }}
-                  />
-                ) : (
-                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                )}
-                {msg.role === 'assistant' && !isWelcome && msg.content.trim() && !isActiveStream && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      className="h-7 text-[10px]"
-                      onClick={() => openNotePreview(msg.content)}
-                    >
-                      <FileText className="size-3" />
-                      Save to note
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      className="h-7 text-[10px]"
-                      onClick={() => copyMessage(msg.content)}
-                    >
-                      <Copy className="size-3" />
-                      Copy
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </ScrollArea>
+        <ScrollArea className="h-full px-4 py-4">
+          <div className="flex flex-col gap-3 min-w-0">
+            {messages.map((msg) => {
+              const isActiveStream = isLoading && msg.id === streamingId;
+              const isWaitingForTokens = isActiveStream && !msg.content.trim();
+              const isWelcome = msg.id.startsWith("welcome");
+              return (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "rounded-xl px-3 py-2.5 text-xs leading-relaxed max-w-full min-w-0",
+                    msg.role === "user"
+                      ? "ml-auto max-w-[92%] bg-primary text-primary-foreground"
+                      : "bg-[var(--workspace-subtle)] text-foreground border border-[var(--workspace-border)]",
+                  )}
+                >
+                  {isWaitingForTokens ? (
+                    <AITypingIndicator />
+                  ) : msg.role === "assistant" &&
+                    !isWelcome &&
+                    isActiveStream ? (
+                    <p className="whitespace-pre-wrap break-words">
+                      {msg.content}
+                    </p>
+                  ) : msg.role === "assistant" && !isWelcome ? (
+                    <div
+                      className="prose-editor ai-chat-prose break-words [&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
+                      dangerouslySetInnerHTML={{
+                        __html: markdownToChatHtml(msg.content),
+                      }}
+                    />
+                  ) : (
+                    <p className="whitespace-pre-wrap break-words">
+                      {msg.content}
+                    </p>
+                  )}
+                  {msg.role === "assistant" &&
+                    !isWelcome &&
+                    msg.content.trim() &&
+                    !isActiveStream && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          className="h-7 text-[10px]"
+                          onClick={() => openNotePreview(msg.content)}
+                        >
+                          <FileText className="size-3" />
+                          Save to note
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="h-7 text-[10px]"
+                          onClick={() => copyMessage(msg.content)}
+                        >
+                          <Copy className="size-3" />
+                          Copy
+                        </Button>
+                      </div>
+                    )}
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
       </div>
 
       {activeNote && (
         <div className="px-4 pb-2 flex flex-wrap gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-md bg-[var(--workspace-subtle)] px-2 py-1 text-[10px] text-muted-foreground border border-[var(--workspace-border)]">
             <Paperclip className="size-3" />
-            {activeNote.title || 'Untitled'}.md
+            {activeNote.title || "Untitled"}.md
           </span>
         </div>
       )}
@@ -447,16 +489,20 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                if (isLoading) handleStop()
-                else handleSend()
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (isLoading) handleStop();
+                else handleSend();
               }
             }}
-            placeholder={isLoading ? 'Press Stop or Enter to cancel...' : 'Ask AI about your notes...'}
+            placeholder={
+              isLoading
+                ? "Press Stop or Enter to cancel..."
+                : "Ask AI about your notes..."
+            }
             className={cn(
-              'min-h-[72px] pr-12 resize-none rounded-xl text-xs bg-[var(--workspace-subtle)] border-[var(--workspace-border)]',
-              isLoading && 'opacity-80'
+              "min-h-[72px] pr-12 resize-none rounded-xl text-xs bg-[var(--workspace-subtle)] border-[var(--workspace-border)]",
+              isLoading && "opacity-80",
             )}
           />
           <Button
@@ -465,7 +511,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
             className="absolute bottom-2 right-2"
             onClick={isLoading ? handleStop : handleSend}
             disabled={!isLoading && !input.trim()}
-            variant={isLoading ? 'destructive' : 'default'}
+            variant={isLoading ? "destructive" : "default"}
           >
             {isLoading ? (
               <Square className="size-3 fill-current" />
@@ -476,5 +522,5 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

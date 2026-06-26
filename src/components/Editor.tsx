@@ -24,10 +24,11 @@ import cpp from 'highlight.js/lib/languages/cpp'
 import { useNotesStore } from '../store/useNotesStore'
 import { getAPI } from '../tauri-bridge'
 import { getSlashPlugins } from '../lib/plugins'
-import VersionHistorySheet from './VersionHistorySheet'
+
 import HighlightColorMenu, { DEFAULT_HIGHLIGHT_COLOR } from './HighlightColorMenu'
 import TableOfContents from './TableOfContents'
 import { markdownToHtml } from '../lib/markdown-preview'
+import { stripAiDraftBannerFromHtml } from '../lib/ai-output'
 import {
   Command,
   CommandEmpty,
@@ -252,7 +253,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const [wikilinkQuery, setWikilinkQuery] = useState('')
   const [showWikilinkMenu, setShowWikilinkMenu] = useState(false)
 
-  const [showVersions, setShowVersions] = useState(false)
+
   const [showSplitPreview, setShowSplitPreview] = useState(false)
   const [statsVisible, setStatsVisible] = useState(true)
   const editorScrollRef = useRef<HTMLDivElement>(null)
@@ -438,9 +439,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   useEffect(() => {
     if (!isEditorReady || !activeNote || !editor?.schema) return
 
+    const content = stripAiDraftBannerFromHtml(activeNote.content || '')
+    if (content !== activeNote.content) {
+      updateNote(activeNote.id, { content })
+    }
+
     const currentContent = editor.getHTML()
-    if (currentContent !== activeNote.content) {
-      editor.commands.setContent(activeNote.content || '', { emitUpdate: false })
+    if (currentContent !== content) {
+      editor.commands.setContent(content, { emitUpdate: false })
     }
     editor.setEditable(activeNote.folder !== 'trash')
   }, [
@@ -451,6 +457,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     activeNote?.title,
     activeNote?.folder,
     editor,
+    updateNote,
   ])
 
   const resizeImage = (file: File, maxDim = 1920): Promise<string> => {
@@ -764,16 +771,15 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       
       {/* 1. STICKY FORMATTING TOOLBAR */}
       {!isZenMode && (
-        <div className="relative h-10 editor-toolbar px-4 flex items-center shrink-0 select-none z-20 w-full">
-          {/* Centered Formatting Buttons */}
-          <div className="max-w-2xl mx-auto w-full h-full flex items-center justify-center">
-            {isTrashNote ? (
-              <div className="text-[10px] text-destructive font-semibold tracking-wide flex items-center gap-1.5 bg-destructive/5 px-2.5 py-1 rounded-md border border-destructive/10">
-                Note is in Trash Bin (Read-Only)
-              </div>
-            ) : (
-              <>
-              <div className="flex items-center gap-0.5">
+        <div className="h-10 editor-toolbar px-4 grid grid-cols-[1fr_auto_auto] items-center gap-2 shrink-0 select-none z-20 w-full">
+          <div />
+          {isTrashNote ? (
+            <div className="text-[10px] text-destructive font-semibold tracking-wide flex items-center gap-1.5 bg-destructive/5 px-2.5 py-1 rounded-md border border-destructive/10 mx-auto">
+              Note is in Trash Bin (Read-Only)
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-0.5 min-w-0 overflow-x-auto scrollbar-none justify-center">
                 {/* Bold, Italic - always visible */}
                 <Button
                   size="xs"
@@ -854,7 +860,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   size="xs"
                   variant="outline"
                   onClick={handleInsertImage}
-                  className="h-7 px-2 text-xs font-medium gap-1 bg-muted/50"
+                  className="editor-toolbar-btn h-7 px-2 text-xs font-medium gap-1"
                   title="Insert Image"
                 >
                   <ImageIcon className="size-3.5" />
@@ -866,7 +872,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 {/* Style Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="xs" variant="outline" className="h-7 px-2 text-xs font-medium gap-1 bg-muted/50">
+                    <Button size="xs" variant="outline" className="editor-toolbar-btn h-7 px-2 text-xs font-medium gap-1">
                       <span className="leading-none">Format</span>
                       <ChevronDown className="size-3 text-muted-foreground/60" />
                     </Button>
@@ -941,17 +947,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 className="hidden"
                 onChange={handleImageFileSelected}
               />
-              </>
-            )}
-          </div>
 
-          {/* Far Right Action buttons (Markdown, Export, and Zoom/Zen Toggle) */}
-          <div className="absolute right-4 flex items-center gap-1.5 pl-2 border-l border-[var(--workspace-border)] shrink-0">
+              <div className="flex items-center gap-1 shrink-0 border-l border-[var(--workspace-border)] pl-2">
             <Button
               size="xs"
               variant="outline"
               onClick={handleCopyMarkdown}
-              className="text-[10px] h-7 px-2"
+              className="editor-toolbar-btn text-[10px] h-7 px-2"
               title="Copy as Markdown"
             >
               {copied ? (
@@ -990,23 +992,15 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             <Button
               size="icon-xs"
               variant="ghost"
-              onClick={() => setShowVersions(!showVersions)}
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-              title="Version history"
-            >
-              <Clock className="w-3.5 h-3.5" />
-            </Button>
-
-            <Button
-              size="icon-xs"
-              variant="ghost"
               onClick={() => setZenMode(true)}
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
               title="Zen Focus Mode"
             >
               <Maximize2 className="w-3.5 h-3.5" />
             </Button>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1113,34 +1107,28 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         ref={editorScrollRef}
         className={cn(
           'flex-grow overflow-y-auto w-full transition-all duration-300 relative editor-canvas scrollbar-none',
-          isZenMode ? 'px-4 py-6' : 'px-4 md:px-6 py-5'
+          isZenMode ? 'px-4 py-6' : 'px-6 md:px-8 py-6'
         )}
       >
         <div
           className={cn(
-            'group/editor-container mx-auto editor-writing-pad px-6 md:px-10 py-10 editor-active-blocks',
-            isZenMode ? 'max-w-xl' : 'max-w-2xl',
+            'group/editor-container mx-auto editor-content px-0 py-2 editor-active-blocks w-full',
+            isZenMode ? 'max-w-xl' : 'max-w-3xl',
             `editor-font-${editorFont}`,
             activeNote?.tags?.includes('ai-draft') && 'editor-from-ai'
           )}
           style={{ '--editor-font-size': `${editorFontSize}px` } as React.CSSProperties}
         >
-        {!isZenMode && !isTrashNote && (
-          <TableOfContents
-            html={activeNote.content}
-            onNavigate={(id) => {
-              const el = editorScrollRef.current?.querySelector(`[id="${id}"]`)
-              el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }}
-          />
-        )}
-        
         {/* Notion-style add icon / cover hover */}
         {!isTrashNote && !noteMetadata.cover && !noteMetadata.icon && (
           <div className="flex items-center gap-2 mb-4 opacity-0 group-hover/editor-container:opacity-100 transition-opacity">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="xs" variant="ghost" className="text-xs text-muted-foreground gap-1.5 h-7">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="text-xs text-muted-foreground gap-1.5 h-7 hover:bg-[var(--workspace-hover)]"
+                >
                   <Smile className="size-3.5" />
                   Add icon
                 </Button>
@@ -1161,7 +1149,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             </DropdownMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="xs" variant="ghost" className="text-xs text-muted-foreground gap-1.5 h-7">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="text-xs text-muted-foreground gap-1.5 h-7 hover:bg-[var(--workspace-hover)]"
+                >
                   <ImagePlus className="size-3.5" />
                   Add cover
                 </Button>
@@ -1259,7 +1251,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             value={activeNote.title || ''}
             onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
             disabled={isTrashNote}
-            className="flex-1 text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-muted-foreground/30 text-foreground opacity-80 focus:opacity-100 transition-opacity duration-200"
+            className="flex-1 text-[1.75rem] font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder:text-muted-foreground/40 text-foreground transition-opacity duration-200"
           />
           {!isTrashNote && (
             <div className="flex items-center gap-1 opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 pt-1">
@@ -1294,27 +1286,23 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           )}
         </div>
 
-        {/* Properties row */}
-        {!isZenMode && (
-          <div className="flex flex-wrap items-center gap-2 mb-4 text-[10px] text-muted-foreground">
-            <Badge variant="outline" className="h-5 gap-1 font-medium">
+        {/* Properties + tags */}
+        {!isZenMode && !isTrashNote && (
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-5 text-[10px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+            <Badge variant="outline" className="editor-meta-badge h-5 gap-1 font-medium">
               <FileSpreadsheet className="size-2.5" />
               {noteMetadata.status || 'draft'}
             </Badge>
-            <Badge variant="outline" className="h-5 gap-1 font-medium">
+            <Badge variant="outline" className="editor-meta-badge h-5 gap-1 font-medium">
               <Folder className="size-2.5" />
               {activeNote.isArchived ? 'archive' : activeNote.folder}
             </Badge>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 px-0.5">
               <Calendar className="size-2.5" />
               {formatRelativeTime(activeNote.updatedAt)}
             </span>
-          </div>
-        )}
-
-        {/* Inline tag chips */}
-        {!isTrashNote && (
-          <div className="flex flex-wrap items-center gap-1.5 mb-6">
+            {activeNote.tags?.length > 0 && <span className="text-border">·</span>}
             {activeNote.tags?.map((t) => (
               <Badge
                 key={t}
@@ -1337,9 +1325,17 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 placeholder="+ tag"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                className="h-5 w-16 text-[10px] border-dashed"
+                className="h-5 w-16 text-[10px] border-dashed border-[var(--workspace-border)] bg-transparent"
               />
             </form>
+            </div>
+            <TableOfContents
+              html={activeNote.content}
+              onNavigate={(id) => {
+                const el = editorScrollRef.current?.querySelector(`[id="${id}"]`)
+                el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            />
           </div>
         )}
 
@@ -1622,11 +1618,6 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         </div>
       )}
 
-      <VersionHistorySheet
-        noteId={activeNote.id}
-        open={showVersions}
-        onOpenChange={setShowVersions}
-      />
     </div>
   )
 }

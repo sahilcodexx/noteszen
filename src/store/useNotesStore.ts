@@ -6,6 +6,7 @@ import {
   restoreLocalNoteVersion,
   saveLocalNoteVersion,
 } from '../lib/note-versions'
+import { stripAiDraftBannerFromHtml } from '../lib/ai-output'
 
 interface NotesState {
   notes: Note[]
@@ -117,6 +118,13 @@ function extractBacklinks(content: string, allNotes: Note[]): string[] {
     }
   }
   return Array.from(new Set(targetIds))
+}
+
+function sanitizeLoadedNotes(notes: Note[]): Note[] {
+  return notes.map((note) => {
+    const content = stripAiDraftBannerFromHtml(note.content)
+    return content !== note.content ? { ...note, content } : note
+  })
 }
 
 function persistNote(note: Note, previousNote?: Note) {
@@ -326,7 +334,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const api = getAPI()
     const vaultId = get().activeVaultId
     if (api) {
-      const fetched = await api.getNotes(vaultId)
+      const raw = await api.getNotes(vaultId)
+      const fetched = sanitizeLoadedNotes(raw)
+      fetched.forEach((note, i) => {
+        if (note.content !== raw[i]?.content) persistNote(note)
+      })
       set({ notes: fetched })
       if (fetched.length > 0 && !get().selectedNoteId) {
         const first = fetched.find((n) => n.folder !== 'trash' && !n.isArchived)
@@ -336,7 +348,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       const local = localStorage.getItem('noteszen-db-notes')
       if (local) {
         try {
-          const parsed = JSON.parse(local) as Note[]
+          const raw = JSON.parse(local) as Note[]
+          const parsed = sanitizeLoadedNotes(raw)
+          parsed.forEach((note, i) => {
+            if (note.content !== raw[i]?.content) persistNote(note)
+          })
           set({ notes: parsed })
           if (parsed.length > 0 && !get().selectedNoteId) {
             const first = parsed.find((n) => n.folder !== 'trash' && !n.isArchived)
@@ -555,13 +571,17 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   updateNote: (id, fields) => {
     const previousNote = get().notes.find((n) => n.id === id)
+    const nextFields = { ...fields }
+    if (nextFields.content !== undefined) {
+      nextFields.content = stripAiDraftBannerFromHtml(nextFields.content)
+    }
     let updatedNote: Note | null = null
     const updatedNotes = get().notes.map((note) => {
       if (note.id === id) {
-        const content = fields.content !== undefined ? fields.content : note.content
+        const content = nextFields.content !== undefined ? nextFields.content : note.content
         const backlinks =
-          fields.content !== undefined ? extractBacklinks(content, get().notes) : note.backlinks
-        const updated = { ...note, ...fields, backlinks, updatedAt: new Date().toISOString() }
+          nextFields.content !== undefined ? extractBacklinks(content, get().notes) : note.backlinks
+        const updated = { ...note, ...nextFields, backlinks, updatedAt: new Date().toISOString() }
         updatedNote = updated
         return updated
       }

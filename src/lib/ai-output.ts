@@ -266,14 +266,10 @@ export function extractAiNoteTitle(md: string): { title: string; body: string } 
   return { title: 'AI Draft', body: md }
 }
 
-function aiDraftCalloutHtml(): string {
-  return `<div data-type="callout" class="callout callout-tip"><p><strong>✨ AI-generated draft</strong> — Review and edit before sharing.</p></div>`
-}
-
 export function markdownToNoteHtml(md: string): string {
   const cleaned = cleanAiMarkdown(md)
-  if (!cleaned) return aiDraftCalloutHtml()
-  return `${aiDraftCalloutHtml()}${markdownBlocksToHtml(cleaned)}`
+  if (!cleaned) return ''
+  return markdownBlocksToHtml(cleaned)
 }
 
 export function prepareAiNoteFromOutput(raw: string): PreparedAiNote {
@@ -290,7 +286,7 @@ export function prepareAiNoteFromOutput(raw: string): PreparedAiNote {
   return {
     title,
     bodyMarkdown,
-    contentHtml: `${aiDraftCalloutHtml()}${bodyHtml}`,
+    contentHtml: bodyHtml,
     previewHtml: bodyHtml,
     tags: [AI_DRAFT_TAG],
   }
@@ -307,6 +303,33 @@ export function appendAiContentToNote(existingHtml: string, aiHtml: string): str
   const base = existingHtml.trim()
   if (!base) return aiHtml
   return `${base}<hr>${aiHtml}`
+}
+
+const AI_DRAFT_MARKER = /AI-generated draft/i
+
+/** Remove legacy AI draft banner blocks from saved note HTML. */
+export function stripAiDraftBannerFromHtml(html: string): string {
+  if (!html || !AI_DRAFT_MARKER.test(html)) return html
+
+  let out = html
+
+  // TipTap callout node (any variant: tip, info, etc.)
+  out = out.replace(
+    /<div\b(?=[^>]*data-type=["']callout["'])[^>]*>[\s\S]*?AI-generated draft[\s\S]*?<\/div>/gi,
+    ''
+  )
+
+  // Standalone paragraph banner
+  out = out.replace(
+    /<p[^>]*>[\s\S]*?AI-generated draft[\s\S]*?sharing\.?[\s\S]*?<\/p>/gi,
+    ''
+  )
+
+  return out
+    .replace(/(<hr\s*\/?>\s*){2,}/gi, '<hr>')
+    .replace(/^\s*(<hr\s*\/?>\s*)+/i, '')
+    .replace(/(<hr\s*\/?>\s*)+$/i, '')
+    .trim()
 }
 
 export { AI_DRAFT_TAG }
