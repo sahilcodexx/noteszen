@@ -42,11 +42,9 @@ const SHORTCUTS = [
 interface SettingsPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  darkMode: boolean
-  onToggleDarkMode: () => void
 }
 
-export default function SettingsPanel({ open, onOpenChange, darkMode, onToggleDarkMode }: SettingsPanelProps) {
+export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
   const {
     notes,
     vaults,
@@ -64,6 +62,8 @@ export default function SettingsPanel({ open, onOpenChange, darkMode, onToggleDa
     setEditorFont,
     editorFontSize,
     setEditorFontSize,
+    isDarkMode,
+    toggleDarkMode,
   } = useNotesStore()
 
   const [newVaultName, setNewVaultName] = useState('')
@@ -155,8 +155,8 @@ export default function SettingsPanel({ open, onOpenChange, darkMode, onToggleDa
           <div className="overflow-y-auto flex-1 py-3 select-none">
             <TabsContent value="general" className="flex flex-col gap-4 mt-0">
               <SettingRow label="Interface Theme" hint="Toggle light or dark modes">
-                <Button variant="outline" size="sm" onClick={onToggleDarkMode}>
-                  {darkMode ? 'Light Mode' : 'Dark Mode'}
+                <Button variant="outline" size="sm" onClick={toggleDarkMode}>
+                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                 </Button>
               </SettingRow>
               <SettingRow label="Color Theme" hint="Choose accent color scheme">

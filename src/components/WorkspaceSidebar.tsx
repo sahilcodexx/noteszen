@@ -10,6 +10,9 @@ import {
   FolderPlus,
   FileText,
   Plus,
+  Moon,
+  Sun,
+  PanelLeftClose,
 } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import { cn } from '@/lib/utils'
@@ -20,13 +23,15 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 interface WorkspaceSidebarProps {
   onOpenSettings: () => void
   onNewFolder: () => void
-  darkMode: boolean
   onToggleDarkMode: () => void
+  isDarkMode: boolean
 }
 
 export default function WorkspaceSidebar({
   onOpenSettings,
   onNewFolder,
+  onToggleDarkMode,
+  isDarkMode,
 }: WorkspaceSidebarProps) {
   const {
     notes,
@@ -41,6 +46,7 @@ export default function WorkspaceSidebar({
     createNote,
     vaults,
     activeVaultId,
+    toggleSidebar,
   } = useNotesStore()
 
   const [workspacesOpen, setWorkspacesOpen] = useState(true)
@@ -77,18 +83,15 @@ export default function WorkspaceSidebar({
         className={cn(
           'w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium transition-colors',
           active
-            ? 'bg-[#eef4ff] text-foreground'
-            : 'text-muted-foreground hover:bg-[#f4f6f8] hover:text-foreground'
+            ? 'bg-[var(--workspace-active)] text-foreground'
+            : 'text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground'
         )}
       >
         <span className="flex items-center gap-2.5 min-w-0">
           {icon}
           <span className="truncate">{label}</span>
         </span>
-        <Badge
-          variant="secondary"
-          className="text-[9px] h-4 min-w-4 px-1.5 bg-[#f0f2f4] text-muted-foreground font-normal"
-        >
+        <Badge variant="secondary" className="text-[9px] h-4 min-w-4 px-1.5 font-normal">
           {count}
         </Badge>
       </button>
@@ -96,9 +99,12 @@ export default function WorkspaceSidebar({
   }
 
   return (
-    <aside className="flex h-full w-[210px] shrink-0 flex-col bg-white dark:bg-card">
-      <div className="px-4 py-4 border-b border-[#e5e9ec] dark:border-border/30">
+    <aside className="flex h-full w-[210px] shrink-0 flex-col workspace-surface">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--workspace-border)]">
         <p className="text-[11px] font-semibold text-muted-foreground truncate">{workspaceName}</p>
+        <Button variant="ghost" size="icon-xs" onClick={toggleSidebar} title="Hide sidebar (Ctrl+B)">
+          <PanelLeftClose className="size-3.5" />
+        </Button>
       </div>
 
       <ScrollArea className="flex-1 px-2 py-3">
@@ -109,24 +115,31 @@ export default function WorkspaceSidebar({
 
           <button
             type="button"
-            className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[#f4f6f8]"
+            className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[var(--workspace-hover)]"
           >
             <span className="flex items-center gap-2.5">
               <Bell className="size-3.5" />
               Notifications
             </span>
-            <Badge variant="secondary" className="text-[9px] h-4 min-w-4 px-1.5 bg-[#f0f2f4] font-normal">
-              0
-            </Badge>
+            <Badge variant="secondary" className="text-[9px] h-4 min-w-4 px-1.5 font-normal">0</Badge>
           </button>
 
           <button
             type="button"
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[#f4f6f8] hover:text-foreground"
+            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground"
           >
             <Settings className="size-3.5" />
             Settings
+          </button>
+
+          <button
+            type="button"
+            onClick={onToggleDarkMode}
+            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground"
+          >
+            {isDarkMode ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+            {isDarkMode ? 'Light mode' : 'Dark mode'}
           </button>
         </div>
 
@@ -151,8 +164,8 @@ export default function WorkspaceSidebar({
                 className={cn(
                   'w-full text-left h-8 px-3 pl-6 rounded-lg text-[12px] font-medium truncate',
                   activeFolder === 'notes' && !selectedTag
-                    ? 'bg-[#eef4ff] text-foreground'
-                    : 'text-muted-foreground hover:bg-[#f4f6f8]'
+                    ? 'bg-[var(--workspace-active)] text-foreground'
+                    : 'text-muted-foreground hover:bg-[var(--workspace-hover)]'
                 )}
               >
                 All Notes
@@ -169,8 +182,8 @@ export default function WorkspaceSidebar({
                   className={cn(
                     'w-full text-left h-8 px-3 pl-6 rounded-lg text-[12px] font-medium truncate',
                     activeFolder === folder.id && !selectedTag
-                      ? 'bg-[#eef4ff] text-foreground'
-                      : 'text-muted-foreground hover:bg-[#f4f6f8]'
+                      ? 'bg-[var(--workspace-active)] text-foreground'
+                      : 'text-muted-foreground hover:bg-[var(--workspace-hover)]'
                   )}
                 >
                   {folder.name}
@@ -199,7 +212,7 @@ export default function WorkspaceSidebar({
                   key={note.id}
                   type="button"
                   onClick={() => openNote(note.id)}
-                  className="w-full flex items-center gap-2 h-8 px-3 rounded-lg text-[11px] text-muted-foreground hover:bg-[#f4f6f8] hover:text-foreground text-left"
+                  className="w-full flex items-center gap-2 h-8 px-3 rounded-lg text-[11px] text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground text-left"
                 >
                   {note.isFavorite && <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />}
                   {!note.isFavorite && <FileText className="size-3 shrink-0 opacity-50" />}
@@ -211,10 +224,10 @@ export default function WorkspaceSidebar({
         )}
       </ScrollArea>
 
-      <div className="p-3 border-t border-[#e5e9ec] dark:border-border/30">
+      <div className="p-3 border-t border-[var(--workspace-border)]">
         <Button
           size="sm"
-          className="w-full gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+          className="w-full gap-1.5"
           onClick={() => createNote()}
         >
           <Plus className="size-3.5" />

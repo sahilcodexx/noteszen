@@ -33,7 +33,7 @@ export default function CommandPalette() {
     createNote,
     createDailyNote,
     createNoteFromTemplate,
-    setSelectedNoteId,
+    openNote,
     togglePin,
     toggleFavorite,
     toggleArchive,
@@ -116,7 +116,7 @@ export default function CommandPalette() {
             {availableNotes.map((note) => (
               <CommandItem
                 key={note.id}
-                onSelect={() => { setSelectedNoteId(note.id); setCommandPaletteOpen(false) }}
+                onSelect={() => { openNote(note.id); setCommandPaletteOpen(false) }}
               >
                 <FileText data-icon="inline-start" />
                 <span>{note.title || 'Untitled Note'}</span>

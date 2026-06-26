@@ -1,12 +1,17 @@
 import { Suspense, lazy } from 'react'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Trash2, PanelLeft } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import NoteTabs from './NoteTabs'
 import { Button } from '@/components/ui/button'
 
 const Editor = lazy(() => import('./Editor'))
 
-export default function EditorShell() {
+interface EditorShellProps {
+  sidebarCollapsed?: boolean
+  onExpandSidebar?: () => void
+}
+
+export default function EditorShell({ sidebarCollapsed, onExpandSidebar }: EditorShellProps) {
   const { goHome, notes, selectedNoteId, restoreNote, deleteNote } = useNotesStore()
   const activeNote = notes.find((n) => n.id === selectedNoteId)
 
@@ -20,7 +25,18 @@ export default function EditorShell() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-      <div className="flex items-center gap-2 h-9 px-4 border-b border-border/30 shrink-0 bg-background/40">
+      <div className="flex items-center gap-2 h-9 px-4 border-b border-[var(--workspace-border)] shrink-0 workspace-surface">
+        {sidebarCollapsed && onExpandSidebar && (
+          <Button
+            variant="outline"
+            size="icon-xs"
+            className="size-7 shrink-0"
+            onClick={onExpandSidebar}
+            title="Show sidebar (Ctrl+B)"
+          >
+            <PanelLeft className="size-3.5" />
+          </Button>
+        )}
         <Button variant="ghost" size="xs" className="gap-1 text-xs" onClick={goHome}>
           <ArrowLeft className="size-3.5" />
           Home

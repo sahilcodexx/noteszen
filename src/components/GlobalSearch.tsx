@@ -12,7 +12,7 @@ export default function GlobalSearch() {
     activeVaultId,
     isGlobalSearchOpen,
     setGlobalSearchOpen,
-    setSelectedNoteId,
+    openNote,
   } = useNotesStore()
 
   const [query, setQuery] = useState('')
@@ -89,7 +89,7 @@ export default function GlobalSearch() {
       } else if (e.key === 'Enter') {
         e.preventDefault()
         if (results[selectedIndex]) {
-          setSelectedNoteId(results[selectedIndex].item.id)
+          openNote(results[selectedIndex].item.id)
           setGlobalSearchOpen(false)
         }
       } else if (e.key === 'Escape') {
@@ -151,7 +151,7 @@ export default function GlobalSearch() {
                 <button
                   key={res.item.id}
                   onClick={() => {
-                    setSelectedNoteId(res.item.id)
+                    openNote(res.item.id)
                     setGlobalSearchOpen(false)
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}

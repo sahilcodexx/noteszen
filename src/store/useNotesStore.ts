@@ -38,6 +38,7 @@ interface NotesState {
   mainView: 'home' | 'editor'
   isAIPanelOpen: boolean
   homeViewMode: 'grid' | 'list'
+  isDarkMode: boolean
 
   fetchNotes: () => Promise<void>
   fetchFolders: () => Promise<void>
@@ -70,6 +71,8 @@ interface NotesState {
   openNote: (noteId: string) => void
   toggleAIPanel: () => void
   setHomeViewMode: (mode: 'grid' | 'list') => void
+  setDarkMode: (dark: boolean) => void
+  toggleDarkMode: () => void
   setAppSettings: (settings: Partial<AppSettings>) => void
   setActiveVault: (vaultId: string) => Promise<void>
   createVault: (name: string) => Promise<void>
@@ -154,6 +157,16 @@ const initialNoteListWidth = (() => {
 })()
 const initialHomeViewMode = (localStorage.getItem('noteszen-home-view') || 'grid') as 'grid' | 'list'
 const initialAIPanelOpen = localStorage.getItem('noteszen-ai-panel') !== 'false'
+const initialDarkMode = (() => {
+  const stored = localStorage.getItem('noteszen-dark-mode')
+  if (stored !== null) return stored === 'true'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+})()
+
+function applyDarkModeClass(dark: boolean) {
+  document.documentElement.classList.toggle('dark', dark)
+}
+applyDarkModeClass(initialDarkMode)
 
 const initialRecent = (() => {
   try {
@@ -179,7 +192,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   searchQuery: '',
   activeFolder: 'notes',
   selectedTag: null,
-  isSidebarCollapsed: false,
+  isSidebarCollapsed: localStorage.getItem('noteszen-sidebar-collapsed') === 'true',
   isNoteListCollapsed: true,
   isCommandPaletteOpen: false,
   isGlobalSearchOpen: false,
@@ -199,10 +212,22 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   mainView: 'home',
   isAIPanelOpen: initialAIPanelOpen,
   homeViewMode: initialHomeViewMode,
+  isDarkMode: initialDarkMode,
 
   setMainView: (view) => set({ mainView: view }),
 
-  goHome: () => set({ mainView: 'home', selectedNoteId: null }),
+  goHome: () => set({ mainView: 'home' }),
+
+  setDarkMode: (dark) => {
+    localStorage.setItem('noteszen-dark-mode', String(dark))
+    applyDarkModeClass(dark)
+    set({ isDarkMode: dark })
+  },
+
+  toggleDarkMode: () => {
+    const next = !get().isDarkMode
+    get().setDarkMode(next)
+  },
 
   openNote: (noteId) => {
     get().trackRecent(noteId)
@@ -235,8 +260,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   removeOpenTab: (noteId) => {
     const tabs = get().openNoteTabs.filter((id) => id !== noteId)
     const { selectedNoteId } = get()
-    if (selectedNoteId === noteId && tabs.length > 0) {
-      set({ openNoteTabs: tabs, selectedNoteId: tabs[0] })
+    if (selectedNoteId === noteId) {
+      if (tabs.length > 0) {
+        set({ openNoteTabs: tabs, selectedNoteId: tabs[0], mainView: 'editor' })
+      } else {
+        set({ openNoteTabs: tabs, selectedNoteId: null, mainView: 'home' })
+      }
     } else {
       set({ openNoteTabs: tabs })
     }
@@ -351,7 +380,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFolder: (folder) => set({ activeFolder: folder, selectedTag: null }),
   setSelectedTag: (tag) => set({ selectedTag: tag, ...(tag ? { activeFolder: 'notes' } : {}) }),
-  toggleSidebar: () => set((s) => ({ isSidebarCollapsed: !s.isSidebarCollapsed })),
+  toggleSidebar: () => {
+    const next = !get().isSidebarCollapsed
+    localStorage.setItem('noteszen-sidebar-collapsed', String(next))
+    set({ isSidebarCollapsed: next })
+  },
   toggleNoteList: () => set((s) => ({ isNoteListCollapsed: !s.isNoteListCollapsed })),
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setGlobalSearchOpen: (open) => set({ isGlobalSearchOpen: open }),
@@ -450,6 +483,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       mainView: 'editor',
       ...(resetView ? { activeFolder: 'notes' } : {}),
     })
+    get().addOpenTab(newNote.id)
     persistNote(newNote)
     get().trackRecent(newNote.id)
   },
@@ -474,7 +508,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       (n) => n.title === `Daily Note - ${todayStr}` && n.folder !== 'trash'
     )
     if (dailyNote) {
-      set({ selectedNoteId: dailyNote.id, activeFolder: 'daily' })
+      get().openNote(dailyNote.id)
+      set({ activeFolder: 'daily' })
+      return
     } else {
       const template = get().templates.find((t) => t.id === 'daily-template')
       get().createNote({
@@ -519,10 +555,16 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     if (!target) return
     const api = getAPI()
 
+    const tabs = get().openNoteTabs.filter((tabId) => tabId !== id)
+
     if (target.folder === 'trash') {
       const updatedNotes = get().notes.filter((n) => n.id !== id)
-      set({ notes: updatedNotes })
-      if (get().selectedNoteId === id) set({ selectedNoteId: updatedNotes[0]?.id || null })
+      const wasSelected = get().selectedNoteId === id
+      set({
+        notes: updatedNotes,
+        openNoteTabs: tabs,
+        ...(wasSelected ? { selectedNoteId: null, mainView: 'home' as const } : {}),
+      })
       if (api) api.deleteNote(id).catch(console.error)
       else localStorage.setItem('noteszen-db-notes', JSON.stringify(updatedNotes))
     } else {
@@ -538,8 +580,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
             }
           : note
       )
-      set({ notes: updatedNotes })
-      if (get().selectedNoteId === id) set({ selectedNoteId: null })
+      const wasSelected = get().selectedNoteId === id
+      set({
+        notes: updatedNotes,
+        openNoteTabs: tabs,
+        ...(wasSelected ? { selectedNoteId: null, mainView: 'home' as const } : {}),
+      })
       const noteToSave = updatedNotes.find((n) => n.id === id)
       if (noteToSave) persistNote(noteToSave)
     }
@@ -551,9 +597,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         ? { ...note, folder: 'personal', trashedAt: null, updatedAt: new Date().toISOString() }
         : note
     )
-    set({ notes: updatedNotes, selectedNoteId: id })
+    set({ notes: updatedNotes, activeFolder: 'notes' })
     const noteToSave = updatedNotes.find((n) => n.id === id)
     if (noteToSave) persistNote(noteToSave)
+    get().openNote(id)
   },
 
   emptyTrash: () => {

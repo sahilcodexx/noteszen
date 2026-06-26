@@ -79,7 +79,7 @@ function simulateLayout(
 }
 
 export default function GraphView() {
-  const { notes, isGraphViewOpen, setGraphViewOpen, setSelectedNoteId, selectedNoteId } =
+  const { notes, isGraphViewOpen, setGraphViewOpen, openNote, selectedNoteId } =
     useNotesStore()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
@@ -158,7 +158,7 @@ export default function GraphView() {
                   onMouseEnter={() => setHoveredId(node.id)}
                   onMouseLeave={() => setHoveredId(null)}
                   onClick={() => {
-                    setSelectedNoteId(node.id)
+                    openNote(node.id)
                     setGraphViewOpen(false)
                   }}
                 >

@@ -9,7 +9,7 @@ export default function NoteTabs() {
   if (openNoteTabs.length <= 1) return null
 
   return (
-    <div className="flex items-center gap-0.5 px-4 h-9 border-b border-border/40 bg-background/40 shrink-0 overflow-x-auto scrollbar-none select-none">
+    <div className="flex items-center gap-0.5 h-8 overflow-x-auto scrollbar-none select-none">
       {openNoteTabs.map((tabId) => {
         const note = notes.find((n) => n.id === tabId)
         if (!note) return null

@@ -242,6 +242,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     saveStatus,
     appSettings,
     setSelectedNoteId,
+    openNote,
     createNote,
   } = useNotesStore()
   const [showSlashMenu, setShowSlashMenu] = useState(false)
@@ -754,8 +755,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   return (
     <div
       className={cn(
-        'flex-grow flex flex-col h-full overflow-hidden select-text relative bg-transparent transition-all duration-300',
-        isZenMode && 'bg-white dark:bg-black'
+        'flex-grow flex flex-col h-full overflow-hidden select-text relative editor-canvas transition-all duration-300',
+        isZenMode && 'bg-[var(--workspace-canvas)]'
       )}
       onMouseMove={() => isZenMode && setStatsVisible(true)}
       onMouseLeave={() => isZenMode && setStatsVisible(false)}
@@ -763,7 +764,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       
       {/* 1. STICKY FORMATTING TOOLBAR */}
       {!isZenMode && (
-        <div className="relative h-11 border-b border-border/40 bg-background/50 backdrop-blur-md px-6 flex items-center shrink-0 select-none z-20 animate-in fade-in duration-200 w-full">
+        <div className="relative h-10 editor-toolbar px-4 flex items-center shrink-0 select-none z-20 w-full">
           {/* Centered Formatting Buttons */}
           <div className="max-w-2xl mx-auto w-full h-full flex items-center justify-center">
             {isTrashNote ? (
@@ -778,7 +779,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   size="xs"
                   variant="ghost"
                   onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('bold') && "bg-muted text-foreground")}
+                  className={cn("h-7 w-7 p-0", editor?.isActive('bold') && "bg-[var(--workspace-active)] text-foreground")}
                   title="Bold"
                 >
                   <Bold className="w-3.5 h-3.5" />
@@ -787,7 +788,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   size="xs"
                   variant="ghost"
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('italic') && "bg-muted text-foreground")}
+                  className={cn("h-7 w-7 p-0", editor?.isActive('italic') && "bg-[var(--workspace-active)] text-foreground")}
                   title="Italic"
                 >
                   <Italic className="w-3.5 h-3.5" />
@@ -830,7 +831,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </Button>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground/60 select-none px-1.5 min-w-[28px] text-center bg-muted/30 rounded py-0.5">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground/60 select-none px-1.5 min-w-[28px] text-center bg-[var(--workspace-subtle)] rounded py-0.5 border border-[var(--workspace-border)]">
                   {editorFontSize}px
                 </span>
                 <Button
@@ -945,7 +946,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           </div>
 
           {/* Far Right Action buttons (Markdown, Export, and Zoom/Zen Toggle) */}
-          <div className="absolute right-6 flex items-center gap-1.5 pl-2 border-l border-border/40 shrink-0">
+          <div className="absolute right-4 flex items-center gap-1.5 pl-2 border-l border-[var(--workspace-border)] shrink-0">
             <Button
               size="xs"
               variant="outline"
@@ -1014,13 +1015,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         <BubbleMenu 
           key={`bubble-${selectedNoteId}`}
           editor={editor!} 
-          className="flex items-center gap-0.5 bg-card text-card-foreground border border-border shadow-xl rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100"
+          className="flex items-center gap-0.5 bg-[var(--workspace-panel)] text-foreground border border-[var(--workspace-border)] shadow-lg rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
         >
           <Button
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('bold') && "bg-muted text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('bold') && "bg-[var(--workspace-active)] text-foreground")}
             title="Bold"
           >
             <Bold className="w-3.5 h-3.5" />
@@ -1029,7 +1030,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('italic') && "bg-muted text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('italic') && "bg-[var(--workspace-active)] text-foreground")}
             title="Italic"
           >
             <Italic className="w-3.5 h-3.5" />
@@ -1038,7 +1039,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('strike') && "bg-muted text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('strike') && "bg-[var(--workspace-active)] text-foreground")}
             title="Strikethrough"
           >
             <Strikethrough className="w-3.5 h-3.5" />
@@ -1047,7 +1048,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('code') && "bg-muted text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('code') && "bg-[var(--workspace-active)] text-foreground")}
             title="Code"
           >
             <Code className="w-3.5 h-3.5" />
@@ -1057,7 +1058,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={setLink}
-            className={cn("h-7 w-7 p-0", editor.isActive('link') && "bg-muted text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('link') && "bg-[var(--workspace-active)] text-foreground")}
             title="Add Link"
           >
             <LinkIcon className="w-3.5 h-3.5" />
@@ -1099,7 +1100,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="outline"
             onClick={() => setZenMode(false)}
-            className="flex items-center gap-1.5 text-[10px] h-7 px-2.5 rounded-lg bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground font-semibold"
+            className="flex items-center gap-1.5 text-[10px] h-7 px-2.5 rounded-lg editor-stats-pill shadow-sm text-muted-foreground hover:text-foreground font-semibold"
           >
             <Minimize2 className="w-3 h-3" />
             <span>Exit Focus</span>
@@ -1111,12 +1112,18 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       <div
         ref={editorScrollRef}
         className={cn(
-          'flex-grow overflow-y-auto w-full transition-all duration-300 relative group/editor-container mx-auto bg-background/80 border-x border-border/30 px-6 md:px-10 py-12 scrollbar-none editor-active-blocks',
-          isZenMode ? 'max-w-xl' : 'max-w-2xl',
-          `editor-font-${editorFont}`
+          'flex-grow overflow-y-auto w-full transition-all duration-300 relative editor-canvas scrollbar-none',
+          isZenMode ? 'px-4 py-6' : 'px-4 md:px-6 py-5'
         )}
-        style={{ '--editor-font-size': `${editorFontSize}px` } as React.CSSProperties}
       >
+        <div
+          className={cn(
+            'group/editor-container mx-auto editor-writing-pad px-6 md:px-10 py-10 editor-active-blocks',
+            isZenMode ? 'max-w-xl' : 'max-w-2xl',
+            `editor-font-${editorFont}`
+          )}
+          style={{ '--editor-font-size': `${editorFontSize}px` } as React.CSSProperties}
+        >
         {!isZenMode && !isTrashNote && (
           <TableOfContents
             html={activeNote.content}
@@ -1251,7 +1258,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             value={activeNote.title || ''}
             onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
             disabled={isTrashNote}
-            className="flex-1 text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-muted-foreground/20 text-black dark:text-white opacity-70 focus:opacity-100 transition-opacity duration-200"
+            className="flex-1 text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-muted-foreground/30 text-foreground opacity-80 focus:opacity-100 transition-opacity duration-200"
           />
           {!isTrashNote && (
             <div className="flex items-center gap-1 opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 pt-1">
@@ -1401,7 +1408,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
         {/* Backlinks Panel */}
         {backlinks.length > 0 && !isZenMode && (
-          <div className="mt-16 border-t border-border/40 pt-8 pb-12 select-none animate-in fade-in duration-300">
+          <div className="mt-16 border-t border-[var(--workspace-border)] pt-8 pb-4 select-none animate-in fade-in duration-300">
             <h4 className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mb-3 flex items-center gap-1.5">
               <Sparkles className="size-3 text-primary/70" />
               Linked References ({backlinks.length})
@@ -1410,8 +1417,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
               {backlinks.map((linkNote) => (
                 <Card
                   key={linkNote.id}
-                  className="cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-colors py-3"
-                  onClick={() => setSelectedNoteId(linkNote.id)}
+                  className="cursor-pointer border-[var(--workspace-border)] bg-[var(--workspace-subtle)]/60 hover:border-primary/30 hover:bg-[var(--workspace-hover)] transition-colors py-3"
+                  onClick={() => openNote(linkNote.id)}
                 >
                   <CardHeader className="px-3 py-0">
                     <CardTitle className="text-xs truncate">{linkNote.title || 'Untitled Note'}</CardTitle>
@@ -1429,6 +1436,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* 5. SLIM STATS PILL */}
@@ -1438,7 +1446,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           isZenMode && !statsVisible && 'opacity-0 translate-y-2 pointer-events-none'
         )}
       >
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/80 backdrop-blur-md border border-border/40 shadow-sm text-[10px] text-muted-foreground font-medium">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full editor-stats-pill shadow-sm text-[10px] text-muted-foreground font-medium">
           <span
             className={cn(
               'size-1.5 rounded-full shrink-0',

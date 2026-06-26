@@ -45,13 +45,27 @@ body {
   padding: 0;
   overflow: hidden;
   user-select: none;
-  background: #eef0f2;
+  background: var(--workspace-canvas);
   height: 100vh;
   width: 100vw;
+  position: relative;
 }
 
-.dark body {
-  background: var(--background);
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 8%, oklch(0.72 0.07 240 / 0.14), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 92%, oklch(0.65 0.09 280 / 0.1), transparent 50%);
+}
+
+.dark body::before {
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 8%, oklch(0.28 0 0 / 0.12), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 92%, oklch(0.25 0 0 / 0.08), transparent 50%);
 }
 
 #root {
@@ -59,6 +73,8 @@ body {
   width: 100vw;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 /* Electron App drag regions */
@@ -185,6 +201,13 @@ body {
 }
 
 :root {
+  --workspace-canvas: oklch(0.965 0.004 250);
+  --workspace-panel: oklch(1 0 0 / 0.9);
+  --workspace-border: oklch(0.91 0.006 250 / 0.5);
+  --workspace-subtle: oklch(0.975 0.004 250 / 0.75);
+  --workspace-hover: oklch(0.96 0.005 250);
+  --workspace-active: oklch(0.94 0.015 250);
+  --workspace-accent-border: oklch(0.72 0.12 240);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -220,6 +243,13 @@ body {
 }
 
 .dark {
+  --workspace-canvas: oklch(0.13 0 0);
+  --workspace-panel: oklch(0.205 0 0 / 0.92);
+  --workspace-border: oklch(1 0 0 / 12%);
+  --workspace-subtle: oklch(0.24 0 0 / 0.72);
+  --workspace-hover: oklch(0.26 0 0);
+  --workspace-active: oklch(0.28 0 0);
+  --workspace-accent-border: oklch(0.55 0.12 240);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -309,7 +339,8 @@ body {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background: var(--workspace-canvas);
   }
   html {
     @apply font-sans;
@@ -317,6 +348,50 @@ body {
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Geist Variable', sans-serif;
   }
+}
+
+.workspace-panel {
+  background: var(--workspace-panel);
+  border: 1px solid var(--workspace-border);
+  box-shadow: 0 1px 3px oklch(0 0 0 / 4%);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+
+.dark .workspace-panel {
+  box-shadow: 0 1px 4px oklch(0 0 0 / 28%);
+}
+
+.workspace-surface {
+  background: var(--workspace-panel);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.editor-toolbar {
+  background: var(--workspace-panel);
+  border-bottom: 1px solid var(--workspace-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.editor-canvas {
+  background: transparent;
+}
+
+.editor-writing-pad {
+  background: var(--workspace-subtle);
+  border: 1px solid var(--workspace-border);
+  border-radius: 1rem;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.editor-stats-pill {
+  background: var(--workspace-panel);
+  border: 1px solid var(--workspace-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* Custom Editor Typography and Font Sizing overrides */

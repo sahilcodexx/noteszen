@@ -30,10 +30,10 @@ function formatTime(dateString: string) {
 }
 
 const ACCENT: Record<string, string> = {
-  ideas: 'border-l-[#5eb3f5]',
+  ideas: 'border-l-[var(--workspace-accent-border)]',
   research: 'border-l-violet-400',
   drafts: 'border-l-amber-400',
-  default: 'border-l-[#5eb3f5]',
+  default: 'border-l-[var(--workspace-accent-border)]',
 }
 
 interface NoteCardProps {
@@ -61,8 +61,8 @@ export default function NoteCard({
         type="button"
         onClick={onOpen}
         className={cn(
-          'w-full flex items-center gap-3 p-3 rounded-xl border border-[#e5e9ec] bg-white text-left',
-          'hover:shadow-sm hover:border-[#d5dbe0] transition-all border-l-[3px]',
+          'w-full flex items-center gap-3 p-3 rounded-xl border border-[var(--workspace-border)] bg-[var(--workspace-subtle)]/60 text-left',
+          'hover:shadow-sm hover:bg-[var(--workspace-subtle)] transition-all border-l-[3px]',
           accent
         )}
       >
@@ -78,8 +78,8 @@ export default function NoteCard({
   return (
     <div
       className={cn(
-        'group relative flex flex-col rounded-xl border border-[#e5e9ec] bg-white p-4 min-h-[130px]',
-        'hover:shadow-sm hover:border-[#d5dbe0] transition-all cursor-pointer border-l-[3px]',
+        'group relative flex flex-col rounded-xl border border-[var(--workspace-border)] bg-[var(--workspace-subtle)]/60 p-4 min-h-[130px]',
+        'hover:shadow-sm hover:bg-[var(--workspace-subtle)] transition-all cursor-pointer border-l-[3px]',
         accent
       )}
       onClick={onOpen}

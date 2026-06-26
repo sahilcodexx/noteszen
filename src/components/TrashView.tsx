@@ -30,8 +30,8 @@ export default function TrashView({
   formatRelativeTime,
 }: TrashViewProps) {
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="h-14 border-b border-border/40 flex items-center justify-between shrink-0 px-8">
+    <div className="flex flex-col h-full overflow-hidden bg-[var(--workspace-panel)]">
+      <div className="h-14 border-b border-[var(--workspace-border)] flex items-center justify-between shrink-0 px-8">
         <div className="flex items-center gap-2">
           <Trash2 className="size-4 text-destructive" />
           <h1 className="text-sm font-bold">Trash Bin</h1>
@@ -81,7 +81,7 @@ export default function TrashView({
             {notes.map((note) => (
               <div
                 key={note.id}
-                className="flex flex-col p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all"
+                className="flex flex-col p-4 rounded-xl border border-[var(--workspace-border)] bg-[var(--workspace-subtle)] hover:shadow-sm transition-all"
               >
                 <h3 className="font-semibold text-sm truncate">{note.title || 'Untitled'}</h3>
                 <p className="text-xs text-muted-foreground line-clamp-3 mt-2 flex-1">
