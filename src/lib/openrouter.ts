@@ -7,6 +7,11 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const STREAM_IDLE_MS = 45_000
 const STREAM_MAX_MS = 120_000
 
+function isUserAbort(signal: AbortSignal | undefined, err: unknown): boolean {
+  if (signal?.aborted) return true
+  return err instanceof DOMException && err.name === 'AbortError'
+}
+
 export async function streamChatCompletion({
   apiKey,
   model,
@@ -23,18 +28,30 @@ export async function streamChatCompletion({
   const timeoutController = new AbortController()
   const startedAt = Date.now()
   let idleTimer: ReturnType<typeof setTimeout> | null = null
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
 
   const resetIdleTimer = () => {
     if (idleTimer) clearTimeout(idleTimer)
     idleTimer = setTimeout(() => timeoutController.abort(), STREAM_IDLE_MS)
   }
 
-  const onExternalAbort = () => timeoutController.abort()
-  signal?.addEventListener('abort', onExternalAbort)
+  const abortAll = () => timeoutController.abort()
+
+  signal?.addEventListener('abort', abortAll)
 
   const combinedSignal = timeoutController.signal
 
+  const throwIfAborted = async () => {
+    if (!signal?.aborted) return
+    await reader?.cancel().catch(() => {})
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+
+  let full = ''
+
   try {
+    await throwIfAborted()
+
     const res = await fetch(OPENROUTER_URL, {
       method: 'POST',
       headers: {
@@ -67,14 +84,15 @@ export async function streamChatCompletion({
 
     if (!res.body) throw new Error('No response stream from OpenRouter')
 
-    const reader = res.body.getReader()
+    reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
-    let full = ''
 
     resetIdleTimer()
 
     while (true) {
+      await throwIfAborted()
+
       if (Date.now() - startedAt > STREAM_MAX_MS) {
         timeoutController.abort()
         throw new Error('AI response timed out. Try again or use Stop.')
@@ -116,15 +134,18 @@ export async function streamChatCompletion({
 
     return full
   } catch (err) {
+    if (isUserAbort(signal, err)) {
+      if (full.trim()) return full
+      throw new DOMException('The operation was aborted.', 'AbortError')
+    }
     if (combinedSignal.aborted) {
-      const aborted = new DOMException('The operation was aborted.', 'AbortError')
-      if (signal?.aborted) throw aborted
       throw new Error('AI response timed out. Press Stop and try again.')
     }
     throw err
   } finally {
     if (idleTimer) clearTimeout(idleTimer)
-    signal?.removeEventListener('abort', onExternalAbort)
+    signal?.removeEventListener('abort', abortAll)
+    await reader?.cancel().catch(() => {})
   }
 }
 

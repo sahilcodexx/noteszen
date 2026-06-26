@@ -13,12 +13,24 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useNotesStore } from '../store/useNotesStore'
-import { getOpenRouterApiKey, getOpenRouterModel } from '../lib/ai-settings'
+import { FREE_MODELS, getOpenRouterApiKey, getOpenRouterModel } from '../lib/ai-settings'
 import { buildNoteContext, streamChatCompletion } from '../lib/openrouter'
-import { markdownToHtml } from '../lib/markdown-preview'
+import {
+  appendAiContentToNote,
+  markdownToChatHtml,
+  prepareAiNoteFromOutput,
+} from '../lib/ai-output'
 import { notify } from '../lib/toast'
 import AITypingIndicator from './AITypingIndicator'
 
@@ -39,15 +51,34 @@ function makeWelcome(): Message {
   return { ...WELCOME, id: `welcome-${Date.now()}` }
 }
 
+interface NotePreviewState {
+  title: string
+  contentHtml: string
+  tags: string[]
+}
+
 export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
-  const { notes, selectedNoteId, createNote, isAIPanelExpanded, toggleAIPanelExpanded } =
-    useNotesStore()
+  const {
+    notes,
+    selectedNoteId,
+    createNote,
+    updateNote,
+    openNote,
+    isAIPanelExpanded,
+    toggleAIPanelExpanded,
+  } = useNotesStore()
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<Message[]>([makeWelcome()])
   const [isLoading, setIsLoading] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
+  const [notePreview, setNotePreview] = useState<NotePreviewState | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const streamingIdRef = useRef<string | null>(null)
+  const generationRef = useRef(0)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  const activeModel =
+    FREE_MODELS.find((m) => m.id === getOpenRouterModel())?.label ?? getOpenRouterModel()
 
   const activeNote = notes.find((n) => n.id === selectedNoteId)
 
@@ -55,11 +86,15 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isLoading])
 
+  useEffect(() => {
+    streamingIdRef.current = streamingId
+  }, [streamingId])
+
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort()
-    abortRef.current = null
     setIsLoading(false)
     setStreamingId(null)
+    streamingIdRef.current = null
   }, [])
 
   const resetChat = useCallback(
@@ -73,8 +108,13 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   )
 
   const handleStop = () => {
-    const currentStreamId = streamingId
-    stopGeneration()
+    const currentStreamId = streamingIdRef.current
+    generationRef.current += 1
+    abortRef.current?.abort()
+    setIsLoading(false)
+    setStreamingId(null)
+    streamingIdRef.current = null
+
     if (currentStreamId) {
       setMessages((m) =>
         m.map((msg) =>
@@ -109,6 +149,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
 
     const controller = new AbortController()
     abortRef.current = controller
+    const generation = ++generationRef.current
 
     const systemParts = [
       'You are a helpful writing assistant inside NotesZen, a note-taking app.',
@@ -135,12 +176,15 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         ],
         signal: controller.signal,
         onDelta: (content) => {
+          if (generation !== generationRef.current) return
+          if (controller.signal.aborted) return
           setMessages((m) =>
             m.map((msg) => (msg.id === assistantId ? { ...msg, content } : msg))
           )
         },
       })
     } catch (err) {
+      if (generation !== generationRef.current) return
       if ((err as Error).name === 'AbortError') {
         setMessages((m) =>
           m.map((msg) =>
@@ -158,9 +202,12 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         )
       )
     } finally {
-      setIsLoading(false)
-      setStreamingId(null)
-      abortRef.current = null
+      if (generation === generationRef.current) {
+        setIsLoading(false)
+        setStreamingId(null)
+        streamingIdRef.current = null
+        abortRef.current = null
+      }
     }
   }
 
@@ -169,10 +216,36 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     notify.success('Copied to clipboard')
   }
 
-  const createDocFromMessage = (content: string) => {
-    const title = content.split('\n')[0]?.replace(/^#+\s*/, '').slice(0, 60) || 'AI Draft'
-    createNote({ title, content, status: 'draft' })
-    notify.success('Note created from AI response')
+  const openNotePreview = (content: string) => {
+    const prepared = prepareAiNoteFromOutput(content)
+    setNotePreview({
+      title: prepared.title,
+      contentHtml: prepared.contentHtml,
+      tags: prepared.tags,
+    })
+  }
+
+  const handleCreateNoteFromPreview = () => {
+    if (!notePreview) return
+    createNote({
+      title: notePreview.title.trim() || 'AI Draft',
+      content: notePreview.contentHtml,
+      status: 'draft',
+      icon: '✨',
+      tags: notePreview.tags,
+    })
+    setNotePreview(null)
+    notify.success('Note created with formatted AI content')
+  }
+
+  const handleAppendToOpenNote = () => {
+    if (!notePreview || !activeNote) return
+    const merged = appendAiContentToNote(activeNote.content, notePreview.contentHtml)
+    const tags = [...new Set([...(activeNote.tags || []), ...notePreview.tags])]
+    updateNote(activeNote.id, { content: merged, tags })
+    openNote(activeNote.id)
+    setNotePreview(null)
+    notify.success('AI content added to your open note')
   }
 
   return (
@@ -181,6 +254,9 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
           <Sparkles className="size-3.5 text-primary shrink-0" />
           <span className="truncate">AI Workspace</span>
+          <span className="text-[10px] font-normal text-muted-foreground truncate hidden sm:inline">
+            · {activeModel}
+          </span>
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           <Button
@@ -193,6 +269,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
           </Button>
           {isLoading ? (
             <Button
+              type="button"
               variant="ghost"
               size="xs"
               className="text-[10px] text-destructive gap-1 h-7"
@@ -251,7 +328,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                 ) : msg.role === 'assistant' && !isWelcome ? (
                   <div
                     className="prose-editor ai-chat-prose break-words [&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
-                    dangerouslySetInnerHTML={{ __html: markdownToHtml(msg.content) }}
+                    dangerouslySetInnerHTML={{ __html: markdownToChatHtml(msg.content) }}
                   />
                 ) : (
                   <p className="whitespace-pre-wrap break-words">{msg.content}</p>
@@ -262,10 +339,10 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                       variant="outline"
                       size="xs"
                       className="h-7 text-[10px]"
-                      onClick={() => createDocFromMessage(msg.content)}
+                      onClick={() => openNotePreview(msg.content)}
                     >
                       <FileText className="size-3" />
-                      Create a doc
+                      Save to note
                     </Button>
                     <Button
                       variant="ghost"
@@ -294,6 +371,48 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         </div>
       )}
 
+      <Dialog open={Boolean(notePreview)} onOpenChange={(open) => !open && setNotePreview(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col no-drag">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" />
+              Review before saving
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            AI output is cleaned and converted to formatted note content. Edit the title, then
+            create a new note or append to your open note.
+          </p>
+          <Input
+            value={notePreview?.title ?? ''}
+            onChange={(e) =>
+              setNotePreview((prev) => (prev ? { ...prev, title: e.target.value } : prev))
+            }
+            placeholder="Note title"
+            className="h-8 text-xs"
+          />
+          <ScrollArea className="flex-1 max-h-[45vh] rounded-lg border border-[var(--workspace-border)] bg-[var(--workspace-subtle)] px-3 py-3">
+            <div
+              className="prose-editor ai-note-preview text-xs break-words"
+              dangerouslySetInnerHTML={{ __html: notePreview?.contentHtml ?? '' }}
+            />
+          </ScrollArea>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" size="sm" onClick={() => setNotePreview(null)}>
+              Cancel
+            </Button>
+            {activeNote && (
+              <Button variant="secondary" size="sm" onClick={handleAppendToOpenNote}>
+                Add to open note
+              </Button>
+            )}
+            <Button size="sm" onClick={handleCreateNoteFromPreview}>
+              Create new note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="shrink-0 p-4 border-t border-[var(--workspace-border)]">
         <div className="relative">
           <Textarea
@@ -313,6 +432,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
             )}
           />
           <Button
+            type="button"
             size="icon-xs"
             className="absolute bottom-2 right-2"
             onClick={isLoading ? handleStop : handleSend}

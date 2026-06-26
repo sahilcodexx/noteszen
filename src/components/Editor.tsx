@@ -1120,7 +1120,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           className={cn(
             'group/editor-container mx-auto editor-writing-pad px-6 md:px-10 py-10 editor-active-blocks',
             isZenMode ? 'max-w-xl' : 'max-w-2xl',
-            `editor-font-${editorFont}`
+            `editor-font-${editorFont}`,
+            activeNote?.tags?.includes('ai-draft') && 'editor-from-ai'
           )}
           style={{ '--editor-font-size': `${editorFontSize}px` } as React.CSSProperties}
         >
@@ -1315,9 +1316,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         {!isTrashNote && (
           <div className="flex flex-wrap items-center gap-1.5 mb-6">
             {activeNote.tags?.map((t) => (
-              <Badge key={t} variant="secondary" className="h-5 gap-1 text-[10px] font-medium">
+              <Badge
+                key={t}
+                variant="secondary"
+                className={cn(
+                  'h-5 gap-1 text-[10px] font-medium',
+                  t === 'ai-draft' && 'editor-from-ai-badge'
+                )}
+              >
                 <Tag className="size-2.5" />
-                {t}
+                {t === 'ai-draft' ? 'AI draft' : t}
                 <button type="button" onClick={() => handleRemoveTag(t)} className="hover:text-destructive">
                   <X className="size-2.5" />
                 </button>
