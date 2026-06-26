@@ -14,6 +14,36 @@ const AI_PREAMBLE =
 
 const THINK_BLOCK = /<think>[\s\S]*?<\/think>/gi
 
+const META_LINE =
+  /^(?:since you(?:'re| are)|as you(?:'re| are)|i(?:'ll| will) provide|here(?:'s| is) a (?:structured )?breakdown|you can (?:easily )?copy|copy and paste|paste (?:this )?into|formatted for your note|working in a note-taking|inside (?:this |your )?note(?:-taking)? app|let me (?:provide|give|break)|i(?:'ve| have) (?:prepared|structured))/i
+
+function stripMetaPreamble(text: string): string {
+  const lines = text.split('\n')
+  let start = 0
+
+  while (start < lines.length) {
+    const line = lines[start].trim()
+    if (!line) {
+      start++
+      continue
+    }
+    if (/^#{1,3}\s+/.test(line)) break
+    if (/^[-*]\s+/.test(line)) break
+    if (/^\d+\.\s+/.test(line)) break
+    if (META_LINE.test(line) || (line.length < 120 && /copy.*paste|note-taking app|structured breakdown/i.test(line))) {
+      start++
+      continue
+    }
+    if (line.endsWith(' into a') || line.endsWith(' into your')) {
+      start++
+      continue
+    }
+    break
+  }
+
+  return lines.slice(start).join('\n').trim()
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -205,6 +235,7 @@ export function cleanAiMarkdown(raw: string): string {
   let text = raw.trim()
   text = text.replace(THINK_BLOCK, '').trim()
   text = text.replace(AI_PREAMBLE, '').trim()
+  text = stripMetaPreamble(text)
   text = text.replace(/\r\n/g, '\n')
   text = text.replace(/\n{3,}/g, '\n\n')
   return text.trim()

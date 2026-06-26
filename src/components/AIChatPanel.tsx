@@ -153,7 +153,9 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
 
     const systemParts = [
       'You are a helpful writing assistant inside NotesZen, a note-taking app.',
-      'Be concise, practical, and friendly. Use markdown when helpful.',
+      'Answer the user directly. Start with the substance — never open with meta commentary about the app, copy/paste, or "here is a breakdown you can paste".',
+      'Be concise, practical, and friendly. Use markdown when helpful (headings, lists, bold).',
+      'Do not mention that you are formatting for notes unless the user explicitly asks.',
     ]
     if (activeNote) {
       systemParts.push(
