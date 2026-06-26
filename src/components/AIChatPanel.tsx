@@ -13,17 +13,10 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useNotesStore } from '../store/useNotesStore'
+import AISavePreview, { type AISavePreviewData } from './AISavePreview'
 import { FREE_MODELS, getOpenRouterApiKey, getOpenRouterModel } from '../lib/ai-settings'
 import { buildNoteContext, streamChatCompletion } from '../lib/openrouter'
 import {
@@ -51,11 +44,7 @@ function makeWelcome(): Message {
   return { ...WELCOME, id: `welcome-${Date.now()}` }
 }
 
-interface NotePreviewState {
-  title: string
-  contentHtml: string
-  tags: string[]
-}
+type NotePreviewState = AISavePreviewData
 
 export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   const {
@@ -277,31 +266,40 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     setNotePreview({
       title: prepared.title,
       contentHtml: prepared.contentHtml,
+      previewHtml: prepared.previewHtml,
       tags: prepared.tags,
     })
   }
 
   const handleCreateNoteFromPreview = () => {
     if (!notePreview) return
+    const title = notePreview.title.trim() || 'AI Draft'
+    setNotePreview(null)
     createNote({
-      title: notePreview.title.trim() || 'AI Draft',
+      title,
       content: notePreview.contentHtml,
       status: 'draft',
       icon: '✨',
       tags: notePreview.tags,
+      editorMode: 'wysiwyg',
     })
-    setNotePreview(null)
-    notify.success('Note created with formatted AI content')
+    notify.success('Note created')
   }
 
   const handleAppendToOpenNote = () => {
-    if (!notePreview || !activeNote) return
-    const merged = appendAiContentToNote(activeNote.content, notePreview.contentHtml)
-    const tags = [...new Set([...(activeNote.tags || []), ...notePreview.tags])]
-    updateNote(activeNote.id, { content: merged, tags })
-    openNote(activeNote.id)
+    if (!notePreview) return
+    const { notes: storeNotes, selectedNoteId: openId } = useNotesStore.getState()
+    const target = storeNotes.find((n) => n.id === openId)
+    if (!target) {
+      notify.error('No open note to append to')
+      return
+    }
+    const merged = appendAiContentToNote(target.content, notePreview.contentHtml)
+    const tags = [...new Set([...(target.tags || []), ...notePreview.tags])]
     setNotePreview(null)
-    notify.success('AI content added to your open note')
+    updateNote(target.id, { content: merged, tags })
+    openNote(target.id)
+    notify.success('Added to your note')
   }
 
   return (
@@ -431,47 +429,17 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         </div>
       )}
 
-      <Dialog open={Boolean(notePreview)} onOpenChange={(open) => !open && setNotePreview(null)}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col no-drag">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <Sparkles className="size-4 text-primary" />
-              Review before saving
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            AI output is cleaned and converted to formatted note content. Edit the title, then
-            create a new note or append to your open note.
-          </p>
-          <Input
-            value={notePreview?.title ?? ''}
-            onChange={(e) =>
-              setNotePreview((prev) => (prev ? { ...prev, title: e.target.value } : prev))
-            }
-            placeholder="Note title"
-            className="h-8 text-xs"
-          />
-          <ScrollArea className="flex-1 max-h-[45vh] rounded-lg border border-[var(--workspace-border)] bg-[var(--workspace-subtle)] px-3 py-3">
-            <div
-              className="prose-editor ai-note-preview text-xs break-words"
-              dangerouslySetInnerHTML={{ __html: notePreview?.contentHtml ?? '' }}
-            />
-          </ScrollArea>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" size="sm" onClick={() => setNotePreview(null)}>
-              Cancel
-            </Button>
-            {activeNote && (
-              <Button variant="secondary" size="sm" onClick={handleAppendToOpenNote}>
-                Add to open note
-              </Button>
-            )}
-            <Button size="sm" onClick={handleCreateNoteFromPreview}>
-              Create new note
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AISavePreview
+        open={Boolean(notePreview)}
+        preview={notePreview}
+        openNoteTitle={activeNote?.title || undefined}
+        onTitleChange={(title) =>
+          setNotePreview((prev) => (prev ? { ...prev, title } : prev))
+        }
+        onClose={() => setNotePreview(null)}
+        onCreate={handleCreateNoteFromPreview}
+        onAppend={handleAppendToOpenNote}
+      />
 
       <div className="shrink-0 p-4 border-t border-[var(--workspace-border)]">
         <div className="relative">

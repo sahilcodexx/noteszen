@@ -4,6 +4,7 @@ export interface PreparedAiNote {
   title: string
   bodyMarkdown: string
   contentHtml: string
+  previewHtml: string
   tags: string[]
 }
 
@@ -277,12 +278,20 @@ export function markdownToNoteHtml(md: string): string {
 
 export function prepareAiNoteFromOutput(raw: string): PreparedAiNote {
   const cleaned = cleanAiMarkdown(raw)
-  const { title, body } = extractAiNoteTitle(cleaned)
+  let { title, body } = extractAiNoteTitle(cleaned)
   const bodyMarkdown = body || cleaned
+
+  if (title === 'AI Draft') {
+    const heading = bodyMarkdown.match(/^#{1,3}\s+(.+)$/m)
+    if (heading?.[1]) title = heading[1].trim().slice(0, 80)
+  }
+
+  const bodyHtml = markdownBlocksToHtml(bodyMarkdown)
   return {
     title,
     bodyMarkdown,
-    contentHtml: markdownToNoteHtml(bodyMarkdown),
+    contentHtml: `${aiDraftCalloutHtml()}${bodyHtml}`,
+    previewHtml: bodyHtml,
     tags: [AI_DRAFT_TAG],
   }
 }

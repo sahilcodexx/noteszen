@@ -652,6 +652,38 @@ body::before {
   margin-bottom: 1em;
 }
 
+.ai-note-preview h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5em;
+}
+
+.ai-note-preview h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+}
+
+.ai-note-preview h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0.8em 0 0.35em;
+}
+
+.ai-note-preview ul,
+.ai-note-preview ol {
+  margin: 0.4em 0 0.8em 1.25em;
+}
+
+.ai-note-preview li {
+  margin-bottom: 0.25em;
+}
+
+.ai-note-preview p {
+  margin: 0 0 0.65em;
+  line-height: 1.55;
+}
+
 .editor-writing-pad.editor-from-ai {
   box-shadow:
     0 0 0 1px color-mix(in oklch, var(--primary) 18%, transparent),
