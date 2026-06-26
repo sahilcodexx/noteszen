@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Clock, RotateCcw } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import { notify } from '../lib/toast'
@@ -25,45 +25,70 @@ export default function VersionHistorySheet({ noteId, open, onOpenChange }: Vers
   const { getNoteVersions, restoreVersion } = useNotesStore()
   const [versions, setVersions] = useState<NoteVersion[]>([])
   const [loading, setLoading] = useState(false)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
+
+  const loadVersions = useCallback(async () => {
+    if (!noteId) return
+    setLoading(true)
+    try {
+      const list = await getNoteVersions(noteId)
+      setVersions(list)
+    } catch {
+      notify.error('Failed to load version history')
+      setVersions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [noteId, getNoteVersions])
 
   useEffect(() => {
     if (!open || !noteId) return
-    setLoading(true)
-    getNoteVersions(noteId)
-      .then(setVersions)
-      .finally(() => setLoading(false))
-  }, [open, noteId, getNoteVersions])
+    loadVersions()
+  }, [open, noteId, loadVersions])
 
   const handleRestore = async (versionId: string) => {
-    await restoreVersion(versionId)
-    notify.success('Version restored')
-    onOpenChange(false)
+    setRestoringId(versionId)
+    try {
+      const restored = await restoreVersion(versionId)
+      if (restored) {
+        notify.success('Version restored')
+        onOpenChange(false)
+      } else {
+        notify.error('Could not restore this version')
+      }
+    } catch {
+      notify.error('Failed to restore version')
+    } finally {
+      setRestoringId(null)
+    }
   }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[340px] sm:max-w-[340px]">
+      <SheetContent side="right" className="flex h-full w-[340px] flex-col sm:max-w-[340px]">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2 text-sm">
             <Clock className="size-4 text-primary" />
             Version History
           </SheetTitle>
           <SheetDescription className="text-xs">
-            Restore a previous snapshot of this note.
+            Snapshots are saved when you edit a note. Restore any previous version below.
           </SheetDescription>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 mt-4 -mx-2 px-2">
+        <ScrollArea className="min-h-0 flex-1 mt-2">
           {loading ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 pr-2">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-16 w-full rounded-lg" />
               ))}
             </div>
           ) : versions.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">No versions saved yet.</p>
+            <p className="text-xs text-muted-foreground text-center py-12 px-4 leading-relaxed">
+              No versions yet. Edit the note title or content — a snapshot is saved on each change.
+            </p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 pr-2 pb-4">
               {versions.map((v, i) => (
                 <div key={v.id}>
                   <div className="flex flex-col gap-1 p-3 rounded-lg border border-border bg-card/50">
@@ -79,16 +104,17 @@ export default function VersionHistorySheet({ noteId, open, onOpenChange }: Vers
                       </span>
                     </div>
                     <p className="text-[10px] text-muted-foreground line-clamp-2">
-                      {v.content.replace(/<[^>]*>/g, '').substring(0, 120)}
+                      {v.content.replace(/<[^>]*>/g, '').substring(0, 120) || 'Empty note'}
                     </p>
                     <Button
                       size="xs"
                       variant="outline"
                       className="self-end mt-1"
+                      disabled={restoringId === v.id}
                       onClick={() => handleRestore(v.id)}
                     >
                       <RotateCcw data-icon="inline-start" />
-                      Restore
+                      {restoringId === v.id ? 'Restoring…' : 'Restore'}
                     </Button>
                   </div>
                   {i < versions.length - 1 && <Separator className="my-1 opacity-50" />}

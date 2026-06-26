@@ -25,6 +25,7 @@ import { useNotesStore } from '../store/useNotesStore'
 import { getAPI } from '../tauri-bridge'
 import { getSlashPlugins } from '../lib/plugins'
 import VersionHistorySheet from './VersionHistorySheet'
+import HighlightColorMenu, { DEFAULT_HIGHLIGHT_COLOR } from './HighlightColorMenu'
 import TableOfContents from './TableOfContents'
 import { markdownToHtml } from '../lib/markdown-preview'
 import {
@@ -441,7 +442,15 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       editor.commands.setContent(activeNote.content || '', { emitUpdate: false })
     }
     editor.setEditable(activeNote.folder !== 'trash')
-  }, [selectedNoteId, isEditorReady, activeNote?.id, activeNote?.folder, editor])
+  }, [
+    selectedNoteId,
+    isEditorReady,
+    activeNote?.id,
+    activeNote?.content,
+    activeNote?.title,
+    activeNote?.folder,
+    editor,
+  ])
 
   const resizeImage = (file: File, maxDim = 1920): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -576,7 +585,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     {
       name: 'Highlight',
       icon: Highlighter,
-      action: () => editor?.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).toggleHighlight().run()
+      action: () =>
+        editor
+          ?.chain()
+          .focus()
+          .deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from })
+          .toggleHighlight({ color: DEFAULT_HIGHLIGHT_COLOR })
+          .run(),
     },
     {
       name: 'Divider',
@@ -831,16 +846,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
                 <div className="h-4 w-px bg-border/50 mx-1 shrink-0" />
 
-                {/* Highlight */}
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => editor?.chain().focus().toggleHighlight().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('highlight') && "bg-muted text-foreground")}
-                  title="Highlight"
-                >
-                  <Highlighter className="w-3.5 h-3.5" />
-                </Button>
+                <HighlightColorMenu editor={editor} showChevron />
 
                 {/* Files */}
                 <Button
@@ -1046,15 +1052,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           >
             <Code className="w-3.5 h-3.5" />
           </Button>
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('highlight') && "bg-muted text-foreground")}
-            title="Highlight"
-          >
-            <Highlighter className="w-3.5 h-3.5" />
-          </Button>
+          <HighlightColorMenu editor={editor} />
           <Button
             size="xs"
             variant="ghost"

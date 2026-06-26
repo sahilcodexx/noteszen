@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import type { AppSettings, Folder, Note, NoteVersion, Template, Vault } from '../types'
 import { getAPI } from '../tauri-bridge'
+import {
+  getLocalNoteVersions,
+  restoreLocalNoteVersion,
+  saveLocalNoteVersion,
+} from '../lib/note-versions'
 
 interface NotesState {
   notes: Note[]
@@ -79,7 +84,7 @@ interface NotesState {
   saveTemplate: (template: Template) => void
   deleteTemplate: (id: string) => void
   getNoteVersions: (noteId: string) => Promise<NoteVersion[]>
-  restoreVersion: (versionId: string) => Promise<void>
+  restoreVersion: (versionId: string) => Promise<Note | null | void>
   trackRecent: (noteId: string) => void
 }
 
@@ -99,11 +104,17 @@ function extractBacklinks(content: string, allNotes: Note[]): string[] {
   return Array.from(new Set(targetIds))
 }
 
-function persistNote(note: Note) {
+function persistNote(note: Note, previousNote?: Note) {
   const api = getAPI()
   if (api) {
     api.saveNote(note, true).catch((err) => console.error('Failed to save note:', err))
   } else {
+    if (
+      previousNote &&
+      (previousNote.title !== note.title || previousNote.content !== note.content)
+    ) {
+      saveLocalNoteVersion(previousNote)
+    }
     const notes = useNotesStore.getState().notes
     localStorage.setItem('noteszen-db-notes', JSON.stringify(notes))
   }
@@ -438,6 +449,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   updateNote: (id, fields) => {
+    const previousNote = get().notes.find((n) => n.id === id)
     let updatedNote: Note | null = null
     const updatedNotes = get().notes.map((note) => {
       if (note.id === id) {
@@ -455,7 +467,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       if (saveTimeout) clearTimeout(saveTimeout)
       saveTimeout = setTimeout(() => {
         if (updatedNote) {
-          persistNote(updatedNote)
+          persistNote(updatedNote, previousNote)
           set({ saveStatus: 'saved' })
         }
       }, 600)
@@ -634,15 +646,30 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   getNoteVersions: async (noteId) => {
     const api = getAPI()
     if (api) return api.getNoteVersions(noteId)
-    return []
+    return getLocalNoteVersions(noteId)
   },
 
   restoreVersion: async (versionId) => {
     const api = getAPI()
     if (api) {
       const note = await api.restoreVersion(versionId)
-      if (note) await get().fetchNotes()
+      if (note) {
+        set((state) => ({
+          notes: state.notes.map((n) => (n.id === note.id ? { ...n, ...note } : n)),
+          selectedNoteId: note.id,
+        }))
+      }
+      return note
     }
+
+    const restored = restoreLocalNoteVersion(versionId)
+    if (restored) {
+      set((state) => ({
+        notes: state.notes.map((n) => (n.id === restored.id ? restored : n)),
+        selectedNoteId: restored.id,
+      }))
+    }
+    return restored
   },
 
   trackRecent: (noteId) => {

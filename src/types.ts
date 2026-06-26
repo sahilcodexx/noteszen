@@ -73,7 +73,7 @@ export interface TauriAPI {
   saveTemplate: (template: Template) => Promise<boolean>
   deleteTemplate: (templateId: string) => Promise<boolean>
   getNoteVersions: (noteId: string) => Promise<NoteVersion[]>
-  restoreVersion: (versionId: string) => Promise<Note | null>
+  restoreVersion: (versionId: string) => Promise<Note | null | void>
   getVaults: () => Promise<Vault[]>
   setActiveVault: (vaultId: string) => Promise<boolean>
   createVault: (vault: Vault) => Promise<boolean>
