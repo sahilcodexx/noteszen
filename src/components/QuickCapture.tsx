@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Sparkles, CornerDownLeft, X, Bold, Italic, Code, List, CheckSquare } from 'lucide-react'
 import { Button } from './ui/button'
+import { getAPI } from '../tauri-bridge'
 
 export default function QuickCapture() {
   const [text, setText] = useState('')
@@ -29,10 +30,11 @@ export default function QuickCapture() {
       updatedAt: now.toISOString()
     }
 
-    if (window.electronAPI) {
-      window.electronAPI.saveNote(note).then(() => {
+    const api = getAPI()
+    if (api) {
+      api.saveNote(note).then(() => {
         setText('')
-        window.electronAPI.closeQuickCapture()
+        api.closeQuickCapture()
       })
     } else {
       // Browser test fallback
@@ -52,16 +54,12 @@ export default function QuickCapture() {
       handleSave()
     } else if (e.key === 'Escape') {
       e.preventDefault()
-      if (window.electronAPI) {
-        window.electronAPI.closeQuickCapture()
-      }
+      getAPI()?.closeQuickCapture()
     }
   }
 
   const handleClose = () => {
-    if (window.electronAPI) {
-      window.electronAPI.closeQuickCapture()
-    }
+    getAPI()?.closeQuickCapture()
   }
 
   const insertMarkdown = (syntax: string, wrapper = false) => {

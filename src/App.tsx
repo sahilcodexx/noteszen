@@ -1,4 +1,4 @@
-import { memo, Suspense, lazy, useEffect, useState, useMemo, useRef } from 'react'
+import { Suspense, lazy, useEffect, useState, useMemo, useRef } from 'react'
 import {
   FileText,
   Star,
@@ -7,19 +7,20 @@ import {
   Archive,
   Settings,
   Search,
-  Pin,
   Plus,
   Moon,
   Sun,
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Info,
   Command,
   X,
   RotateCcw,
   MoreHorizontal,
-  Columns2
+  Columns2,
+  Network,
+  Clock,
+  FolderPlus
 } from 'lucide-react'
 
 // UI Components
@@ -39,13 +40,6 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -56,14 +50,28 @@ import {
 // App Components
 import Onboarding from './components/Onboarding'
 import QuickCapture from './components/QuickCapture'
+import SettingsPanel from './components/SettingsPanel'
+import MobileView from './components/MobileView'
+import NoteListItem from './components/NoteListItem'
+import FolderDialog from './components/FolderDialog'
+import VaultSwitcher from './components/VaultSwitcher'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { getAPI } from './tauri-bridge'
+import { filterNotesWithFuse } from './lib/search'
 
 // State Store
 import { useNotesStore } from './store/useNotesStore'
-import type { Note } from './types'
-
 const Editor = lazy(() => import('./components/Editor'))
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
 const GlobalSearch = lazy(() => import('./components/GlobalSearch'))
+const GraphView = lazy(() => import('./components/GraphView'))
 
 // Helper function to format relative times beautifully
 function formatRelativeTime(dateString: string): string {
@@ -107,7 +115,10 @@ function MainApp() {
     isZenMode,
     isSplitView,
     splitViewNoteId,
-    fetchNotes,
+    folders,
+    recentNoteIds,
+    initApp,
+    setGraphViewOpen,
     setSelectedNoteId,
     setSearchQuery,
     setActiveFolder,
@@ -120,12 +131,7 @@ function MainApp() {
     createDailyNote,
     togglePin,
     toggleFavorite,
-    editorFont,
-    editorFontSize,
     colorTheme,
-    setEditorFont,
-    setEditorFontSize,
-    setColorTheme,
     toggleSplitView,
     setSplitViewNoteId,
     deleteNote,
@@ -135,6 +141,7 @@ function MainApp() {
 
   // Local React states
   const [showSettings, setShowSettings] = useState(false)
+  const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -201,9 +208,8 @@ function MainApp() {
     }
   }, [])
 
-  // Load notes on mount
   useEffect(() => {
-    fetchNotes()
+    initApp()
   }, [])
 
   // Manage Dark Mode styles
@@ -294,22 +300,20 @@ function MainApp() {
         return note.folder === 'daily'
       }
 
-      // 'notes' folder matches everything non-archived, non-trash
+      if (activeFolder === 'recent') {
+        return recentNoteIds.includes(note.id)
+      }
+
+      if (folders.some((f) => f.id === activeFolder)) {
+        return note.folder === activeFolder
+      }
+
       return true
     })
-  }, [notes, activeFolder, selectedTag])
+  }, [notes, activeFolder, selectedTag, recentNoteIds, folders])
 
-  // Fuzzy match query local filter over the list
   const filteredNotes = useMemo(() => {
-    if (!searchQuery.trim()) return folderFilteredNotes
-    const q = searchQuery.toLowerCase().trim()
-    return folderFilteredNotes.filter((note) => {
-      return (
-        note.title.toLowerCase().includes(q) ||
-        note.content.toLowerCase().includes(q) ||
-        (note.tags && note.tags.some(t => t.toLowerCase().includes(q)))
-      )
-    })
+    return filterNotesWithFuse(folderFilteredNotes, searchQuery)
   }, [folderFilteredNotes, searchQuery])
 
   // Sort notes: Pinned notes always at the top, then by updatedAt descending
@@ -417,25 +421,10 @@ function MainApp() {
   }, [notes, selectedNoteId, sortedNotes, isCommandPaletteOpen, isGlobalSearchOpen])
 
   // Custom Electron window controls handlers
-  const handleWinMin = () => window.electronAPI?.minimize()
-  const handleWinMax = () => window.electronAPI?.maximize()
-  const handleWinClose = () => window.electronAPI?.close()
-
-  // Backup data function
-  const handleLocalBackup = () => {
-    try {
-      const dataStr = JSON.stringify(notes, null, 2)
-      const blob = new Blob([dataStr], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `noteszen-backup-${new Date().toISOString().split('T')[0]}.json`
-      link.click()
-      URL.revokeObjectURL(url)
-    } catch (e) {
-      alert('Backup failed: ' + e)
-    }
-  }
+  const api = getAPI()
+  const handleWinMin = () => api?.minimize()
+  const handleWinMax = () => api?.maximize()
+  const handleWinClose = () => api?.close()
 
 
 
@@ -545,6 +534,8 @@ function MainApp() {
           )}
         </div>
 
+        <VaultSwitcher collapsed={!isLeftSidebarOpen} />
+
         {/* Sidebar Nav Actions (Shadcn Custom Scroll Container) */}
         <ScrollArea className="flex-grow px-2 py-3 space-y-1.5 no-drag select-none scrollbar-none">
           {isLeftSidebarOpen && (
@@ -556,6 +547,7 @@ function MainApp() {
               { id: 'notes', name: 'Notes', icon: FileText, color: 'text-primary' },
               { id: 'favorites', name: 'Favorites', icon: Star, color: 'text-amber-500' },
               { id: 'daily', name: 'Daily Notes', icon: Calendar, color: 'text-emerald-500' },
+              { id: 'recent', name: 'Recent', icon: Clock, color: 'text-sky-500' },
               { id: 'archive', name: 'Archive', icon: Archive, color: 'text-indigo-500' },
               { id: 'trash', name: 'Trash', icon: Trash2, color: 'text-destructive' }
             ].map((folder) => {
@@ -568,6 +560,7 @@ function MainApp() {
                 if (n.isArchived) return false
                 if (folder.id === 'favorites') return n.isFavorite
                 if (folder.id === 'daily') return n.folder === 'daily'
+                if (folder.id === 'recent') return recentNoteIds.includes(n.id)
                 return true
               }).length
 
@@ -612,6 +605,46 @@ function MainApp() {
               )
             })}
           </div>
+
+          {/* Custom Folders */}
+          {isLeftSidebarOpen && (
+            <div className="pt-4 space-y-1">
+              <div className="flex items-center justify-between px-3 mb-2">
+                <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase">Folders</p>
+                <button
+                  onClick={() => setShowFolderDialog(true)}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="New folder"
+                >
+                  <FolderPlus className="w-3 h-3" />
+                </button>
+              </div>
+              {folders.map((folder) => {
+                const isSelected = activeFolder === folder.id && !selectedTag
+                const count = notes.filter((n) => n.folder === folder.id && n.folder !== 'trash').length
+                return (
+                  <button
+                    key={folder.id}
+                    onClick={() => {
+                      setActiveFolder(folder.id)
+                      useNotesStore.setState({ isSidebarCollapsed: false })
+                      setIsSidebarHoveredOpen(false)
+                    }}
+                    className={cn(
+                      "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 px-3 justify-between",
+                      isSelected ? "bg-primary/8 text-foreground font-bold shadow-xs" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Archive className={cn("w-3.5 h-3.5 shrink-0", isSelected ? folder.color : "text-muted-foreground")} />
+                      <span className="truncate">{folder.name}</span>
+                    </div>
+                    <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{count}</Badge>
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
           {/* Sidebar Tags view */}
           {allTags.length > 0 && (
@@ -909,35 +942,34 @@ function MainApp() {
                   </Suspense>
                 </div>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 select-none">
-                  <h2 className="text-sm font-bold text-foreground/80 tracking-tight mb-6">Create a new note</h2>
-
-                  <div className="w-[320px] border border-border/50 rounded-xl bg-card p-5 flex flex-col gap-3 text-xs text-muted-foreground shadow-sm animate-in fade-in duration-300">
-                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                      <span className="font-medium text-foreground/80">New Note</span>
-                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘N</kbd>
-                    </div>
-                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                      <span className="font-medium text-foreground/80">Daily Note</span>
-                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘D</kbd>
-                    </div>
-                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                      <span className="font-medium text-foreground/80">Command Palette</span>
-                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘K</kbd>
-                    </div>
-                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                      <span className="font-medium text-foreground/80">Global Search</span>
-                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧F</kbd>
-                    </div>
-                    <div className="flex items-center justify-between py-1.5 border-b border-border/40">
-                      <span className="font-medium text-foreground/80">Toggle Sidebar</span>
-                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘B</kbd>
-                    </div>
-                    <div className="flex items-center justify-between py-1.5">
-                      <span className="font-medium text-foreground/80">Toggle Note List</span>
-                      <kbd className="font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px] shadow-xs">⌘⇧B</kbd>
-                    </div>
-                  </div>
+                <div className="flex-1 flex items-center justify-center p-8 select-none">
+                  <Empty className="max-w-sm border border-dashed">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <FileText />
+                      </EmptyMedia>
+                      <EmptyTitle>Start writing</EmptyTitle>
+                      <EmptyDescription>
+                        Create a note, open your daily journal, or search with the command palette.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        <Button size="sm" onClick={() => createNote()}>
+                          <Plus data-icon="inline-start" />
+                          New Note
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => createDailyNote()}>
+                          <Calendar data-icon="inline-start" />
+                          Daily Note
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setCommandPaletteOpen(true)}>
+                          <Command data-icon="inline-start" />
+                          Commands
+                        </Button>
+                      </div>
+                    </EmptyContent>
+                  </Empty>
                 </div>
               )}
             </div>
@@ -1087,6 +1119,10 @@ function MainApp() {
                       <Columns2 />
                       {isSplitView ? 'Close' : 'Open'} Split View
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setGraphViewOpen(true)}>
+                      <Network />
+                      Graph View
+                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
@@ -1106,10 +1142,22 @@ function MainApp() {
             {/* Note List Items (Shadcn Scroll Area) */}
             <ScrollArea className="flex-grow py-2">
               {sortedNotes.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground/60 mt-12 select-none">
-                  <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-2 opacity-55" />
-                  <p className="text-xs font-bold text-foreground/80">No notes found</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Press ⌘N to make a new note</p>
+                <div className="p-4 mt-8">
+                  <Empty className="border-dashed py-8">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <FileText />
+                      </EmptyMedia>
+                      <EmptyTitle>No notes here</EmptyTitle>
+                      <EmptyDescription>Try a different view or create something new.</EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                      <Button size="sm" onClick={() => createNote()}>
+                        <Plus data-icon="inline-start" />
+                        New Note
+                      </Button>
+                    </EmptyContent>
+                  </Empty>
                 </div>
               ) : (
                 <div className="flex flex-col gap-1 px-2">
@@ -1170,138 +1218,18 @@ function MainApp() {
       <Suspense fallback={null}>
         {isCommandPaletteOpen && <CommandPalette />}
         {isGlobalSearchOpen && <GlobalSearch />}
+        <GraphView />
       </Suspense>
       <Onboarding />
 
-      {/* Settings Modal (Shadcn Dialog Component overlay) */}
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="max-w-[450px] border shadow-2xl flex flex-col no-drag">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-bold flex items-center gap-1.5 select-none">
-              <Settings className="w-5 h-5 text-primary" />
-              NotesZen Preferences
-            </DialogTitle>
-          </DialogHeader>
+      <SettingsPanel
+        open={showSettings}
+        onOpenChange={setShowSettings}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+      />
 
-          <div className="space-y-4 py-2 select-none">
-            <div className="flex items-center justify-between border-b pb-3 border-border">
-              <div>
-                <p className="text-xs font-semibold">Local SQLite File Sync</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {window.electronAPI ? 'Offline SQLite Database active' : 'Web storage caching active'}
-                </p>
-              </div>
-              <Badge variant={window.electronAPI ? "default" : "outline"} className="text-[9px] font-bold">
-                {window.electronAPI ? 'SQLITE STORAGE' : 'WEB FALLBACK'}
-              </Badge>
-            </div>
-
-            <div className="flex items-center justify-between border-b pb-3 border-border">
-              <div>
-                <p className="text-xs font-semibold">Local Data Backup</p>
-                <p className="text-[10px] text-muted-foreground">Download backup JSON copy of notes</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLocalBackup}
-              >
-                Export JSON
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between border-b pb-3 border-border">
-              <div>
-                <p className="text-xs font-semibold">Interface Theme</p>
-                <p className="text-[10px] text-muted-foreground">Toggle light or dark modes</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDarkMode(!darkMode)}
-              >
-                {darkMode ? 'Light Mode' : 'Dark Mode'}
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between border-b pb-3 border-border">
-              <div>
-                <p className="text-xs font-semibold">Color Theme</p>
-                <p className="text-[10px] text-muted-foreground">Choose accent color scheme</p>
-              </div>
-              <Select value={colorTheme} onValueChange={setColorTheme}>
-                <SelectTrigger size="sm" className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="ocean">Ocean Blue</SelectItem>
-                  <SelectItem value="sunset">Sunset Orange</SelectItem>
-                  <SelectItem value="forest">Forest Green</SelectItem>
-                  <SelectItem value="lavender">Lavender Purple</SelectItem>
-                  <SelectItem value="rose">Rose Pink</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between border-b pb-3 border-border">
-              <div>
-                <p className="text-xs font-semibold">Editor Font Family</p>
-                <p className="text-[10px] text-muted-foreground">Select note writing typeface</p>
-              </div>
-              <Select value={editorFont} onValueChange={setEditorFont}>
-                <SelectTrigger size="sm" className="w-[140px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sans">Geist Sans</SelectItem>
-                  <SelectItem value="serif">Georgia Serif</SelectItem>
-                  <SelectItem value="mono">Geist Mono</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between border-b pb-3 border-border">
-              <div>
-                <p className="text-xs font-semibold">Editor Font Size (px)</p>
-                <p className="text-[10px] text-muted-foreground">Adjust document scale between 14px and 128px</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min={14}
-                  max={128}
-                  value={editorFontSize}
-                  onChange={(e: any) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    if (!isNaN(parsed)) {
-                      setEditorFontSize(Math.max(14, Math.min(128, parsed)))
-                    }
-                  }}
-                  className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card text-foreground focus-visible:ring-1 focus-visible:ring-primary outline-none w-20 font-semibold text-center"
-                />
-                <span className="text-xs text-muted-foreground font-semibold">px</span>
-              </div>
-            </div>
-
-
-            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted border border-border">
-              <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <p className="text-[10px] text-muted-foreground leading-normal font-normal">
-                Quick Capture toggles anywhere on your Arch system via <kbd className="font-mono bg-muted-foreground/20 px-1.5 rounded">Ctrl+Shift+Space</kbd>.
-              </p>
-            </div>
-          </div>
-
-          <Button
-            onClick={() => setShowSettings(false)}
-            variant="default"
-            className="mt-4 w-full"
-          >
-            Done
-          </Button>
-        </DialogContent>
-      </Dialog>
+      <FolderDialog open={showFolderDialog} onOpenChange={setShowFolderDialog} />
 
       {/* Empty Trash Confirmation Dialog */}
       <Dialog open={showEmptyTrashConfirm} onOpenChange={setShowEmptyTrashConfirm}>
@@ -1341,67 +1269,9 @@ function MainApp() {
   )
 }
 
-const NoteListItem = memo(function NoteListItem({ note, isSelected, onSelect, togglePin, toggleFavorite, deleteNote }: {
-  note: Note
-  isSelected: boolean
-  onSelect: () => void
-  togglePin: () => void
-  toggleFavorite: () => void
-  deleteNote: () => void
-}) {
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <div
-          onClick={onSelect}
-          className={cn(
-            "px-3 py-2 cursor-pointer relative transition-all rounded-lg border flex items-center justify-between gap-2 select-none",
-            isSelected
-              ? "bg-card border-border shadow-xs scale-[1.01]"
-              : "border-transparent bg-transparent hover:bg-muted/40"
-          )}
-        >
-          <h3 className={cn(
-            "font-semibold text-xs truncate flex-grow",
-            isSelected ? "text-primary font-bold" : "text-foreground/90"
-          )}>
-            {note.title || 'Untitled Note'}
-          </h3>
-          <div className="flex items-center gap-1.5 shrink-0 select-none">
-            {note.isPinned && (
-              <Pin className="w-3 h-3 text-sky-500 dark:text-sky-400 fill-sky-500 dark:fill-sky-400" />
-            )}
-            {note.isFavorite && (
-              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-            )}
-          </div>
-        </div>
-      </ContextMenuTrigger>
-      <ContextMenuContent>
-        <ContextMenuItem onClick={togglePin}>
-          <Pin />
-          {note.isPinned ? 'Unpin Note' : 'Pin Note'}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={toggleFavorite}>
-          <Star />
-          {note.isFavorite ? 'Unstar Note' : 'Star Note'}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onClick={deleteNote}>
-          <Trash2 />
-          Move to Trash
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
-  )
-})
-
 export default function App() {
-  const isQuickCaptureWindow = window.location.hash === '#quick-capture'
-
-  if (isQuickCaptureWindow) {
-    return <QuickCapture />
-  }
-
+  const hash = window.location.hash
+  if (hash === '#quick-capture') return <QuickCapture />
+  if (hash === '#mobile') return <MobileView />
   return <MainApp />
 }

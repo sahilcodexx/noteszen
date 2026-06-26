@@ -22,6 +22,9 @@ import sql from 'highlight.js/lib/languages/sql'
 import rust from 'highlight.js/lib/languages/rust'
 import cpp from 'highlight.js/lib/languages/cpp'
 import { useNotesStore } from '../store/useNotesStore'
+import { getAPI } from '../tauri-bridge'
+import { getSlashPlugins } from '../lib/plugins'
+import VersionHistorySheet from './VersionHistorySheet'
 import { 
   Heading1, 
   Heading2, 
@@ -214,12 +217,17 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     togglePin,
     toggleFavorite,
     toggleArchive,
-    saveStatus
+    saveStatus,
+    appSettings,
   } = useNotesStore()
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [copied, setCopied] = useState(false)
   const [tagInput, setTagInput] = useState('')
+  const [wikilinkQuery, setWikilinkQuery] = useState('')
+  const [showWikilinkMenu, setShowWikilinkMenu] = useState(false)
+  const [wikilinkIndex, setWikilinkIndex] = useState(0)
+  const [showVersions, setShowVersions] = useState(false)
   const slashCoords = useRef({ top: 0, left: 0 })
   const showSlashMenuRef = useRef(showSlashMenu)
   const selectedIndexRef = useRef(selectedIndex)
@@ -276,45 +284,30 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     setEditorFontSize(Math.max(14, editorFontSize - 2))
   }
 
-  // Local metadata states (emoji icon and cover image background)
-  const [noteMetadata, setNoteMetadata] = useState<{ icon?: string, cover?: string, status?: string }>({})
-
-  // Load custom metadata on active note selection changes
-  useEffect(() => {
-    if (activeNote) {
-      const stored = localStorage.getItem(`noteszen-meta-${activeNote.id}`)
-      if (stored) {
-        try {
-          setNoteMetadata(JSON.parse(stored))
-        } catch (e) {
-          setNoteMetadata({})
-        }
-      } else {
-        setNoteMetadata({})
-      }
-    }
-  }, [activeNote?.id])
-
-  const updateMetadata = (fields: { icon?: string | null, cover?: string | null, status?: string | null }) => {
-    if (!activeNote) return
-    const newMeta = { ...noteMetadata }
-    
-    if (fields.icon !== undefined) {
-      if (fields.icon === null) delete newMeta.icon
-      else newMeta.icon = fields.icon
-    }
-    if (fields.cover !== undefined) {
-      if (fields.cover === null) delete newMeta.cover
-      else newMeta.cover = fields.cover
-    }
-    if (fields.status !== undefined) {
-      if (fields.status === null) delete newMeta.status
-      else newMeta.status = fields.status
-    }
-
-    setNoteMetadata(newMeta)
-    localStorage.setItem(`noteszen-meta-${activeNote.id}`, JSON.stringify(newMeta))
+  const noteMetadata = {
+    icon: activeNote?.icon ?? undefined,
+    cover: activeNote?.cover ?? undefined,
+    status: activeNote?.status ?? undefined,
   }
+
+  const updateMetadata = (fields: { icon?: string | null; cover?: string | null; status?: string | null }) => {
+    if (!activeNote) return
+    const updates: Partial<typeof activeNote> = {}
+    if (fields.icon !== undefined) updates.icon = fields.icon
+    if (fields.cover !== undefined) updates.cover = fields.cover
+    if (fields.status !== undefined) updates.status = fields.status
+    updateNote(activeNote.id, updates)
+  }
+
+  const isMarkdownMode = activeNote?.editorMode === 'markdown'
+
+  const wikilinkSuggestions = useMemo(() => {
+    if (!wikilinkQuery) return []
+    const q = wikilinkQuery.toLowerCase()
+    return notes
+      .filter((n) => n.id !== activeNote?.id && n.folder !== 'trash' && n.title.toLowerCase().includes(q))
+      .slice(0, 6)
+  }, [wikilinkQuery, notes, activeNote?.id])
 
   const commandsRef = useRef<Array<{ name: string; icon: typeof Heading1; action: () => void }>>([])
 
@@ -323,7 +316,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     editorProps: {
       attributes: {
         class: 'focus:outline-none prose-editor max-w-none min-h-[450px] leading-relaxed pb-24 font-normal',
-        spellcheck: 'true'
+        spellcheck: 'true',
+        lang: appSettings.spellCheckLanguage,
       },
       handleKeyDown(view, event) {
         if (event.key === '/') {
@@ -390,6 +384,17 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       const noteIdToUpdate = selectedNoteIdRef.current
       if (noteIdToUpdate && !activeEditor.isDestroyed && activeEditor.schema) {
         updateNote(noteIdToUpdate, { content: activeEditor.getHTML() })
+        const { from } = activeEditor.state.selection
+        const textBefore = activeEditor.state.doc.textBetween(Math.max(0, from - 30), from)
+        const match = textBefore.match(/\[\[([^\]]*)$/)
+        if (match) {
+          setWikilinkQuery(match[1])
+          setShowWikilinkMenu(true)
+          setWikilinkIndex(0)
+        } else {
+          setShowWikilinkMenu(false)
+          setWikilinkQuery('')
+        }
       }
     }
   })
@@ -444,7 +449,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       event.preventDefault()
       event.stopPropagation()
       event.stopImmediatePropagation()
-      resizeImage(imageFile).then(url => {
+      resizeImage(imageFile).then(async (url) => {
+        const api = getAPI()
+        const noteId = selectedNoteIdRef.current
+        if (api && noteId) {
+          try {
+            const path = await api.saveImage(noteId, url)
+            editor.chain().focus().setImage({ src: `asset://localhost/${path}` }).run()
+            return
+          } catch { /* fallback to base64 */ }
+        }
         editor.chain().focus().setImage({ src: url }).run()
       })
     }
@@ -459,7 +473,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const handleImageFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !file.type.startsWith('image/')) return
-    resizeImage(file).then(url => {
+    resizeImage(file).then(async (url) => {
+      const api = getAPI()
+      const noteId = selectedNoteIdRef.current
+      if (api && noteId) {
+        try {
+          const path = await api.saveImage(noteId, url)
+          editor?.chain().focus().setImage({ src: `asset://localhost/${path}` }).run()
+          return
+        } catch { /* fallback */ }
+      }
       editor?.chain().focus().setImage({ src: url }).run()
     })
     e.target.value = ''
@@ -533,10 +556,32 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       name: 'Image',
       icon: ImageIcon,
       action: () => { handleInsertImage() }
-    }
+    },
+    ...getSlashPlugins().map((p) => ({
+      name: p.name,
+      icon: Sparkles,
+      action: () => {
+        editor?.chain().focus().deleteRange({ from: editor.state.selection.from - 1, to: editor.state.selection.from }).insertContent(p.insert).run()
+      },
+    })),
   ]
 
   commandsRef.current = COMMANDS
+
+  const insertWikilink = (title: string) => {
+    if (!editor) return
+    const { from } = editor.state.selection
+    const textBefore = editor.state.doc.textBetween(Math.max(0, from - 30), from)
+    const bracketStart = textBefore.lastIndexOf('[[')
+    if (bracketStart >= 0) {
+      const deleteFrom = from - (textBefore.length - bracketStart)
+      editor.chain().focus().deleteRange({ from: deleteFrom, to: from }).insertContent(`[[${title}]]`).run()
+    } else {
+      editor.chain().focus().insertContent(`[[${title}]]`).run()
+    }
+    setShowWikilinkMenu(false)
+    setWikilinkQuery('')
+  }
 
   const executeCommand = (cmd: typeof COMMANDS[0]) => {
     cmd.action()
@@ -872,6 +917,26 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
             <Button
               size="icon-xs"
+              variant={isMarkdownMode ? 'default' : 'ghost'}
+              onClick={() => activeNote && updateNote(activeNote.id, { editorMode: isMarkdownMode ? 'wysiwyg' : 'markdown' })}
+              className="h-7 px-2 text-[10px]"
+              title="Toggle Markdown mode"
+            >
+              MD
+            </Button>
+
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={() => setShowVersions(!showVersions)}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              title="Version history"
+            >
+              <Clock className="w-3.5 h-3.5" />
+            </Button>
+
+            <Button
+              size="icon-xs"
               variant="ghost"
               onClick={() => setZenMode(true)}
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
@@ -1052,10 +1117,36 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           className="text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 w-full placeholder-muted-foreground/20 mb-6 text-black dark:text-white opacity-70 focus:opacity-100 transition-opacity duration-200"
         />
 
-        {/* D. Clean Writing Slate (Tiptap Content) */}
-        {isEditorReady ? <EditorContent editor={editor} /> : null}
+        {/* D. Editor: WYSIWYG or Markdown */}
+        {isMarkdownMode ? (
+          <textarea
+            value={activeNote.content}
+            onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
+            disabled={isTrashNote}
+            className="w-full min-h-[450px] bg-transparent border-0 outline-none font-mono text-sm leading-relaxed resize-none"
+            placeholder="Write markdown..."
+          />
+        ) : (
+          isEditorReady ? <EditorContent editor={editor} /> : null
+        )}
 
-
+        {/* Wikilink autocomplete */}
+        {showWikilinkMenu && wikilinkSuggestions.length > 0 && (
+          <div className="absolute z-50 w-48 rounded-lg border bg-popover shadow-md p-1">
+            {wikilinkSuggestions.map((n, i) => (
+              <button
+                key={n.id}
+                onClick={() => insertWikilink(n.title)}
+                className={cn(
+                  'w-full text-left px-2 py-1 text-xs rounded',
+                  i === wikilinkIndex ? 'bg-accent' : 'hover:bg-muted'
+                )}
+              >
+                [[{n.title}]]
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Backlinks Panel (Linked references) */}
         {backlinks.length > 0 && !isZenMode && (
@@ -1325,6 +1416,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         </div>
       )}
 
+      <VersionHistorySheet
+        noteId={activeNote.id}
+        open={showVersions}
+        onOpenChange={setShowVersions}
+      />
     </div>
   )
 }

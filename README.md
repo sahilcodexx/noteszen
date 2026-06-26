@@ -1,42 +1,61 @@
-# NotesZen 🚀
+# NotesZen
 
-NotesZen is a premium, macOS-inspired Markdown note-taking desktop application built with Electron, React, TypeScript, and Tailwind CSS v4.
+NotesZen is a premium, macOS-inspired Markdown note-taking desktop application built with **Tauri 2**, React 19, TypeScript, SQLite, and Tailwind CSS v4.
 
-Designed specifically to offer a gorgeous, seamless writing experience on Arch Linux and other Linux desktop environments.
+Designed for a gorgeous, seamless writing experience on Arch Linux and other Linux desktop environments.
 
-## Features ✨
+## Features
 
-- 🍎 **macOS Premium UI**: Frameless window design with customizable color-matched traffic lights, glassmorphic sidebar, and elegant layout.
-- 📝 **Markdown Editor**: Toggle between write and preview modes instantly with rich live styling.
-- 📂 **Folders & Organization**: Keep your life categorized with folders like *Work*, *Personal*, *Ideas*, and a safe *Trash* folder for deleted notes.
-- 🏷️ **Tagging System**: Add multiple tags dynamically and filter notes by tags in the sidebar.
-- 📌 **Pinned Notes**: Pin important thoughts to the top of your list for instant access.
-- 🔍 **Full-Text Search**: Instantly filter through titles, contents, and tags as you type.
-- 💾 **Local File System Persistence**: Notes are saved as standard JSON files in your local app data directory—your notes are fully offline, secure, and yours to keep.
-- 🌓 **Dark & Light Modes**: Seamless dark and light themes that match premium desktop experiences.
+- **macOS Premium UI**: Frameless window, traffic lights, glassmorphic sidebars
+- **Rich Editor**: TipTap WYSIWYG with slash commands, bubble menu, code blocks, tasks
+- **Markdown Mode**: Toggle between rich text and raw Markdown editing
+- **Folders & Organization**: System views plus custom folders (Work, Personal, Ideas, etc.)
+- **Tags, Pins, Favorites, Archive, Trash** with auto-purge settings
+- **Wikilinks**: `[[Note Title]]` syntax with autocomplete and backlink panel
+- **Graph View**: Visualize note connections
+- **Full-Text Search**: SQLite FTS5 + Fuse.js fuzzy search
+- **Version History**: Automatic snapshots on save with restore
+- **Templates**: Built-in daily and meeting templates; create your own
+- **Split View & Zen Mode**: Focused writing workflows
+- **Quick Capture**: Global shortcut `Ctrl+Shift+Space`
+- **Multiple Vaults**: Separate workspaces
+- **Import/Export**: JSON backup and vault sync export
+- **System Tray**: Minimize to tray, quick access menu
+- **Mobile Companion**: Open `index.html#mobile` for read-only mobile view
+- **Plugin Blocks**: Callouts, Mermaid, tables via slash commands
 
-## Keyboard Shortcuts ⌨️
+## Keyboard Shortcuts
 
-- **New Note**: `Ctrl + N`
-- **Search Notes**: `Ctrl + F`
-- **Toggle Theme**: In Settings
-- **Pin / Unpin**: Toolbar button
+| Action | Shortcut |
+|--------|----------|
+| New Note | `Ctrl+N` |
+| Daily Note | `Ctrl+D` |
+| Command Palette | `Ctrl+K` |
+| Search in List | `Ctrl+F` |
+| Global Search | `Ctrl+Shift+F` |
+| Pin Note | `Ctrl+P` |
+| Toggle Sidebar | `Ctrl+B` |
+| Toggle Note List | `Ctrl+Shift+B` |
+| Navigate Notes | `Alt+↑/↓` |
+| Quick Capture | `Ctrl+Shift+Space` |
+| Star Note (palette) | `Ctrl+Shift+S` |
+| Archive (palette) | `Ctrl+Shift+A` |
 
-## Development 🛠️
-
-Run the developer sandbox locally:
+## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Start Electron + React development build
-npm run dev
+npm run dev          # Web dev server
+npm run tauri dev    # Desktop app
+npm test             # Run unit tests
+npm run build        # Production frontend build
+npm run tauri build  # Package desktop binaries (.deb, .rpm, AppImage)
 ```
 
-Build the production binaries:
+## Storage
 
-```bash
-# Package build for your OS
-npm run build
-```
+Notes are stored in a local SQLite database at the app data directory. Images are saved to disk under `images/{noteId}/`. Metadata (covers, emojis, status) is stored in SQLite alongside notes.
+
+## Sync
+
+Export a vault from Settings → Sync Export, then copy the JSON to a sync folder (Syncthing, Dropbox, etc.). Import on another machine via Import JSON.
