@@ -461,51 +461,55 @@ function MainApp() {
 
 
   const isLeftSidebarOpen = !isSidebarCollapsed || isSidebarHoveredOpen
+  const showTitleBar = !isZenMode
 
   return (
     <div className={`relative flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
-      
+
+      {/* Dedicated window chrome — keeps controls off the editor toolbar */}
+      {showTitleBar && (
+        <div className="fixed inset-x-0 top-0 z-50 flex h-8 items-center border-b border-border/30 bg-background/80 backdrop-blur-md drag-region">
+          <div className="flex items-center gap-2 pl-4 no-drag shrink-0">
+            <button
+              onClick={handleWinClose}
+              className="size-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default"
+              title="Close"
+            >
+              <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
+            </button>
+            <button
+              onClick={handleWinMin}
+              className="size-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default"
+              title="Minimize"
+            >
+              <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
+            </button>
+            <button
+              onClick={handleWinMax}
+              className="size-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default"
+              title="Maximize"
+            >
+              <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Left Sidebar hover trigger zone */}
       {!isZenMode && isSidebarCollapsed && !isSidebarHoveredOpen && (
         <div 
-          className="absolute left-0 top-12 bottom-0 w-6 z-40 bg-transparent"
+          className="absolute left-0 top-8 bottom-0 w-6 z-40 bg-transparent"
           onMouseEnter={handleMouseEnterLeftTrigger}
           onMouseLeave={handleMouseLeaveLeftTrigger}
         />
-      )}
-
-      {/* Floating Traffic Lights when Sidebar is collapsed */}
-      {!isZenMode && isSidebarCollapsed && !isSidebarHoveredOpen && (
-        <div className="absolute left-5 top-4 flex items-center gap-2 z-30 no-drag animate-in fade-in duration-200">
-          <button 
-            onClick={handleWinClose}
-            className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default shadow-xs"
-            title="Close"
-          >
-            <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
-          </button>
-          <button 
-            onClick={handleWinMin}
-            className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default shadow-xs"
-            title="Minimize"
-          >
-            <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
-          </button>
-          <button 
-            onClick={handleWinMax}
-            className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default shadow-xs"
-            title="Maximize"
-          >
-            <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
-          </button>
-        </div>
       )}
 
       {/* 1. COLLAPSIBLE SIDEBAR */}
       <aside 
         ref={sidebarRef}
         className={cn(
-          "absolute left-0 top-0 bottom-0 z-40 flex flex-col drag-region transition-all duration-300 backdrop-blur-md bg-sidebar/80 overflow-hidden h-full shadow-2xl",
+          "absolute left-0 bottom-0 z-40 flex flex-col transition-all duration-300 backdrop-blur-md bg-sidebar/80 overflow-hidden shadow-2xl",
+          showTitleBar ? "top-8" : "top-0",
           isZenMode 
             ? 'w-0 border-r-0 opacity-0 pointer-events-none' 
             : isLeftSidebarOpen
@@ -515,44 +519,9 @@ function MainApp() {
         onMouseEnter={handleMouseEnterLeftSidebar}
         onMouseLeave={handleMouseLeaveLeftSidebar}
       >
-        {/* macOS Custom Traffic lights window triggers */}
-        <div className="h-12 flex items-center pl-5 gap-2 no-drag shrink-0">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleSidebar()
-              setIsSidebarHoveredOpen(false)
-            }}
-            className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default"
-            title="Collapse Sidebar"
-          >
-            <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleSidebar()
-              setIsSidebarHoveredOpen(false)
-            }}
-            className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default"
-            title="Minimize Sidebar"
-          >
-            <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
-          </button>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation()
-            }}
-            className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default"
-            title="Maximize Sidebar"
-          >
-            <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
-          </button>
-        </div>
-
         {/* Brand header title */}
         <div className={cn(
-          "py-1.5 flex items-center no-drag transition-all duration-300",
+          "py-2 flex items-center no-drag transition-all duration-300",
           !isLeftSidebarOpen ? 'px-1 justify-center' : 'px-4 justify-between'
         )}>
           {!isLeftSidebarOpen ? (
@@ -560,9 +529,23 @@ function MainApp() {
               NZ
             </span>
           ) : (
-            <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
-              NotesZen
-            </span>
+            <>
+              <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
+                NotesZen
+              </span>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleSidebar()
+                  setIsSidebarHoveredOpen(false)
+                }}
+                title="Collapse sidebar"
+              >
+                <ChevronLeft className="size-3.5" />
+              </Button>
+            </>
           )}
         </div>
 
@@ -760,7 +743,7 @@ function MainApp() {
         </div>
       </aside>
       {activeFolder === 'trash' ? (
-        <main className="flex-grow flex flex-col min-w-0 bg-background/80 backdrop-blur-md">
+        <main className={cn("flex-grow flex flex-col min-w-0 bg-background/80 backdrop-blur-md", showTitleBar && "pt-8")}>
           {/* Trash Header Controls */}
           <div className="h-14 border-b border-border/40 flex items-center justify-between shrink-0 select-none bg-background/50 backdrop-blur-sm px-6 md:px-0">
             <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-4">
@@ -928,6 +911,7 @@ function MainApp() {
           {/* 3. MAIN EDITOR PANEL */}
           <main className={cn(
             "flex-grow flex min-w-0 bg-background/80 backdrop-blur-md",
+            showTitleBar && "pt-8",
             isSplitView ? "flex-row gap-px" : "flex-col"
           )}>
 
@@ -1061,7 +1045,7 @@ function MainApp() {
 
           {!isZenMode && isNoteListCollapsed && !isNoteListHoveredOpen && (
             <div 
-              className="absolute right-0 top-14 bottom-0 w-6 z-40 bg-transparent"
+              className="absolute right-0 top-8 bottom-0 w-6 z-40 bg-transparent"
               onMouseEnter={handleMouseEnterTrigger}
               onMouseLeave={handleMouseLeaveTrigger}
             />
@@ -1071,7 +1055,8 @@ function MainApp() {
           <section 
             ref={noteListRef}
             className={cn(
-              "absolute right-0 top-0 bottom-0 z-40 flex flex-col transition-all duration-300 h-full shadow-2xl bg-background/80 backdrop-blur-md overflow-hidden",
+              "absolute right-0 bottom-0 z-40 flex flex-col transition-all duration-300 shadow-2xl bg-background/80 backdrop-blur-md overflow-hidden",
+              showTitleBar ? "top-8" : "top-0",
               isZenMode
                 ? "w-0 opacity-0 border-l-0 pointer-events-none"
                 : (!isNoteListCollapsed || isNoteListHoveredOpen)
@@ -1094,45 +1079,12 @@ function MainApp() {
             )}
             
             {/* Note List Header controls */}
-            <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 shrink-0 select-none">
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleNoteList()
-                    setIsNoteListHoveredOpen(false)
-                  }}
-                  className="w-3 h-3 rounded-full bg-[#ff5f56] hover:bg-[#e04f46] flex items-center justify-center group transition-all cursor-default shadow-xs"
-                  title="Close Panel"
-                >
-                  <span className="text-[7px] text-[#4c0002] font-bold opacity-0 group-hover:opacity-100 select-none">✕</span>
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    toggleNoteList()
-                    setIsNoteListHoveredOpen(false)
-                  }}
-                  className="w-3 h-3 rounded-full bg-[#ffbd2e] hover:bg-[#e0a324] flex items-center justify-center group transition-all cursor-default shadow-xs"
-                  title="Minimize Panel"
-                >
-                  <span className="text-[7px] text-[#5c3e00] font-bold opacity-0 group-hover:opacity-100 select-none">−</span>
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                  }}
-                  className="w-3 h-3 rounded-full bg-[#27c93f] hover:bg-[#1aab2f] flex items-center justify-center group transition-all cursor-default shadow-xs"
-                  title="Maximize Panel"
-                >
-                  <span className="text-[7px] text-[#004d05] font-bold opacity-0 group-hover:opacity-100 select-none">⤢</span>
-                </button>
-              </div>
-
+            <div className="h-11 px-4 flex items-center justify-between border-b border-border/40 shrink-0 select-none">
               <span className="text-[11px] font-bold tracking-wider text-muted-foreground/80 uppercase">
                 Notes
               </span>
 
+              <div className="flex items-center gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -1181,6 +1133,19 @@ function MainApp() {
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground size-8"
+                onClick={() => {
+                  toggleNoteList()
+                  setIsNoteListHoveredOpen(false)
+                }}
+                title="Close panel"
+              >
+                <X className="size-4" />
+              </Button>
+              </div>
             </div>
 
             {/* Note List Items (Shadcn Scroll Area) */}
