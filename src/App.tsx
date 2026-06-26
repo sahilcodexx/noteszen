@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { Trash2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -71,6 +71,8 @@ function MainApp() {
     noteSort,
     mainView,
     isAIPanelOpen,
+    aiPanelWidth,
+    setAIPanelWidth,
     toggleAIPanel,
     openNote,
     isDarkMode,
@@ -80,6 +82,34 @@ function MainApp() {
   const [showSettings, setShowSettings] = useState(false)
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
+  const [isResizingAIPanel, setIsResizingAIPanel] = useState(false)
+
+  const startAIPanelResize = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startWidth = aiPanelWidth
+
+      const onMove = (ev: MouseEvent) => {
+        setAIPanelWidth(startWidth + (startX - ev.clientX))
+      }
+
+      const onUp = () => {
+        setIsResizingAIPanel(false)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+      }
+
+      setIsResizingAIPanel(true)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [aiPanelWidth, setAIPanelWidth]
+  )
 
   useEffect(() => {
     initApp()
@@ -298,7 +328,20 @@ function MainApp() {
         </main>
 
         {!isZenMode && isAIPanelOpen && activeFolder !== 'trash' && (
-          <div className="w-[min(300px,26vw)] shrink-0 rounded-xl overflow-hidden workspace-panel">
+          <div
+            className={cn(
+              'relative shrink-0 rounded-xl overflow-hidden workspace-panel',
+              isResizingAIPanel && 'select-none'
+            )}
+            style={{ width: aiPanelWidth }}
+          >
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize AI panel"
+              className="absolute left-0 top-0 bottom-0 z-10 w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-primary/25 active:bg-primary/40 transition-colors"
+              onMouseDown={startAIPanelResize}
+            />
             <AIChatPanel onClose={toggleAIPanel} />
           </div>
         )}

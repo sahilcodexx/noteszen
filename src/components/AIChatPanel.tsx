@@ -1,5 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import { Sparkles, X, Paperclip, Send, Copy, FileText, Loader2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  Sparkles,
+  X,
+  Paperclip,
+  Send,
+  Copy,
+  FileText,
+  Square,
+  Plus,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -7,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { useNotesStore } from '../store/useNotesStore'
 import { getOpenRouterApiKey, getOpenRouterModel } from '../lib/ai-settings'
 import { buildNoteContext, streamChatCompletion } from '../lib/openrouter'
+import { markdownToHtml } from '../lib/markdown-preview'
 import { notify } from '../lib/toast'
 import AITypingIndicator from './AITypingIndicator'
 
@@ -23,10 +35,15 @@ const WELCOME: Message = {
     'I can help summarize notes, draft outlines, and brainstorm ideas. Ask me anything about your notes.',
 }
 
+function makeWelcome(): Message {
+  return { ...WELCOME, id: `welcome-${Date.now()}` }
+}
+
 export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
-  const { notes, selectedNoteId, createNote } = useNotesStore()
+  const { notes, selectedNoteId, createNote, isAIPanelExpanded, toggleAIPanelExpanded } =
+    useNotesStore()
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([WELCOME])
+  const [messages, setMessages] = useState<Message[]>([makeWelcome()])
   const [isLoading, setIsLoading] = useState(false)
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -38,12 +55,40 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, isLoading])
 
-  const handleClear = () => {
+  const stopGeneration = useCallback(() => {
     abortRef.current?.abort()
-    setMessages([WELCOME])
+    abortRef.current = null
     setIsLoading(false)
     setStreamingId(null)
+  }, [])
+
+  const resetChat = useCallback(
+    (notifyUser?: boolean) => {
+      stopGeneration()
+      setInput('')
+      setMessages([makeWelcome()])
+      if (notifyUser) notify.success('New chat started')
+    },
+    [stopGeneration]
+  )
+
+  const handleStop = () => {
+    const currentStreamId = streamingId
+    stopGeneration()
+    if (currentStreamId) {
+      setMessages((m) =>
+        m.map((msg) =>
+          msg.id === currentStreamId && !msg.content.trim()
+            ? { ...msg, content: 'Stopped.' }
+            : msg
+        )
+      )
+    }
   }
+
+  const handleClear = () => resetChat(false)
+
+  const handleNewChat = () => resetChat(true)
 
   const handleSend = async () => {
     const text = input.trim()
@@ -70,11 +115,13 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
       'Be concise, practical, and friendly. Use markdown when helpful.',
     ]
     if (activeNote) {
-      systemParts.push(`The user has this note open:\n\n${buildNoteContext(activeNote.title, activeNote.content)}`)
+      systemParts.push(
+        `The user has this note open:\n\n${buildNoteContext(activeNote.title, activeNote.content)}`
+      )
     }
 
     const history = messages
-      .filter((m) => m.id !== 'welcome')
+      .filter((m) => !m.id.startsWith('welcome'))
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
 
     try {
@@ -94,13 +141,20 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         },
       })
     } catch (err) {
-      if ((err as Error).name === 'AbortError') return
+      if ((err as Error).name === 'AbortError') {
+        setMessages((m) =>
+          m.map((msg) =>
+            msg.id === assistantId && !msg.content.trim()
+              ? { ...msg, content: 'Stopped.' }
+              : msg
+          )
+        )
+        return
+      }
       const errMsg = (err as Error).message || 'AI request failed'
       setMessages((m) =>
         m.map((msg) =>
-          msg.id === assistantId
-            ? { ...msg, content: `Sorry, something went wrong: ${errMsg}` }
-            : msg
+          msg.id === assistantId ? { ...msg, content: `Sorry, something went wrong: ${errMsg}` } : msg
         )
       )
     } finally {
@@ -122,21 +176,52 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col workspace-surface">
-      <div className="flex items-center justify-between px-4 h-11 border-b border-[var(--workspace-border)] shrink-0">
-        <div className="flex items-center gap-2 text-xs font-semibold">
-          <Sparkles className="size-3.5 text-primary" />
-          AI Workspace
+    <div className="flex h-full flex-col workspace-surface min-w-0">
+      <div className="flex items-center justify-between px-3 h-11 border-b border-[var(--workspace-border)] shrink-0 gap-2">
+        <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
+          <Sparkles className="size-3.5 text-primary shrink-0" />
+          <span className="truncate">AI Workspace</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5 shrink-0">
           <Button
             variant="ghost"
-            size="xs"
-            className="text-[10px] text-muted-foreground"
-            onClick={handleClear}
-            disabled={isLoading}
+            size="icon-xs"
+            onClick={handleNewChat}
+            title="New chat"
           >
-            Clear chat
+            <Plus className="size-3.5" />
+          </Button>
+          {isLoading ? (
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-[10px] text-destructive gap-1 h-7"
+              onClick={handleStop}
+            >
+              <Square className="size-3 fill-current" />
+              Stop
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="xs"
+              className="text-[10px] text-muted-foreground h-7"
+              onClick={handleClear}
+            >
+              Clear
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={toggleAIPanelExpanded}
+            title={isAIPanelExpanded ? 'Shrink panel' : 'Expand panel'}
+          >
+            {isAIPanelExpanded ? (
+              <Minimize2 className="size-3.5" />
+            ) : (
+              <Maximize2 className="size-3.5" />
+            )}
           </Button>
           {onClose && (
             <Button variant="ghost" size="icon-xs" onClick={onClose}>
@@ -146,27 +231,33 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-4 py-4">
-        <div className="flex flex-col gap-3">
+      <ScrollArea className="flex-1 px-4 py-4 min-h-0">
+        <div className="flex flex-col gap-3 min-w-0">
           {messages.map((msg) => {
-            const isStreaming = isLoading && msg.id === streamingId && !msg.content
+            const isStreaming = isLoading && msg.id === streamingId && !msg.content.trim()
+            const isWelcome = msg.id.startsWith('welcome')
             return (
               <div
                 key={msg.id}
                 className={cn(
-                  'rounded-xl px-3 py-2.5 text-xs leading-relaxed max-w-[95%]',
+                  'rounded-xl px-3 py-2.5 text-xs leading-relaxed max-w-full min-w-0',
                   msg.role === 'user'
-                    ? 'ml-auto bg-primary text-primary-foreground'
+                    ? 'ml-auto max-w-[92%] bg-primary text-primary-foreground'
                     : 'bg-[var(--workspace-subtle)] text-foreground border border-[var(--workspace-border)]'
                 )}
               >
                 {isStreaming ? (
                   <AITypingIndicator />
+                ) : msg.role === 'assistant' && !isWelcome ? (
+                  <div
+                    className="prose-editor ai-chat-prose break-words [&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(msg.content) }}
+                  />
                 ) : (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                 )}
-                {msg.role === 'assistant' && msg.id !== 'welcome' && msg.content && !isStreaming && (
-                  <div className="flex gap-2 mt-3">
+                {msg.role === 'assistant' && !isWelcome && msg.content.trim() && !isStreaming && (
+                  <div className="flex flex-wrap gap-2 mt-3">
                     <Button
                       variant="outline"
                       size="xs"
@@ -211,24 +302,25 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
-                handleSend()
+                if (isLoading) handleStop()
+                else handleSend()
               }
             }}
-            placeholder={isLoading ? 'AI is replying...' : 'Ask AI about your notes...'}
-            disabled={isLoading}
+            placeholder={isLoading ? 'Press Stop or Enter to cancel...' : 'Ask AI about your notes...'}
             className={cn(
               'min-h-[72px] pr-12 resize-none rounded-xl text-xs bg-[var(--workspace-subtle)] border-[var(--workspace-border)]',
-              isLoading && 'opacity-70'
+              isLoading && 'opacity-80'
             )}
           />
           <Button
             size="icon-xs"
             className="absolute bottom-2 right-2"
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
+            onClick={isLoading ? handleStop : handleSend}
+            disabled={!isLoading && !input.trim()}
+            variant={isLoading ? 'destructive' : 'default'}
           >
             {isLoading ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <Square className="size-3 fill-current" />
             ) : (
               <Send className="size-3.5" />
             )}

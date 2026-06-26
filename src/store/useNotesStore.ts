@@ -37,6 +37,8 @@ interface NotesState {
   noteListWidth: number
   mainView: 'home' | 'editor'
   isAIPanelOpen: boolean
+  aiPanelWidth: number
+  isAIPanelExpanded: boolean
   homeViewMode: 'grid' | 'list'
   isDarkMode: boolean
 
@@ -70,6 +72,8 @@ interface NotesState {
   goHome: () => void
   openNote: (noteId: string) => void
   toggleAIPanel: () => void
+  setAIPanelWidth: (width: number) => void
+  toggleAIPanelExpanded: () => void
   setHomeViewMode: (mode: 'grid' | 'list') => void
   setDarkMode: (dark: boolean) => void
   toggleDarkMode: () => void
@@ -157,6 +161,14 @@ const initialNoteListWidth = (() => {
 })()
 const initialHomeViewMode = (localStorage.getItem('noteszen-home-view') || 'grid') as 'grid' | 'list'
 const initialAIPanelOpen = localStorage.getItem('noteszen-ai-panel') !== 'false'
+const initialAIPanelWidth = (() => {
+  const stored = localStorage.getItem('noteszen-ai-panel-width')
+  if (!stored) return 320
+  const parsed = parseInt(stored, 10)
+  return isNaN(parsed) ? 320 : Math.min(640, Math.max(280, parsed))
+})()
+const AI_PANEL_EXPANDED_WIDTH = 520
+const AI_PANEL_DEFAULT_WIDTH = 320
 const initialDarkMode = (() => {
   const stored = localStorage.getItem('noteszen-dark-mode')
   if (stored !== null) return stored === 'true'
@@ -211,6 +223,8 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   noteListWidth: initialNoteListWidth,
   mainView: 'home',
   isAIPanelOpen: initialAIPanelOpen,
+  aiPanelWidth: initialAIPanelWidth,
+  isAIPanelExpanded: initialAIPanelWidth >= AI_PANEL_EXPANDED_WIDTH,
   homeViewMode: initialHomeViewMode,
   isDarkMode: initialDarkMode,
 
@@ -239,6 +253,22 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const next = !get().isAIPanelOpen
     localStorage.setItem('noteszen-ai-panel', String(next))
     set({ isAIPanelOpen: next })
+  },
+
+  setAIPanelWidth: (width) => {
+    const clamped = Math.min(640, Math.max(280, width))
+    localStorage.setItem('noteszen-ai-panel-width', String(clamped))
+    set({
+      aiPanelWidth: clamped,
+      isAIPanelExpanded: clamped >= AI_PANEL_EXPANDED_WIDTH,
+    })
+  },
+
+  toggleAIPanelExpanded: () => {
+    const expanded = !get().isAIPanelExpanded
+    const width = expanded ? AI_PANEL_EXPANDED_WIDTH : AI_PANEL_DEFAULT_WIDTH
+    localStorage.setItem('noteszen-ai-panel-width', String(width))
+    set({ aiPanelWidth: width, isAIPanelExpanded: expanded })
   },
 
   setHomeViewMode: (mode) => {
