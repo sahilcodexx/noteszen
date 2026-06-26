@@ -1,75 +1,23 @@
 import { Suspense, lazy, useEffect, useState, useMemo, useRef } from 'react'
-import {
-  FileText,
-  Star,
-  Calendar,
-  Tag,
-  Archive,
-  Settings,
-  Search,
-  Plus,
-  Moon,
-  Sun,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Command,
-  X,
-  RotateCcw,
-  MoreHorizontal,
-  Columns2,
-  Network,
-  Clock,
-  FolderPlus
-} from 'lucide-react'
-
-// UI Components
+import { Trash2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-
-// App Components
 import Onboarding from './components/Onboarding'
 import QuickCapture from './components/QuickCapture'
 import SettingsPanel from './components/SettingsPanel'
 import MobileView from './components/MobileView'
-import NoteListItem from './components/NoteListItem'
-import NoteTabs from './components/NoteTabs'
 import FolderDialog from './components/FolderDialog'
-import VaultSwitcher from './components/VaultSwitcher'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
+import WorkspaceSidebar from './components/WorkspaceSidebar'
+import HomeDashboard from './components/HomeDashboard'
+import AIChatPanel from './components/AIChatPanel'
+import EditorShell from './components/EditorShell'
+import TrashView from './components/TrashView'
 import { getAPI } from './tauri-bridge'
 import { filterNotesWithFuse } from './lib/search'
 
 // State Store
 import { useNotesStore } from './store/useNotesStore'
-const Editor = lazy(() => import('./components/Editor'))
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
 const GlobalSearch = lazy(() => import('./components/GlobalSearch'))
 const GraphView = lazy(() => import('./components/GraphView'))
@@ -109,110 +57,35 @@ function MainApp() {
     searchQuery,
     activeFolder,
     selectedTag,
-    isSidebarCollapsed,
-    isNoteListCollapsed,
     isCommandPaletteOpen,
     isGlobalSearchOpen,
     isZenMode,
-    isSplitView,
-    splitViewNoteId,
     folders,
     recentNoteIds,
     initApp,
-    setGraphViewOpen,
     setSelectedNoteId,
     setSearchQuery,
-    setActiveFolder,
-    setSelectedTag,
     toggleSidebar,
-    toggleNoteList,
     setCommandPaletteOpen,
     setGlobalSearchOpen,
     createNote,
     createDailyNote,
     togglePin,
-    toggleFavorite,
     colorTheme,
-    toggleSplitView,
-    setSplitViewNoteId,
     deleteNote,
     restoreNote,
     emptyTrash,
     noteSort,
-    setNoteSort,
-    noteListWidth,
-    setNoteListWidth,
+    mainView,
+    isAIPanelOpen,
+    toggleAIPanel,
   } = useNotesStore()
 
-  // Local React states
   const [showSettings, setShowSettings] = useState(false)
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
-  const [isResizingList, setIsResizingList] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const sidebarRef = useRef<HTMLElement>(null)
-  const noteListRef = useRef<HTMLElement>(null)
-
-
-  // Hover states for temporary right sidebar opening
-  const [isNoteListHoveredOpen, setIsNoteListHoveredOpen] = useState(false)
-  const hoverTimeoutRef = useRef<any>(null)
-
-  const handleMouseEnterTrigger = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsNoteListHoveredOpen(true)
-    }, 50)
-  }
-
-  const handleMouseLeaveTrigger = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
-  }
-
-  const handleMouseEnterSidebar = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
-  }
-
-  const handleMouseLeaveSidebar = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsNoteListHoveredOpen(false)
-    }, 200)
-  }
-
-  // Hover states for temporary left sidebar opening
-  const [isSidebarHoveredOpen, setIsSidebarHoveredOpen] = useState(false)
-  const leftHoverTimeoutRef = useRef<any>(null)
-
-  const handleMouseEnterLeftTrigger = () => {
-    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
-    leftHoverTimeoutRef.current = setTimeout(() => {
-      setIsSidebarHoveredOpen(true)
-    }, 50)
-  }
-
-  const handleMouseLeaveLeftTrigger = () => {
-    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
-  }
-
-  const handleMouseEnterLeftSidebar = () => {
-    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
-  }
-
-  const handleMouseLeaveLeftSidebar = () => {
-    if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
-    leftHoverTimeoutRef.current = setTimeout(() => {
-      setIsSidebarHoveredOpen(false)
-    }, 200)
-  }
-
-  useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
-      if (leftHoverTimeoutRef.current) clearTimeout(leftHoverTimeoutRef.current)
-    }
-  }, [])
 
   useEffect(() => {
     initApp()
@@ -233,49 +106,6 @@ function MainApp() {
     const root = window.document.documentElement
     root.setAttribute('data-theme', colorTheme)
   }, [colorTheme])
-
-  // Click-outside listener to collapse sidebars
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      
-      // If we are clicking on standard dialogs, dropdowns, or context menus, do not close the sidebars.
-      if (
-        target.closest('[role="dialog"]') ||
-        target.closest('[role="menu"]') ||
-        target.closest('.fixed.z-50')
-      ) {
-        return
-      }
-
-      const { isSidebarCollapsed, isNoteListCollapsed } = useNotesStore.getState()
-      
-      if (!isSidebarCollapsed || !isNoteListCollapsed || isSidebarHoveredOpen || isNoteListHoveredOpen) {
-        const clickedInsideSidebar = sidebarRef.current?.contains(target)
-        const clickedInsideNoteList = noteListRef.current?.contains(target)
-
-        if (!clickedInsideSidebar && !clickedInsideNoteList) {
-          useNotesStore.setState({ isSidebarCollapsed: true, isNoteListCollapsed: true })
-          setIsSidebarHoveredOpen(false)
-          setIsNoteListHoveredOpen(false)
-        }
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isSidebarHoveredOpen, isNoteListHoveredOpen])
-
-  // All unique tags extracted from non-trash notes
-  const allTags = useMemo(() => {
-    const tagsSet = new Set<string>()
-    notes.forEach(note => {
-      if (note.folder !== 'trash' && note.tags) {
-        note.tags.forEach(tag => tagsSet.add(tag))
-      }
-    })
-    return Array.from(tagsSet)
-  }, [notes])
 
   // Filter notes list by Folder and selected tag
   const folderFilteredNotes = useMemo(() => {
@@ -342,28 +172,10 @@ function MainApp() {
 
   const sortedNotes = useMemo(() => [...pinnedNotes, ...unpinnedNotes], [pinnedNotes, unpinnedNotes])
 
+  // Sync selected note when active view changes (skip on home dashboard)
   useEffect(() => {
-    if (!isResizingList) return
-    const onMove = (e: MouseEvent) => {
-      const newWidth = window.innerWidth - e.clientX
-      setNoteListWidth(newWidth)
-    }
-    const onUp = () => setIsResizingList(false)
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-  }, [isResizingList, setNoteListWidth])
+    if (mainView === 'home' && activeFolder !== 'trash') return
 
-  // Selected note object helper
-  const activeNote = useMemo(() => {
-    return notes.find(n => n.id === selectedNoteId) || null
-  }, [notes, selectedNoteId])
-
-  // Sync selected note when active view changes
-  useEffect(() => {
     if (activeFolder === 'trash' || activeFolder === 'archive') {
       const isCurrentNoteInView = sortedNotes.some(n => n.id === selectedNoteId)
       if (!isCurrentNoteInView) {
@@ -382,7 +194,7 @@ function MainApp() {
         setSelectedNoteId(null)
       }
     }
-  }, [activeFolder, selectedTag, sortedNotes, selectedNoteId, setSelectedNoteId])
+  }, [activeFolder, selectedTag, sortedNotes, selectedNoteId, setSelectedNoteId, mainView])
 
   // Global Keyboard shortcuts trigger
   useEffect(() => {
@@ -422,11 +234,10 @@ function MainApp() {
         e.preventDefault()
         toggleSidebar()
       }
-      // 7.5. Ctrl + Shift + B (Toggle Note List expand)
+      // 7.5. Ctrl + Shift + B (Toggle AI panel)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'b') {
         e.preventDefault()
-        toggleNoteList()
-        setIsNoteListHoveredOpen(false)
+        toggleAIPanel()
       }
       // 8. Alt + ArrowUp / ArrowDown (Navigate list notes)
       if (e.altKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
@@ -460,13 +271,21 @@ function MainApp() {
 
 
 
-  const isLeftSidebarOpen = !isSidebarCollapsed || isSidebarHoveredOpen
   const showTitleBar = !isZenMode
+  const trashNotes = useMemo(
+    () => sortedNotes.filter((n) => n.folder === 'trash'),
+    [sortedNotes]
+  )
 
   return (
-    <div className={`relative flex h-screen w-screen overflow-hidden bg-background text-foreground ${darkMode ? 'dark' : ''}`}>
-
-      {/* Dedicated window chrome — keeps controls off the editor toolbar */}
+    <div
+      className={cn(
+        'relative flex flex-col h-screen w-screen overflow-hidden text-foreground',
+        darkMode && 'dark',
+        'bg-[#e8ecef] dark:bg-background'
+      )}
+    >
+      {/* Window title bar */}
       {showTitleBar && (
         <div className="fixed inset-x-0 top-0 z-50 flex h-8 items-center border-b border-border/30 bg-background/80 backdrop-blur-md drag-region">
           <div className="flex items-center gap-2 pl-4 no-drag shrink-0">
@@ -495,770 +314,68 @@ function MainApp() {
         </div>
       )}
 
-      {/* Left Sidebar hover trigger zone */}
-      {!isZenMode && isSidebarCollapsed && !isSidebarHoveredOpen && (
-        <div 
-          className="absolute left-0 top-8 bottom-0 w-6 z-40 bg-transparent"
-          onMouseEnter={handleMouseEnterLeftTrigger}
-          onMouseLeave={handleMouseLeaveLeftTrigger}
-        />
-      )}
-
-      {/* 1. COLLAPSIBLE SIDEBAR */}
-      <aside 
-        ref={sidebarRef}
+      {/* Cansaas 3-column layout */}
+      <div
         className={cn(
-          "absolute left-0 bottom-0 z-40 flex flex-col transition-all duration-300 backdrop-blur-md bg-sidebar/80 overflow-hidden shadow-2xl",
-          showTitleBar ? "top-8" : "top-0",
-          isZenMode 
-            ? 'w-0 border-r-0 opacity-0 pointer-events-none' 
-            : isLeftSidebarOpen
-              ? 'w-[220px] opacity-100 border-r border-border pointer-events-auto animate-in slide-in-from-left duration-200'
-              : 'w-0 border-r-0 opacity-0 pointer-events-none'
+          'flex flex-1 min-h-0 w-full overflow-hidden gap-0 p-2',
+          showTitleBar ? 'pt-10' : 'pt-2'
         )}
-        onMouseEnter={handleMouseEnterLeftSidebar}
-        onMouseLeave={handleMouseLeaveLeftSidebar}
       >
-        {/* Brand header title */}
-        <div className={cn(
-          "py-2 flex items-center no-drag transition-all duration-300",
-          !isLeftSidebarOpen ? 'px-1 justify-center' : 'px-4 justify-between'
-        )}>
-          {!isLeftSidebarOpen ? (
-            <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
-              NZ
-            </span>
-          ) : (
-            <>
-              <span className="text-base font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent font-sans tracking-tight animate-in fade-in duration-200">
-                NotesZen
-              </span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleSidebar()
-                  setIsSidebarHoveredOpen(false)
-                }}
-                title="Collapse sidebar"
-              >
-                <ChevronLeft className="size-3.5" />
-              </Button>
-            </>
-          )}
-        </div>
-
-        <VaultSwitcher collapsed={!isLeftSidebarOpen} />
-
-        {/* Sidebar Nav Actions (Shadcn Custom Scroll Container) */}
-        <ScrollArea className="flex-grow px-2 py-3 space-y-1.5 no-drag select-none scrollbar-none">
-          {isLeftSidebarOpen && (
-            <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2 animate-in fade-in duration-200">Views</p>
-          )}
-          
-          <div className="space-y-1">
-            {[
-              { id: 'notes', name: 'Notes', icon: FileText, color: 'text-primary' },
-              { id: 'favorites', name: 'Favorites', icon: Star, color: 'text-amber-500' },
-              { id: 'daily', name: 'Daily Notes', icon: Calendar, color: 'text-emerald-500' },
-              { id: 'recent', name: 'Recent', icon: Clock, color: 'text-sky-500' },
-              { id: 'archive', name: 'Archive', icon: Archive, color: 'text-indigo-500' },
-              { id: 'trash', name: 'Trash', icon: Trash2, color: 'text-destructive' }
-            ].map((folder) => {
-              const Icon = folder.icon
-              const isSelected = activeFolder === folder.id && !selectedTag
-              const count = notes.filter(n => {
-                if (folder.id === 'trash') return n.folder === 'trash'
-                if (n.folder === 'trash') return false
-                if (folder.id === 'archive') return n.isArchived
-                if (n.isArchived) return false
-                if (folder.id === 'favorites') return n.isFavorite
-                if (folder.id === 'daily') return n.folder === 'daily'
-                if (folder.id === 'recent') return recentNoteIds.includes(n.id)
-                return true
-              }).length
-
-              return (
-                <button
-                  key={folder.id}
-                  onClick={() => {
-                    setActiveFolder(folder.id)
-                    useNotesStore.setState({ isSidebarCollapsed: false })
-                    setIsSidebarHoveredOpen(false)
-                  }}
-                  className={cn(
-                    "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 group/item select-none px-3 justify-between",
-                    isSelected 
-                      ? "bg-primary/8 text-foreground font-bold shadow-xs" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                  title={!isLeftSidebarOpen ? folder.name : undefined}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Icon className={cn("w-3.5 h-3.5 shrink-0 transition-colors", isSelected ? folder.color : "text-muted-foreground group-hover/item:text-foreground")} />
-                    {isLeftSidebarOpen && (
-                      <span className="truncate">
-                        {folder.name}
-                      </span>
-                    )}
-                  </div>
-                  {isLeftSidebarOpen && (
-                    <Badge 
-                      variant={isSelected ? "default" : "secondary"}
-                      className={cn(
-                        "text-[9px] font-bold h-4 px-1.5 min-w-[16px] text-center justify-center border-none",
-                        isSelected 
-                          ? "bg-primary/10 text-primary" 
-                          : "bg-muted-foreground/10 text-muted-foreground"
-                      )}
-                    >
-                      {count}
-                    </Badge>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Custom Folders */}
-          {isLeftSidebarOpen && (
-            <div className="pt-4 space-y-1">
-              <div className="flex items-center justify-between px-3 mb-2">
-                <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase">Folders</p>
-                <button
-                  onClick={() => setShowFolderDialog(true)}
-                  className="text-muted-foreground hover:text-foreground"
-                  title="New folder"
-                >
-                  <FolderPlus className="w-3 h-3" />
-                </button>
-              </div>
-              {folders.map((folder) => {
-                const isSelected = activeFolder === folder.id && !selectedTag
-                const count = notes.filter((n) => n.folder === folder.id && n.folder !== 'trash').length
-                return (
-                  <button
-                    key={folder.id}
-                    onClick={() => {
-                      setActiveFolder(folder.id)
-                      useNotesStore.setState({ isSidebarCollapsed: false })
-                      setIsSidebarHoveredOpen(false)
-                    }}
-                    className={cn(
-                      "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 px-3 justify-between",
-                      isSelected ? "bg-primary/8 text-foreground font-bold shadow-xs" : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Archive className={cn("w-3.5 h-3.5 shrink-0", isSelected ? folder.color : "text-muted-foreground")} />
-                      <span className="truncate">{folder.name}</span>
-                    </div>
-                    <Badge variant="secondary" className="text-[9px] h-4 px-1.5">{count}</Badge>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Sidebar Tags view */}
-          {allTags.length > 0 && (
-            <div className="pt-4 space-y-1">
-              {isLeftSidebarOpen && (
-                <p className="text-[10px] font-bold tracking-wider text-muted-foreground/60 uppercase px-3 mb-2 animate-in fade-in duration-200">Tags</p>
-              )}
-              {allTags.map((tag) => {
-                const isSelected = selectedTag === tag
-                const tagCount = notes.filter(n => n.folder !== 'trash' && n.tags && n.tags.includes(tag)).length
-                
-                return (
-                  <button
-                    key={tag}
-                    onClick={() => {
-                      setSelectedTag(tag)
-                      useNotesStore.setState({ isSidebarCollapsed: false })
-                      setIsSidebarHoveredOpen(false)
-                    }}
-                    className={cn(
-                      "w-full flex items-center h-8.5 rounded-lg text-[11.5px] font-semibold transition-all duration-200 group/item select-none px-3 justify-between",
-                      isSelected 
-                        ? "bg-primary/8 text-foreground font-bold shadow-xs" 
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                    title={!isLeftSidebarOpen ? tag : undefined}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Tag className={cn("w-3.5 h-3.5 shrink-0 transition-colors", isSelected ? "text-primary" : "text-muted-foreground group-hover/item:text-foreground")} />
-                      {isLeftSidebarOpen && (
-                        <span className="truncate">
-                          {tag}
-                        </span>
-                      )}
-                    </div>
-                    {isLeftSidebarOpen && (
-                      <Badge 
-                        variant={isSelected ? "default" : "secondary"}
-                        className={cn(
-                          "text-[9px] font-bold h-4 px-1.5 min-w-[16px] text-center justify-center border-none",
-                          isSelected 
-                            ? "bg-primary/10 text-primary" 
-                            : "bg-muted-foreground/10 text-muted-foreground"
-                        )}
-                      >
-                        {tagCount}
-                      </Badge>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </ScrollArea>
-
-        {/* Sidebar settings controls */}
-        <div className={cn(
-          "p-4 border-t border-border/40 no-drag flex shrink-0 select-none bg-sidebar/80 backdrop-blur-md transition-all duration-300",
-          !isLeftSidebarOpen ? 'flex-col items-center gap-3 px-2 py-4' : 'flex-row items-center justify-between'
-        )}>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setDarkMode(!darkMode)}
-            className="text-muted-foreground hover:text-foreground shrink-0"
-            title={darkMode ? "Light Mode" : "Dark Mode"}
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size={!isLeftSidebarOpen ? "icon" : "default"}
-            onClick={() => setShowSettings(true)}
-            className="text-muted-foreground hover:text-foreground shrink-0"
-            title="Settings"
-          >
-            <Settings className="w-4 h-4" />
-            {isLeftSidebarOpen && <span>Settings</span>}
-          </Button>
-        </div>
-      </aside>
-      {activeFolder === 'trash' ? (
-        <main className={cn("flex-grow flex flex-col min-w-0 bg-background/80 backdrop-blur-md", showTitleBar && "pt-8")}>
-          {/* Trash Header Controls */}
-          <div className="h-14 border-b border-border/40 flex items-center justify-between shrink-0 select-none bg-background/50 backdrop-blur-sm px-6 md:px-0">
-            <div className="max-w-2xl mx-auto w-full flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                {/* Collapse / Expand Toggle */}
-                {isSidebarCollapsed && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleSidebar()
-                    }}
-                    title="Expand Sidebar"
-                  >
-                    <ChevronRight data-icon="inline-start" />
-                  </Button>
-                )}
-                {!isSidebarCollapsed && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleSidebar()
-                    }}
-                    title="Collapse Sidebar"
-                  >
-                    <ChevronLeft data-icon="inline-start" />
-                  </Button>
-                )}
-                
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                  <h1 className="text-sm font-bold text-foreground">Trash Bin</h1>
-                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5 rounded-full font-semibold">
-                    {sortedNotes.length} {sortedNotes.length === 1 ? 'item' : 'items'}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {/* Local Search inside Trash */}
-                <div className="relative w-48 flex items-center">
-                  <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
-                  <Input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search in trash..."
-                    value={searchQuery}
-                    onChange={(e: any) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all font-semibold"
-                  />
-                  {searchQuery && (
-                    <button 
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                {sortedNotes.length > 0 && (
-                  <Button
-                    onClick={() => setShowEmptyTrashConfirm(true)}
-                    variant="destructive"
-                    size="sm"
-                    className="h-8 text-xs px-3 font-semibold"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-1" />
-                    Empty Trash
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Trash Cards Content Grid */}
-          <ScrollArea className="flex-grow px-6 md:px-0 py-12 animate-in fade-in duration-200">
-            <div className="max-w-2xl mx-auto w-full pb-12">
-              {sortedNotes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-12 mt-16 select-none text-center">
-                  <div className="p-4 rounded-full bg-destructive/5 text-destructive/80 mb-4 animate-pulse">
-                    <Trash2 className="w-8 h-8" />
-                  </div>
-                  <h2 className="text-sm font-bold text-foreground/80 tracking-tight">Trash is empty</h2>
-                  <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
-                    Notes you delete will appear here. Trashed notes can be restored or permanently deleted.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
-                  {sortedNotes.map((note) => {
-                    const previewText = note.content
-                      ? note.content.replace(/<[^>]*>/g, '').replace(/[#*`>_\-]/g, '').trim().substring(0, 160)
-                      : 'No additional text'
-                    const formattedDate = formatRelativeTime(note.updatedAt)
-
-                    return (
-                      <div
-                        key={note.id}
-                        className="group relative flex flex-col justify-between p-4 rounded-xl border border-border bg-card hover:bg-card/75 hover:border-destructive/30 hover:scale-[1.01] hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="mb-4">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <h3 className="font-bold text-xs text-foreground/95 line-clamp-1 flex-grow">
-                              {note.title || 'Untitled Note'}
-                            </h3>
-                            <span className="text-[9px] text-muted-foreground/80 font-medium shrink-0 mt-0.5">
-                              {formattedDate}
-                            </span>
-                          </div>
-                          
-                          <p className="text-[11px] line-clamp-4 text-muted-foreground leading-normal font-normal break-words">
-                            {previewText}
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col gap-2 mt-auto">
-                          {/* Tags inside card if any */}
-                          {note.tags && note.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                              {note.tags.slice(0, 3).map(tag => (
-                                <Badge 
-                                  key={tag}
-                                  variant="secondary"
-                                  className="text-[8px] h-4 px-1.5 rounded truncate"
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-end gap-1.5 border-t border-border/40 pt-3">
-                            <Button
-                              variant="outline"
-                              size="xs"
-                              onClick={() => restoreNote(note.id)}
-                            >
-                              <RotateCcw data-icon="inline-start" />
-                              Restore
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="xs"
-                              onClick={() => deleteNote(note.id)}
-                            >
-                              <Trash2 data-icon="inline-start" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </main>
-      ) : (
-        <>
-          {/* 3. MAIN EDITOR PANEL */}
-          <main className={cn(
-            "flex-grow flex min-w-0 bg-background/80 backdrop-blur-md",
-            showTitleBar && "pt-8",
-            isSplitView ? "flex-row gap-px" : "flex-col"
-          )}>
-
-            {/* Primary Editor Panel */}
-            <div className={cn(
-              "flex flex-col overflow-hidden",
-              isSplitView ? "flex-1 border-r border-border/40" : "flex-1"
-            )}>
-              {activeNote ? (
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <NoteTabs />
-                  {activeNote.folder === 'trash' && (
-                    <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <Trash2 className="w-4 h-4 text-destructive/80 animate-pulse" />
-                        <span>This note is in the Trash. Restore it to edit.</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          onClick={() => restoreNote(activeNote.id)}
-                        >
-                          Restore
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="destructive"
-                          onClick={() => deleteNote(activeNote.id)}
-                        >
-                          Delete Permanently
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  <Suspense
-                    fallback={
-                      <div className="flex-1 flex items-center justify-center text-xs font-semibold text-muted-foreground select-none">
-                        Loading editor...
-                      </div>
-                    }
-                  >
-                    <Editor />
-                  </Suspense>
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center p-8 select-none">
-                  <Empty className="max-w-sm border border-dashed">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <FileText />
-                      </EmptyMedia>
-                      <EmptyTitle>Start writing</EmptyTitle>
-                      <EmptyDescription>
-                        Create a note, open your daily journal, or search with the command palette.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                      <div className="flex flex-wrap gap-2 justify-center">
-                        <Button size="sm" onClick={() => createNote()}>
-                          <Plus data-icon="inline-start" />
-                          New Note
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => createDailyNote()}>
-                          <Calendar data-icon="inline-start" />
-                          Daily Note
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setCommandPaletteOpen(true)}>
-                          <Command data-icon="inline-start" />
-                          Commands
-                        </Button>
-                      </div>
-                    </EmptyContent>
-                  </Empty>
-                </div>
-              )}
-            </div>
-
-            {/* Split View Panel */}
-            {isSplitView && (
-              <div className="flex-1 flex flex-col overflow-hidden bg-background/60">
-                {/* Split Panel Header */}
-                <div className="h-12 px-4 flex items-center justify-between border-b border-border/40 shrink-0 bg-background/40">
-                  <Select
-                    value={splitViewNoteId ?? 'none'}
-                    onValueChange={(value) => setSplitViewNoteId(value === 'none' ? null : value)}
-                  >
-                    <SelectTrigger size="sm" className="flex-1 max-w-[300px]">
-                      <SelectValue placeholder="Select a note..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Select a note...</SelectItem>
-                      {sortedNotes.filter(n => n.id !== selectedNoteId && n.folder !== 'trash').map(note => (
-                        <SelectItem key={note.id} value={note.id}>
-                          {note.title || 'Untitled Note'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => toggleSplitView()}
-                    className="text-muted-foreground hover:text-foreground h-8 w-8"
-                    title="Close Split View"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-
-                {/* Split Panel Editor */}
-                {splitViewNoteId && notes.find(n => n.id === splitViewNoteId) ? (
-                  <Suspense
-                    fallback={
-                      <div className="flex-1 flex items-center justify-center text-xs font-semibold text-muted-foreground select-none">
-                        Loading editor...
-                      </div>
-                    }
-                  >
-                    <Editor noteId={splitViewNoteId} />
-                  </Suspense>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground select-none">
-                    Select a note to view
-                  </div>
-                )}
-              </div>
-            )}
-          </main>
-
-          {!isZenMode && isNoteListCollapsed && !isNoteListHoveredOpen && (
-            <div 
-              className="absolute right-0 top-8 bottom-0 w-6 z-40 bg-transparent"
-              onMouseEnter={handleMouseEnterTrigger}
-              onMouseLeave={handleMouseLeaveTrigger}
+        {!isZenMode && (
+          <div className="shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/30 bg-card/80">
+            <WorkspaceSidebar
+              onOpenSettings={() => setShowSettings(true)}
+              onNewFolder={() => setShowFolderDialog(true)}
+              darkMode={darkMode}
+              onToggleDarkMode={() => setDarkMode(!darkMode)}
             />
+          </div>
+        )}
+
+        <main
+          className={cn(
+            'flex flex-1 min-w-0 flex-col overflow-hidden rounded-xl',
+            'border border-border/30 bg-card/90 shadow-sm mx-2',
+            isZenMode && 'mx-0 rounded-none border-0'
           )}
+        >
+          {isZenMode ? (
+            <EditorShell />
+          ) : activeFolder === 'trash' ? (
+            <TrashView
+              notes={trashNotes}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onEmptyTrash={() => setShowEmptyTrashConfirm(true)}
+              onRestore={restoreNote}
+              onDelete={deleteNote}
+              formatRelativeTime={formatRelativeTime}
+            />
+          ) : mainView === 'home' ? (
+            <HomeDashboard />
+          ) : (
+            <EditorShell />
+          )}
+        </main>
 
-          {/* 2. NOTE LIST PANEL */}
-          <section 
-            ref={noteListRef}
-            className={cn(
-              "absolute right-0 bottom-0 z-40 flex flex-col transition-all duration-300 shadow-2xl bg-background/80 backdrop-blur-md overflow-hidden",
-              showTitleBar ? "top-8" : "top-0",
-              isZenMode
-                ? "w-0 opacity-0 border-l-0 pointer-events-none"
-                : (!isNoteListCollapsed || isNoteListHoveredOpen)
-                  ? "opacity-100 border-l border-border pointer-events-auto animate-in slide-in-from-right duration-200"
-                  : "w-0 opacity-0 border-l-0 pointer-events-none"
-            )}
-            style={
-              !isZenMode && (!isNoteListCollapsed || isNoteListHoveredOpen)
-                ? { width: noteListWidth }
-                : undefined
-            }
-            onMouseEnter={handleMouseEnterSidebar}
-            onMouseLeave={handleMouseLeaveSidebar}
+        {!isZenMode && isAIPanelOpen && activeFolder !== 'trash' && (
+          <div className="w-[min(340px,28vw)] shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/30">
+            <AIChatPanel onClose={toggleAIPanel} />
+          </div>
+        )}
+
+        {!isZenMode && !isAIPanelOpen && activeFolder !== 'trash' && (
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="fixed bottom-6 right-6 z-30 rounded-full shadow-lg size-10"
+            onClick={toggleAIPanel}
+            title="Open AI panel"
           >
-            {(!isNoteListCollapsed || isNoteListHoveredOpen) && !isZenMode && (
-              <div
-                className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 z-50 transition-colors"
-                onMouseDown={() => setIsResizingList(true)}
-              />
-            )}
-            
-            {/* Note List Header controls */}
-            <div className="h-11 px-4 flex items-center justify-between border-b border-border/40 shrink-0 select-none">
-              <span className="text-[11px] font-bold tracking-wider text-muted-foreground/80 uppercase">
-                Notes
-              </span>
-
-              <div className="flex items-center gap-1">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-foreground h-8 w-8"
-                    title="Actions"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>List Actions</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => createNote()}>
-                      <Plus />
-                      New Note
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => createDailyNote()}>
-                      <Calendar />
-                      Daily Note
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => toggleSplitView()}>
-                      <Columns2 />
-                      {isSplitView ? 'Close' : 'Open'} Split View
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setGraphViewOpen(true)}>
-                      <Network />
-                      Graph View
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => setCommandPaletteOpen(true)}>
-                      <Command />
-                      Command Menu
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setGlobalSearchOpen(true)}>
-                      <Search />
-                      Global Search
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-foreground size-8"
-                onClick={() => {
-                  toggleNoteList()
-                  setIsNoteListHoveredOpen(false)
-                }}
-                title="Close panel"
-              >
-                <X className="size-4" />
-              </Button>
-              </div>
-            </div>
-
-            {/* Note List Items (Shadcn Scroll Area) */}
-            <ScrollArea className="flex-grow py-2">
-              {sortedNotes.length === 0 ? (
-                <div className="p-4 mt-8">
-                  <Empty className="border-dashed py-8">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <FileText />
-                      </EmptyMedia>
-                      <EmptyTitle>No notes here</EmptyTitle>
-                      <EmptyDescription>Try a different view or create something new.</EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                      <Button size="sm" onClick={() => createNote()}>
-                        <Plus data-icon="inline-start" />
-                        New Note
-                      </Button>
-                    </EmptyContent>
-                  </Empty>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1 px-2">
-                  {pinnedNotes.length > 0 && (
-                    <>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 px-2 pt-1">
-                        Pinned
-                      </p>
-                      {pinnedNotes.map((note) => (
-                        <NoteListItem
-                          key={note.id}
-                          note={note}
-                          isSelected={note.id === selectedNoteId}
-                          onSelect={() => {
-                            setSelectedNoteId(note.id)
-                            useNotesStore.setState({ isNoteListCollapsed: false })
-                            setIsNoteListHoveredOpen(false)
-                          }}
-                          togglePin={() => togglePin(note.id)}
-                          toggleFavorite={() => toggleFavorite(note.id)}
-                          deleteNote={() => deleteNote(note.id)}
-                        />
-                      ))}
-                      {unpinnedNotes.length > 0 && (
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 px-2 pt-2">
-                          All Notes
-                        </p>
-                      )}
-                    </>
-                  )}
-                  {unpinnedNotes.map((note) => (
-                    <NoteListItem
-                      key={note.id}
-                      note={note}
-                      isSelected={note.id === selectedNoteId}
-                      onSelect={() => {
-                        setSelectedNoteId(note.id)
-                        useNotesStore.setState({ isNoteListCollapsed: false })
-                        setIsNoteListHoveredOpen(false)
-                      }}
-                      togglePin={() => togglePin(note.id)}
-                      toggleFavorite={() => toggleFavorite(note.id)}
-                      deleteNote={() => deleteNote(note.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Note List Footer controls */}
-            <div className="h-14 px-4 flex items-center gap-2 border-t border-border/40 shrink-0 select-none bg-background/20">
-              <Select value={noteSort} onValueChange={(v) => setNoteSort(v as typeof noteSort)}>
-                <SelectTrigger size="sm" className="w-[72px] h-8 text-[10px] shrink-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="updated">Recent</SelectItem>
-                  <SelectItem value="created">Created</SelectItem>
-                  <SelectItem value="title">A–Z</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="relative flex-grow flex items-center">
-                <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
-                <Input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e: any) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 h-8 text-xs border border-border/60 rounded-lg bg-card/45 focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:border-primary/50 text-foreground placeholder-muted-foreground/80 transition-all"
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
-              <Button
-                onClick={() => createNote()}
-                size="icon"
-                title="Create Note"
-              >
-                <Plus data-icon="inline-start" />
-              </Button>
-            </div>
-          </section>
-        </>
-      )}
+            <Sparkles className="size-4 text-primary" />
+          </Button>
+        )}
+      </div>
 
       {/* OVERLAY MENUS & ONBOARDINGS */}
       <Suspense fallback={null}>

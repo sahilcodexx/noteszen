@@ -35,6 +35,9 @@ interface NotesState {
   noteSort: 'updated' | 'created' | 'title'
   openNoteTabs: string[]
   noteListWidth: number
+  mainView: 'home' | 'editor'
+  isAIPanelOpen: boolean
+  homeViewMode: 'grid' | 'list'
 
   fetchNotes: () => Promise<void>
   fetchFolders: () => Promise<void>
@@ -62,6 +65,11 @@ interface NotesState {
   addOpenTab: (noteId: string) => void
   removeOpenTab: (noteId: string) => void
   setNoteListWidth: (width: number) => void
+  setMainView: (view: 'home' | 'editor') => void
+  goHome: () => void
+  openNote: (noteId: string) => void
+  toggleAIPanel: () => void
+  setHomeViewMode: (mode: 'grid' | 'list') => void
   setAppSettings: (settings: Partial<AppSettings>) => void
   setActiveVault: (vaultId: string) => Promise<void>
   createVault: (name: string) => Promise<void>
@@ -144,6 +152,9 @@ const initialNoteListWidth = (() => {
   const parsed = parseInt(stored, 10)
   return isNaN(parsed) ? 270 : Math.min(500, Math.max(200, parsed))
 })()
+const initialHomeViewMode = (localStorage.getItem('noteszen-home-view') || 'grid') as 'grid' | 'list'
+const initialAIPanelOpen = localStorage.getItem('noteszen-ai-panel') !== 'false'
+
 const initialRecent = (() => {
   try {
     return JSON.parse(localStorage.getItem('noteszen-recent') || '[]') as string[]
@@ -168,7 +179,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   searchQuery: '',
   activeFolder: 'notes',
   selectedTag: null,
-  isSidebarCollapsed: true,
+  isSidebarCollapsed: false,
   isNoteListCollapsed: true,
   isCommandPaletteOpen: false,
   isGlobalSearchOpen: false,
@@ -185,6 +196,30 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   noteSort: initialNoteSort,
   openNoteTabs: [],
   noteListWidth: initialNoteListWidth,
+  mainView: 'home',
+  isAIPanelOpen: initialAIPanelOpen,
+  homeViewMode: initialHomeViewMode,
+
+  setMainView: (view) => set({ mainView: view }),
+
+  goHome: () => set({ mainView: 'home', selectedNoteId: null }),
+
+  openNote: (noteId) => {
+    get().trackRecent(noteId)
+    get().addOpenTab(noteId)
+    set({ selectedNoteId: noteId, mainView: 'editor' })
+  },
+
+  toggleAIPanel: () => {
+    const next = !get().isAIPanelOpen
+    localStorage.setItem('noteszen-ai-panel', String(next))
+    set({ isAIPanelOpen: next })
+  },
+
+  setHomeViewMode: (mode) => {
+    localStorage.setItem('noteszen-home-view', mode)
+    set({ homeViewMode: mode })
+  },
 
   setNoteSort: (sort) => {
     localStorage.setItem('noteszen-note-sort', sort)
@@ -304,7 +339,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   setSelectedNoteId: (id) => {
-    set({ selectedNoteId: id })
+    set({
+      selectedNoteId: id,
+      mainView: id ? 'editor' : get().mainView,
+    })
     if (id) {
       get().trackRecent(id)
       get().addOpenTab(id)
@@ -409,6 +447,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       notes: updatedNotes,
       selectedNoteId: newNote.id,
       selectedTag: null,
+      mainView: 'editor',
       ...(resetView ? { activeFolder: 'notes' } : {}),
     })
     persistNote(newNote)

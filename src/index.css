@@ -45,9 +45,13 @@ body {
   padding: 0;
   overflow: hidden;
   user-select: none;
-  background: transparent;
+  background: #e8ecef;
   height: 100vh;
   width: 100vw;
+}
+
+.dark body {
+  background: var(--background);
 }
 
 #root {
