@@ -75,27 +75,62 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   const abortRef = useRef<AbortController | null>(null)
   const streamingIdRef = useRef<string | null>(null)
   const generationRef = useRef(0)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const pendingStreamRef = useRef<{ id: string; content: string } | null>(null)
 
   const activeModel =
     FREE_MODELS.find((m) => m.id === getOpenRouterModel())?.label ?? getOpenRouterModel()
 
   const activeNote = notes.find((n) => n.id === selectedNoteId)
 
+  const scrollChatToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const viewport = chatScrollRef.current?.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    )
+    if (!(viewport instanceof HTMLElement)) return
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior })
+  }, [])
+
+  const cancelStreamRaf = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    pendingStreamRef.current = null
+  }, [])
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages, isLoading])
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+    scrollTimerRef.current = setTimeout(
+      () => scrollChatToBottom(isLoading ? 'auto' : 'smooth'),
+      isLoading ? 120 : 0
+    )
+    return () => {
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+    }
+  }, [messages, isLoading, scrollChatToBottom])
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      cancelStreamRaf()
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+    }
+  }, [cancelStreamRaf])
 
   useEffect(() => {
     streamingIdRef.current = streamingId
   }, [streamingId])
 
   const stopGeneration = useCallback(() => {
+    cancelStreamRaf()
     abortRef.current?.abort()
     setIsLoading(false)
     setStreamingId(null)
     streamingIdRef.current = null
-  }, [])
+  }, [cancelStreamRaf])
 
   const resetChat = useCallback(
     (notifyUser?: boolean) => {
@@ -110,6 +145,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   const handleStop = () => {
     const currentStreamId = streamingIdRef.current
     generationRef.current += 1
+    cancelStreamRaf()
     abortRef.current?.abort()
     setIsLoading(false)
     setStreamingId(null)
@@ -142,14 +178,20 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
 
     const userMsg: Message = { id: `u-${Date.now()}`, role: 'user', content: text }
     const assistantId = `a-${Date.now()}`
+    const noteContext = activeNote
+      ? buildNoteContext(activeNote.title, activeNote.content)
+      : null
+
     setMessages((m) => [...m, userMsg, { id: assistantId, role: 'assistant', content: '' }])
     setInput('')
     setIsLoading(true)
     setStreamingId(assistantId)
+    streamingIdRef.current = assistantId
 
     const controller = new AbortController()
     abortRef.current = controller
     const generation = ++generationRef.current
+    cancelStreamRaf()
 
     const systemParts = [
       'You are a helpful writing assistant inside NotesZen, a note-taking app.',
@@ -157,10 +199,8 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
       'Be concise, practical, and friendly. Use markdown when helpful (headings, lists, bold).',
       'Do not mention that you are formatting for notes unless the user explicitly asks.',
     ]
-    if (activeNote) {
-      systemParts.push(
-        `The user has this note open:\n\n${buildNoteContext(activeNote.title, activeNote.content)}`
-      )
+    if (noteContext) {
+      systemParts.push(`The user has this note open:\n\n${noteContext}`)
     }
 
     const history = messages
@@ -180,9 +220,16 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         onDelta: (content) => {
           if (generation !== generationRef.current) return
           if (controller.signal.aborted) return
-          setMessages((m) =>
-            m.map((msg) => (msg.id === assistantId ? { ...msg, content } : msg))
-          )
+          pendingStreamRef.current = { id: assistantId, content }
+          if (rafRef.current != null) return
+          rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = null
+            const pending = pendingStreamRef.current
+            if (!pending || generation !== generationRef.current) return
+            setMessages((m) =>
+              m.map((msg) => (msg.id === pending.id ? { ...msg, content: pending.content } : msg))
+            )
+          })
         },
       })
     } catch (err) {
@@ -204,6 +251,13 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         )
       )
     } finally {
+      const pending = pendingStreamRef.current
+      if (pending && generation === generationRef.current) {
+        setMessages((m) =>
+          m.map((msg) => (msg.id === pending.id ? { ...msg, content: pending.content } : msg))
+        )
+      }
+      cancelStreamRaf()
       if (generation === generationRef.current) {
         setIsLoading(false)
         setStreamingId(null)
@@ -310,10 +364,12 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-4 py-4 min-h-0">
+      <div ref={chatScrollRef} className="flex-1 min-h-0">
+      <ScrollArea className="h-full px-4 py-4">
         <div className="flex flex-col gap-3 min-w-0">
           {messages.map((msg) => {
-            const isStreaming = isLoading && msg.id === streamingId && !msg.content.trim()
+            const isActiveStream = isLoading && msg.id === streamingId
+            const isWaitingForTokens = isActiveStream && !msg.content.trim()
             const isWelcome = msg.id.startsWith('welcome')
             return (
               <div
@@ -325,8 +381,10 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                     : 'bg-[var(--workspace-subtle)] text-foreground border border-[var(--workspace-border)]'
                 )}
               >
-                {isStreaming ? (
+                {isWaitingForTokens ? (
                   <AITypingIndicator />
+                ) : msg.role === 'assistant' && !isWelcome && isActiveStream ? (
+                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                 ) : msg.role === 'assistant' && !isWelcome ? (
                   <div
                     className="prose-editor ai-chat-prose break-words [&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
@@ -335,7 +393,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                 ) : (
                   <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                 )}
-                {msg.role === 'assistant' && !isWelcome && msg.content.trim() && !isStreaming && (
+                {msg.role === 'assistant' && !isWelcome && msg.content.trim() && !isActiveStream && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button
                       variant="outline"
@@ -360,9 +418,9 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
               </div>
             )
           })}
-          <div ref={bottomRef} />
         </div>
       </ScrollArea>
+      </div>
 
       {activeNote && (
         <div className="px-4 pb-2 flex flex-wrap gap-1.5">
