@@ -30,10 +30,10 @@ function formatTime(dateString: string) {
 }
 
 const ACCENT: Record<string, string> = {
-  ideas: 'border-l-sky-400',
+  ideas: 'border-l-[#5eb3f5]',
   research: 'border-l-violet-400',
   drafts: 'border-l-amber-400',
-  default: 'border-l-primary/40',
+  default: 'border-l-[#5eb3f5]',
 }
 
 interface NoteCardProps {
@@ -61,8 +61,8 @@ export default function NoteCard({
         type="button"
         onClick={onOpen}
         className={cn(
-          'w-full flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card text-left',
-          'hover:shadow-md hover:border-border transition-all border-l-4',
+          'w-full flex items-center gap-3 p-3 rounded-xl border border-[#e5e9ec] bg-white text-left',
+          'hover:shadow-sm hover:border-[#d5dbe0] transition-all border-l-[3px]',
           accent
         )}
       >
@@ -78,8 +78,8 @@ export default function NoteCard({
   return (
     <div
       className={cn(
-        'group relative flex flex-col rounded-xl border border-border/60 bg-card p-4 min-h-[140px]',
-        'hover:shadow-md hover:border-border/80 transition-all cursor-pointer border-l-4',
+        'group relative flex flex-col rounded-xl border border-[#e5e9ec] bg-white p-4 min-h-[130px]',
+        'hover:shadow-sm hover:border-[#d5dbe0] transition-all cursor-pointer border-l-[3px]',
         accent
       )}
       onClick={onOpen}

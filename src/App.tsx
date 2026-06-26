@@ -83,7 +83,7 @@ function MainApp() {
 
   const [showSettings, setShowSettings] = useState(false)
   const [showFolderDialog, setShowFolderDialog] = useState(false)
-  const [darkMode, setDarkMode] = useState(true)
+  const [darkMode, setDarkMode] = useState(false)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -282,7 +282,7 @@ function MainApp() {
       className={cn(
         'relative flex flex-col h-screen w-screen overflow-hidden text-foreground',
         darkMode && 'dark',
-        'bg-[#e8ecef] dark:bg-background'
+        'bg-[#eef0f2] dark:bg-background'
       )}
     >
       {/* Window title bar */}
@@ -317,12 +317,12 @@ function MainApp() {
       {/* Cansaas 3-column layout */}
       <div
         className={cn(
-          'flex flex-1 min-h-0 w-full overflow-hidden gap-0 p-2',
+          'flex flex-1 min-h-0 w-full overflow-hidden gap-2 px-2 pb-2',
           showTitleBar ? 'pt-10' : 'pt-2'
         )}
       >
         {!isZenMode && (
-          <div className="shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/30 bg-card/80">
+          <div className="shrink-0 rounded-xl overflow-hidden border border-[#e0e4e8] bg-white dark:bg-card dark:border-border/30 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <WorkspaceSidebar
               onOpenSettings={() => setShowSettings(true)}
               onNewFolder={() => setShowFolderDialog(true)}
@@ -335,8 +335,8 @@ function MainApp() {
         <main
           className={cn(
             'flex flex-1 min-w-0 flex-col overflow-hidden rounded-xl',
-            'border border-border/30 bg-card/90 shadow-sm mx-2',
-            isZenMode && 'mx-0 rounded-none border-0'
+            'border border-[#e0e4e8] bg-white dark:bg-card dark:border-border/30 shadow-[0_1px_3px_rgba(0,0,0,0.04)]',
+            isZenMode && 'rounded-none border-0 shadow-none'
           )}
         >
           {isZenMode ? (
@@ -359,7 +359,7 @@ function MainApp() {
         </main>
 
         {!isZenMode && isAIPanelOpen && activeFolder !== 'trash' && (
-          <div className="w-[min(340px,28vw)] shrink-0 rounded-xl overflow-hidden shadow-sm border border-border/30">
+          <div className="w-[min(300px,26vw)] shrink-0 rounded-xl overflow-hidden border border-[#e0e4e8] bg-white dark:bg-card dark:border-border/30 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <AIChatPanel onClose={toggleAIPanel} />
           </div>
         )}

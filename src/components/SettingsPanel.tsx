@@ -1,7 +1,15 @@
 import { useState, type ReactNode } from 'react'
 import { useNotesStore } from '../store/useNotesStore'
 import { getAPI } from '../tauri-bridge'
-import { Settings, Info, Keyboard, Database, LayoutTemplate, Palette } from 'lucide-react'
+import { Settings, Info, Keyboard, Database, LayoutTemplate, Palette, Sparkles } from 'lucide-react'
+import {
+  getOpenRouterApiKey,
+  setOpenRouterApiKey,
+  getOpenRouterModel,
+  setOpenRouterModel,
+  FREE_MODELS,
+  hasOpenRouterApiKey,
+} from '../lib/ai-settings'
 import { notify } from '../lib/toast'
 import TemplateGallery from './TemplateGallery'
 import { Button } from '@/components/ui/button'
@@ -24,7 +32,7 @@ const SHORTCUTS = [
   { action: 'Global Search', keys: 'Ctrl+Shift+F' },
   { action: 'Pin Note', keys: 'Ctrl+P' },
   { action: 'Toggle Sidebar', keys: 'Ctrl+B' },
-  { action: 'Toggle Note List', keys: 'Ctrl+Shift+B' },
+  { action: 'Toggle AI Panel', keys: 'Ctrl+Shift+B' },
   { action: 'Navigate Notes', keys: 'Alt+↑/↓' },
   { action: 'Quick Capture', keys: 'Ctrl+Shift+Space' },
   { action: 'Star Note (palette)', keys: 'Ctrl+Shift+S' },
@@ -59,6 +67,8 @@ export default function SettingsPanel({ open, onOpenChange, darkMode, onToggleDa
   } = useNotesStore()
 
   const [newVaultName, setNewVaultName] = useState('')
+  const [openRouterKey, setOpenRouterKeyState] = useState(getOpenRouterApiKey)
+  const [openRouterModel, setOpenRouterModelState] = useState(getOpenRouterModel)
   const api = getAPI()
 
   const handleExport = () => {
@@ -131,6 +141,10 @@ export default function SettingsPanel({ open, onOpenChange, darkMode, onToggleDa
             <TabsTrigger value="templates" className="text-xs">
               <LayoutTemplate data-icon="inline-start" />
               Templates
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="text-xs">
+              <Sparkles data-icon="inline-start" />
+              AI
             </TabsTrigger>
             <TabsTrigger value="shortcuts" className="text-xs">
               <Keyboard data-icon="inline-start" />
@@ -255,6 +269,45 @@ export default function SettingsPanel({ open, onOpenChange, darkMode, onToggleDa
 
             <TabsContent value="templates" className="mt-0">
               <TemplateGallery />
+            </TabsContent>
+
+            <TabsContent value="ai" className="flex flex-col gap-4 mt-0">
+              <SettingRow label="OpenRouter API Key" hint="Get a free key at openrouter.ai">
+                <input
+                  type="password"
+                  value={openRouterKey}
+                  onChange={(e) => {
+                    setOpenRouterKeyState(e.target.value)
+                    setOpenRouterApiKey(e.target.value)
+                  }}
+                  placeholder="sk-or-v1-..."
+                  className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card w-[180px]"
+                />
+              </SettingRow>
+              <SettingRow label="AI Model" hint="Free models via OpenRouter">
+                <Select
+                  value={openRouterModel}
+                  onValueChange={(v) => {
+                    setOpenRouterModelState(v)
+                    setOpenRouterModel(v)
+                  }}
+                >
+                  <SelectTrigger size="sm" className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {FREE_MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </SettingRow>
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted border border-border">
+                <Sparkles className="size-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[10px] text-muted-foreground leading-normal">
+                  {hasOpenRouterApiKey()
+                    ? 'AI Workspace is connected. Use the right panel to chat about your notes.'
+                    : 'Add your OpenRouter API key to enable live AI responses in the workspace panel.'}
+                </p>
+              </div>
             </TabsContent>
 
             <TabsContent value="shortcuts" className="mt-0">
