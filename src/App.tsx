@@ -53,6 +53,7 @@ import QuickCapture from './components/QuickCapture'
 import SettingsPanel from './components/SettingsPanel'
 import MobileView from './components/MobileView'
 import NoteListItem from './components/NoteListItem'
+import NoteTabs from './components/NoteTabs'
 import FolderDialog from './components/FolderDialog'
 import VaultSwitcher from './components/VaultSwitcher'
 import {
@@ -136,7 +137,11 @@ function MainApp() {
     setSplitViewNoteId,
     deleteNote,
     restoreNote,
-    emptyTrash
+    emptyTrash,
+    noteSort,
+    setNoteSort,
+    noteListWidth,
+    setNoteListWidth,
   } = useNotesStore()
 
   // Local React states
@@ -144,6 +149,7 @@ function MainApp() {
   const [showFolderDialog, setShowFolderDialog] = useState(false)
   const [darkMode, setDarkMode] = useState(true)
   const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false)
+  const [isResizingList, setIsResizingList] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLElement>(null)
   const noteListRef = useRef<HTMLElement>(null)
@@ -316,14 +322,40 @@ function MainApp() {
     return filterNotesWithFuse(folderFilteredNotes, searchQuery)
   }, [folderFilteredNotes, searchQuery])
 
-  // Sort notes: Pinned notes always at the top, then by updatedAt descending
-  const sortedNotes = useMemo(() => {
-    return [...filteredNotes].sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1
-      if (!a.isPinned && b.isPinned) return 1
+  const sortNotes = (list: typeof filteredNotes) => {
+    return [...list].sort((a, b) => {
+      if (noteSort === 'title') return (a.title || '').localeCompare(b.title || '')
+      if (noteSort === 'created') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      }
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     })
-  }, [filteredNotes])
+  }
+
+  const pinnedNotes = useMemo(() => {
+    return sortNotes(filteredNotes.filter((n) => n.isPinned))
+  }, [filteredNotes, noteSort])
+
+  const unpinnedNotes = useMemo(() => {
+    return sortNotes(filteredNotes.filter((n) => !n.isPinned))
+  }, [filteredNotes, noteSort])
+
+  const sortedNotes = useMemo(() => [...pinnedNotes, ...unpinnedNotes], [pinnedNotes, unpinnedNotes])
+
+  useEffect(() => {
+    if (!isResizingList) return
+    const onMove = (e: MouseEvent) => {
+      const newWidth = window.innerWidth - e.clientX
+      setNoteListWidth(newWidth)
+    }
+    const onUp = () => setIsResizingList(false)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [isResizingList, setNoteListWidth])
 
   // Selected note object helper
   const activeNote = useMemo(() => {
@@ -906,6 +938,7 @@ function MainApp() {
             )}>
               {activeNote ? (
                 <div className="flex-1 flex flex-col overflow-hidden">
+                  <NoteTabs />
                   {activeNote.folder === 'trash' && (
                     <div className="bg-destructive/10 border-b border-destructive/20 px-10 py-2.5 flex items-center justify-between text-destructive text-xs select-none shrink-0 animate-in slide-in-from-top duration-200 font-semibold">
                       <div className="flex items-center gap-2">
@@ -1042,12 +1075,23 @@ function MainApp() {
               isZenMode
                 ? "w-0 opacity-0 border-l-0 pointer-events-none"
                 : (!isNoteListCollapsed || isNoteListHoveredOpen)
-                  ? "w-[270px] opacity-100 border-l border-border pointer-events-auto animate-in slide-in-from-right duration-200"
+                  ? "opacity-100 border-l border-border pointer-events-auto animate-in slide-in-from-right duration-200"
                   : "w-0 opacity-0 border-l-0 pointer-events-none"
             )}
+            style={
+              !isZenMode && (!isNoteListCollapsed || isNoteListHoveredOpen)
+                ? { width: noteListWidth }
+                : undefined
+            }
             onMouseEnter={handleMouseEnterSidebar}
             onMouseLeave={handleMouseLeaveSidebar}
           >
+            {(!isNoteListCollapsed || isNoteListHoveredOpen) && !isZenMode && (
+              <div
+                className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 z-50 transition-colors"
+                onMouseDown={() => setIsResizingList(true)}
+              />
+            )}
             
             {/* Note List Header controls */}
             <div className="h-14 px-4 flex items-center justify-between border-b border-border/40 shrink-0 select-none">
@@ -1161,7 +1205,34 @@ function MainApp() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-1 px-2">
-                  {sortedNotes.map((note) => (
+                  {pinnedNotes.length > 0 && (
+                    <>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 px-2 pt-1">
+                        Pinned
+                      </p>
+                      {pinnedNotes.map((note) => (
+                        <NoteListItem
+                          key={note.id}
+                          note={note}
+                          isSelected={note.id === selectedNoteId}
+                          onSelect={() => {
+                            setSelectedNoteId(note.id)
+                            useNotesStore.setState({ isNoteListCollapsed: false })
+                            setIsNoteListHoveredOpen(false)
+                          }}
+                          togglePin={() => togglePin(note.id)}
+                          toggleFavorite={() => toggleFavorite(note.id)}
+                          deleteNote={() => deleteNote(note.id)}
+                        />
+                      ))}
+                      {unpinnedNotes.length > 0 && (
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 px-2 pt-2">
+                          All Notes
+                        </p>
+                      )}
+                    </>
+                  )}
+                  {unpinnedNotes.map((note) => (
                     <NoteListItem
                       key={note.id}
                       note={note}
@@ -1182,6 +1253,16 @@ function MainApp() {
 
             {/* Note List Footer controls */}
             <div className="h-14 px-4 flex items-center gap-2 border-t border-border/40 shrink-0 select-none bg-background/20">
+              <Select value={noteSort} onValueChange={(v) => setNoteSort(v as typeof noteSort)}>
+                <SelectTrigger size="sm" className="w-[72px] h-8 text-[10px] shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="updated">Recent</SelectItem>
+                  <SelectItem value="created">Created</SelectItem>
+                  <SelectItem value="title">A–Z</SelectItem>
+                </SelectContent>
+              </Select>
               <div className="relative flex-grow flex items-center">
                 <Search className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground/75" />
                 <Input

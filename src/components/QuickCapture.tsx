@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Sparkles, CornerDownLeft, X, Bold, Italic, Code, List, CheckSquare } from 'lucide-react'
 import { Button } from './ui/button'
 import { getAPI } from '../tauri-bridge'
+import { cn } from '@/lib/utils'
 
 export default function QuickCapture() {
   const [text, setText] = useState('')
@@ -27,7 +28,7 @@ export default function QuickCapture() {
       isFavorite: false,
       isArchived: false,
       createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
+      updatedAt: now.toISOString(),
     }
 
     const api = getAPI()
@@ -37,7 +38,6 @@ export default function QuickCapture() {
         api.closeQuickCapture()
       })
     } else {
-      // Browser test fallback
       const local = localStorage.getItem('noteszen-db-notes')
       const notes = local ? JSON.parse(local) : []
       notes.unshift(note)
@@ -47,7 +47,6 @@ export default function QuickCapture() {
     }
   }
 
-  // Handle keys (Ctrl+Enter to save, Escape to close)
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
@@ -82,7 +81,8 @@ export default function QuickCapture() {
 
     setTimeout(() => {
       textarea.focus()
-      const newCursorPos = start + syntax.length + (selectedText ? selectedText.length : 0) + (wrapper ? syntax.length : 0)
+      const newCursorPos =
+        start + syntax.length + (selectedText ? selectedText.length : 0) + (wrapper ? syntax.length : 0)
       textarea.setSelectionRange(newCursorPos, newCursorPos)
     }, 50)
   }
@@ -91,99 +91,69 @@ export default function QuickCapture() {
   const charCount = text.length
 
   return (
-    <div className="w-screen h-screen flex flex-col p-4 bg-popover text-popover-foreground border border-border rounded-2xl overflow-hidden select-none">
-      {/* Title Drag bar */}
-      <div className="flex items-center justify-between pb-2 border-b border-border drag-region shrink-0">
-        <span className="text-[10px] uppercase font-bold tracking-wider text-primary flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5" />
-          Quick Capture Thought
-        </span>
-        <button 
-          onClick={handleClose} 
-          className="no-drag text-muted-foreground hover:text-foreground p-0.5 rounded-lg hover:bg-muted"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* Editor Toolbar (Markdown helpers) */}
-      <div className="flex items-center gap-1 py-1.5 border-b border-border/40 shrink-0 no-drag">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => insertMarkdown('**', true)}
-          title="Bold"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Bold className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => insertMarkdown('*', true)}
-          title="Italic"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Italic className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => insertMarkdown('`', true)}
-          title="Code"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Code className="w-3.5 h-3.5" />
-        </Button>
-        <div className="w-px h-3.5 bg-border/60 mx-1" />
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => insertMarkdown('- ', false)}
-          title="Bullet List"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <List className="w-3.5 h-3.5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => insertMarkdown('- [ ] ', false)}
-          title="Todo List"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <CheckSquare className="w-3.5 h-3.5" />
-        </Button>
-      </div>
-
-      {/* Thought Textarea */}
-      <textarea
-        ref={textareaRef}
-        placeholder="What's on your mind?..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        className="flex-grow w-full bg-transparent border-0 outline-none resize-none text-xs leading-relaxed placeholder-muted-foreground pt-3 focus:ring-0 focus:ring-offset-0 px-0 select-text"
-      />
-
-      {/* Footer controls */}
-      <div className="flex items-center justify-between border-t border-border pt-2 mt-2 shrink-0 select-none">
-        <div className="flex items-center gap-3 text-[9px] text-muted-foreground">
-          <span>Press <kbd className="font-mono bg-muted px-1 rounded text-[8px]">Esc</kbd> to dismiss</span>
-          <div className="w-px h-2.5 bg-border/60" />
-          <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
-          <div className="w-px h-2.5 bg-border/60" />
-          <span>{charCount} {charCount === 1 ? 'char' : 'chars'}</span>
+    <div className="w-screen h-screen flex items-center justify-center p-6 bg-transparent">
+      <div
+        className={cn(
+          'w-full max-w-lg flex flex-col rounded-2xl overflow-hidden select-none',
+          'bg-popover/70 backdrop-blur-2xl border border-white/10 dark:border-white/5',
+          'shadow-2xl shadow-black/20 ring-1 ring-white/10'
+        )}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/30 drag-region shrink-0">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-primary flex items-center gap-1.5">
+            <Sparkles className="size-3.5" />
+            Quick Capture
+          </span>
+          <button
+            onClick={handleClose}
+            className="no-drag text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted/50 transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
-        <Button
-          onClick={handleSave}
-          disabled={!text.trim()}
-          variant="default"
-          size="sm"
-        >
-          Capture Note
-          <CornerDownLeft data-icon="inline-end" />
-        </Button>
+
+        <div className="flex items-center gap-0.5 px-3 py-2 border-b border-border/20 shrink-0 no-drag">
+          {[
+            { icon: Bold, action: () => insertMarkdown('**', true), title: 'Bold' },
+            { icon: Italic, action: () => insertMarkdown('*', true), title: 'Italic' },
+            { icon: Code, action: () => insertMarkdown('`', true), title: 'Code' },
+            { icon: List, action: () => insertMarkdown('- ', false), title: 'List' },
+            { icon: CheckSquare, action: () => insertMarkdown('- [ ] ', false), title: 'Todo' },
+          ].map(({ icon: Icon, action, title }) => (
+            <Button
+              key={title}
+              variant="ghost"
+              size="icon-xs"
+              onClick={action}
+              title={title}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Icon className="size-3.5" />
+            </Button>
+          ))}
+        </div>
+
+        <textarea
+          ref={textareaRef}
+          placeholder="What's on your mind?"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-grow w-full min-h-[140px] bg-transparent border-0 outline-none resize-none text-sm leading-relaxed placeholder-muted-foreground/60 px-4 py-3 focus:ring-0 select-text"
+        />
+
+        <div className="flex items-center justify-between border-t border-border/30 px-4 py-2.5 shrink-0">
+          <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
+            <kbd className="font-mono bg-muted/50 px-1 rounded text-[8px]">⌃↵</kbd>
+            <span>save</span>
+            <span className="text-border">·</span>
+            <span>{wordCount}w · {charCount}c</span>
+          </div>
+          <Button onClick={handleSave} disabled={!text.trim()} size="sm" className="gap-1.5">
+            Capture
+            <CornerDownLeft className="size-3" />
+          </Button>
+        </div>
       </div>
     </div>
   )

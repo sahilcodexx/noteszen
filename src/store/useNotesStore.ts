@@ -27,6 +27,9 @@ interface NotesState {
   editorFont: 'sans' | 'serif' | 'mono'
   editorFontSize: number
   colorTheme: string
+  noteSort: 'updated' | 'created' | 'title'
+  openNoteTabs: string[]
+  noteListWidth: number
 
   fetchNotes: () => Promise<void>
   fetchFolders: () => Promise<void>
@@ -50,6 +53,10 @@ interface NotesState {
   setEditorFont: (font: 'sans' | 'serif' | 'mono') => void
   setEditorFontSize: (size: number) => void
   setColorTheme: (theme: string) => void
+  setNoteSort: (sort: 'updated' | 'created' | 'title') => void
+  addOpenTab: (noteId: string) => void
+  removeOpenTab: (noteId: string) => void
+  setNoteListWidth: (width: number) => void
   setAppSettings: (settings: Partial<AppSettings>) => void
   setActiveVault: (vaultId: string) => Promise<void>
   createVault: (name: string) => Promise<void>
@@ -119,6 +126,13 @@ const initialEditorFontSize = (() => {
   return isNaN(parsed) ? 16 : parsed
 })()
 const initialColorTheme = localStorage.getItem('noteszen-color-theme') || 'default'
+const initialNoteSort = (localStorage.getItem('noteszen-note-sort') || 'updated') as 'updated' | 'created' | 'title'
+const initialNoteListWidth = (() => {
+  const stored = localStorage.getItem('noteszen-note-list-width')
+  if (!stored) return 270
+  const parsed = parseInt(stored, 10)
+  return isNaN(parsed) ? 270 : Math.min(500, Math.max(200, parsed))
+})()
 const initialRecent = (() => {
   try {
     return JSON.parse(localStorage.getItem('noteszen-recent') || '[]') as string[]
@@ -157,6 +171,36 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   editorFont: initialEditorFont,
   editorFontSize: initialEditorFontSize,
   colorTheme: initialColorTheme,
+  noteSort: initialNoteSort,
+  openNoteTabs: [],
+  noteListWidth: initialNoteListWidth,
+
+  setNoteSort: (sort) => {
+    localStorage.setItem('noteszen-note-sort', sort)
+    set({ noteSort: sort })
+  },
+
+  addOpenTab: (noteId) => {
+    const tabs = get().openNoteTabs.filter((id) => id !== noteId)
+    tabs.unshift(noteId)
+    set({ openNoteTabs: tabs.slice(0, 8) })
+  },
+
+  removeOpenTab: (noteId) => {
+    const tabs = get().openNoteTabs.filter((id) => id !== noteId)
+    const { selectedNoteId } = get()
+    if (selectedNoteId === noteId && tabs.length > 0) {
+      set({ openNoteTabs: tabs, selectedNoteId: tabs[0] })
+    } else {
+      set({ openNoteTabs: tabs })
+    }
+  },
+
+  setNoteListWidth: (width) => {
+    const clamped = Math.min(500, Math.max(200, width))
+    localStorage.setItem('noteszen-note-list-width', String(clamped))
+    set({ noteListWidth: clamped })
+  },
 
   initApp: async () => {
     await get().fetchVaults()
@@ -250,7 +294,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   setSelectedNoteId: (id) => {
     set({ selectedNoteId: id })
-    if (id) get().trackRecent(id)
+    if (id) {
+      get().trackRecent(id)
+      get().addOpenTab(id)
+    }
   },
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFolder: (folder) => set({ activeFolder: folder, selectedTag: null }),

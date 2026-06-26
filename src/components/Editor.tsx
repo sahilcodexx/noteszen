@@ -6,7 +6,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
-import Image from '@tiptap/extension-image'
+import { Wikilink, Callout, MermaidBlock, ResizableImage, createWikilinkExtension } from '../lib/tiptap-extensions'
 import Highlight from '@tiptap/extension-highlight'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Typography from '@tiptap/extension-typography'
@@ -25,6 +25,23 @@ import { useNotesStore } from '../store/useNotesStore'
 import { getAPI } from '../tauri-bridge'
 import { getSlashPlugins } from '../lib/plugins'
 import VersionHistorySheet from './VersionHistorySheet'
+import TableOfContents from './TableOfContents'
+import { markdownToHtml } from '../lib/markdown-preview'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { 
   Heading1, 
   Heading2, 
@@ -61,7 +78,11 @@ import {
   Menu,
   Highlighter,
   Image as ImageIcon,
-  ChevronDown
+  ChevronDown,
+  Smile,
+  ImagePlus,
+  FilePlus,
+  Columns2,
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Button } from '@/components/ui/button'
@@ -219,6 +240,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     toggleArchive,
     saveStatus,
     appSettings,
+    setSelectedNoteId,
+    createNote,
   } = useNotesStore()
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -226,8 +249,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const [tagInput, setTagInput] = useState('')
   const [wikilinkQuery, setWikilinkQuery] = useState('')
   const [showWikilinkMenu, setShowWikilinkMenu] = useState(false)
-  const [wikilinkIndex, setWikilinkIndex] = useState(0)
+
   const [showVersions, setShowVersions] = useState(false)
+  const [showSplitPreview, setShowSplitPreview] = useState(false)
+  const [statsVisible, setStatsVisible] = useState(true)
+  const editorScrollRef = useRef<HTMLDivElement>(null)
   const slashCoords = useRef({ top: 0, left: 0 })
   const showSlashMenuRef = useRef(showSlashMenu)
   const selectedIndexRef = useRef(selectedIndex)
@@ -245,34 +271,39 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   const lowlight = useMemo(() => createLowlight({ js, ts, python, html, css, json, bash, sql, rust, cpp }), [])
 
+  const resolveNoteId = useMemo(
+    () => (title: string) => {
+      const match = notes.find(
+        (n) => n.title.toLowerCase() === title.trim().toLowerCase() && n.folder !== 'trash'
+      )
+      return match?.id ?? null
+    },
+    [notes]
+  )
+
   const extensions = useMemo(
     () => [
       StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3]
-        },
+        heading: { levels: [1, 2, 3] },
         link: false,
-        codeBlock: false
+        codeBlock: false,
       }),
       Placeholder.configure({
-        placeholder: 'Press / for commands, or write thoughts...'
+        placeholder: 'Press / for commands, or write thoughts...',
       }),
-      Link.configure({
-        openOnClick: false
-      }),
+      Link.configure({ openOnClick: false }),
       TaskList,
-      TaskItem.configure({
-        nested: true
-      }),
-      Image.configure({
-        inline: false,
-        allowBase64: true,
-      }),
+      TaskItem.configure({ nested: true }),
+      ResizableImage.configure({ inline: false, allowBase64: true }),
       CodeBlockLowlight.configure({ lowlight }),
+      MermaidBlock,
+      Callout,
+      Wikilink,
+      createWikilinkExtension(resolveNoteId),
       Highlight.configure({ multicolor: true }),
       Typography,
     ],
-    [lowlight]
+    [lowlight, resolveNoteId]
   )
 
   // Zoom handlers for text sizing (14px to 128px)
@@ -390,7 +421,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         if (match) {
           setWikilinkQuery(match[1])
           setShowWikilinkMenu(true)
-          setWikilinkIndex(0)
+
         } else {
           setShowWikilinkMenu(false)
           setWikilinkQuery('')
@@ -583,6 +614,28 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     setWikilinkQuery('')
   }
 
+  const createLinkedNote = (title: string) => {
+    createNote({ title: title.trim(), content: '' })
+    insertWikilink(title.trim())
+  }
+
+  useEffect(() => {
+    const onWikilinkClick = (e: Event) => {
+      const { noteId } = (e as CustomEvent).detail
+      if (noteId) setSelectedNoteId(noteId)
+    }
+    const onWikilinkCreate = (e: Event) => {
+      const { title } = (e as CustomEvent).detail
+      if (title) createLinkedNote(title)
+    }
+    window.addEventListener('noteszen:wikilink-click', onWikilinkClick)
+    window.addEventListener('noteszen:wikilink-create', onWikilinkCreate)
+    return () => {
+      window.removeEventListener('noteszen:wikilink-click', onWikilinkClick)
+      window.removeEventListener('noteszen:wikilink-create', onWikilinkCreate)
+    }
+  }, [setSelectedNoteId, createNote])
+
   const executeCommand = (cmd: typeof COMMANDS[0]) => {
     cmd.action()
     setShowSlashMenu(false)
@@ -659,8 +712,6 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     return textContent.trim().split(/\s+/).length
   }, [textContent])
 
-  const charCount = textContent.length
-
   const readingTime = useMemo(() => {
     const wpm = 200
     const mins = wordCount / wpm
@@ -686,10 +737,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const isTrashNote = activeNote.folder === 'trash'
 
   return (
-    <div className={cn(
-      "flex-grow flex flex-col h-full overflow-hidden select-text relative bg-transparent transition-all duration-300",
-      isZenMode && "bg-white dark:bg-black"
-    )}>
+    <div
+      className={cn(
+        'flex-grow flex flex-col h-full overflow-hidden select-text relative bg-transparent transition-all duration-300',
+        isZenMode && 'bg-white dark:bg-black'
+      )}
+      onMouseMove={() => isZenMode && setStatsVisible(true)}
+      onMouseLeave={() => isZenMode && setStatsVisible(false)}
+    >
       
       {/* 1. STICKY FORMATTING TOOLBAR */}
       {!isZenMode && (
@@ -1009,6 +1064,33 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           >
             <LinkIcon className="w-3.5 h-3.5" />
           </Button>
+          {editor.isActive('image') && (
+            <>
+              <div className="h-4 w-px bg-border/50 mx-0.5" />
+              {(['50%', '75%', '100%'] as const).map((w) => (
+                <Button
+                  key={w}
+                  size="xs"
+                  variant="ghost"
+                  className="h-7 px-1.5 text-[9px]"
+                  onClick={() => editor.chain().focus().updateAttributes('image', { width: w }).run()}
+                >
+                  {w}
+                </Button>
+              ))}
+              <Button
+                size="xs"
+                variant="ghost"
+                className="h-7 px-1.5 text-[9px]"
+                onClick={() => {
+                  const alt = window.prompt('Image caption / alt text:', editor.getAttributes('image').alt || '')
+                  if (alt !== null) editor.chain().focus().updateAttributes('image', { alt, title: alt }).run()
+                }}
+              >
+                Alt
+              </Button>
+            </>
+          )}
         </BubbleMenu>
       )}
 
@@ -1028,14 +1110,70 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       )}
 
       {/* 4. MAIN SCROLLABLE EDITOR CONTAINER */}
-      <div 
+      <div
+        ref={editorScrollRef}
         className={cn(
-          "flex-grow overflow-y-auto w-full transition-all duration-300 relative group/editor-container max-w-2xl mx-auto bg-background/80 border-x border-border/30 px-6 md:px-8 py-12 scrollbar-none",
+          'flex-grow overflow-y-auto w-full transition-all duration-300 relative group/editor-container mx-auto bg-background/80 border-x border-border/30 px-6 md:px-10 py-12 scrollbar-none editor-active-blocks',
+          isZenMode ? 'max-w-xl' : 'max-w-2xl',
           `editor-font-${editorFont}`
         )}
         style={{ '--editor-font-size': `${editorFontSize}px` } as React.CSSProperties}
       >
+        {!isZenMode && !isTrashNote && (
+          <TableOfContents
+            html={activeNote.content}
+            onNavigate={(id) => {
+              const el = editorScrollRef.current?.querySelector(`[id="${id}"]`)
+              el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
+          />
+        )}
         
+        {/* Notion-style add icon / cover hover */}
+        {!isTrashNote && !noteMetadata.cover && !noteMetadata.icon && (
+          <div className="flex items-center gap-2 mb-4 opacity-0 group-hover/editor-container:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="xs" variant="ghost" className="text-xs text-muted-foreground gap-1.5 h-7">
+                  <Smile className="size-3.5" />
+                  Add icon
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuGroup className="grid grid-cols-5 gap-0.5 p-1">
+                  {EMOJIS.map((emoji) => (
+                    <DropdownMenuItem
+                      key={emoji}
+                      onClick={() => updateMetadata({ icon: emoji })}
+                      className="justify-center p-1 text-lg"
+                    >
+                      {emoji}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="xs" variant="ghost" className="text-xs text-muted-foreground gap-1.5 h-7">
+                  <ImagePlus className="size-3.5" />
+                  Add cover
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuGroup>
+                  {Object.entries(COVERS).map(([key, value]) => (
+                    <DropdownMenuItem key={key} onClick={() => updateMetadata({ cover: value })}>
+                      <div className={cn('size-4 rounded-full border border-border/30', value)} />
+                      {key}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
         {/* A. Note Cover Banner image display */}
         {noteMetadata.cover ? (
           <div className="relative w-full h-36 rounded-2xl overflow-hidden mb-6 group/cover shadow-xs border border-border/10 animate-in slide-in-from-top duration-300">
@@ -1107,150 +1245,213 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
           </div>
         ) : null}
 
-        {/* C. Inline Note Title Input */}
-        <input
-          type="text"
-          placeholder="Untitled Note"
-          value={activeNote.title || ''}
-          onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
-          disabled={isTrashNote}
-          className="text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 w-full placeholder-muted-foreground/20 mb-6 text-black dark:text-white opacity-70 focus:opacity-100 transition-opacity duration-200"
-        />
-
-        {/* D. Editor: WYSIWYG or Markdown */}
-        {isMarkdownMode ? (
-          <textarea
-            value={activeNote.content}
-            onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
+        {/* C. Title row with quick actions */}
+        <div className="flex items-start gap-2 mb-2 group/title">
+          <input
+            type="text"
+            placeholder="Untitled Note"
+            value={activeNote.title || ''}
+            onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
             disabled={isTrashNote}
-            className="w-full min-h-[450px] bg-transparent border-0 outline-none font-mono text-sm leading-relaxed resize-none"
-            placeholder="Write markdown..."
+            className="flex-1 text-3xl font-semibold font-heading tracking-tight bg-transparent border-0 outline-none p-0 focus:ring-0 placeholder-muted-foreground/20 text-black dark:text-white opacity-70 focus:opacity-100 transition-opacity duration-200"
           />
+          {!isTrashNote && (
+            <div className="flex items-center gap-1 opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0 pt-1">
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => togglePin(activeNote.id)}
+                className={cn(activeNote.isPinned && 'text-sky-500')}
+                title={activeNote.isPinned ? 'Unpin' : 'Pin'}
+              >
+                <Pin className={cn('size-3.5', activeNote.isPinned && 'fill-current')} />
+              </Button>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => toggleFavorite(activeNote.id)}
+                className={cn(activeNote.isFavorite && 'text-amber-500')}
+                title={activeNote.isFavorite ? 'Unfavorite' : 'Favorite'}
+              >
+                <Star className={cn('size-3.5', activeNote.isFavorite && 'fill-current')} />
+              </Button>
+              <Button
+                size="icon-xs"
+                variant="ghost"
+                onClick={() => toggleArchive(activeNote.id)}
+                className={cn(activeNote.isArchived && 'text-indigo-500')}
+                title={activeNote.isArchived ? 'Unarchive' : 'Archive'}
+              >
+                <Archive className={cn('size-3.5', activeNote.isArchived && 'fill-current')} />
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Properties row */}
+        {!isZenMode && (
+          <div className="flex flex-wrap items-center gap-2 mb-4 text-[10px] text-muted-foreground">
+            <Badge variant="outline" className="h-5 gap-1 font-medium">
+              <FileSpreadsheet className="size-2.5" />
+              {noteMetadata.status || 'draft'}
+            </Badge>
+            <Badge variant="outline" className="h-5 gap-1 font-medium">
+              <Folder className="size-2.5" />
+              {activeNote.isArchived ? 'archive' : activeNote.folder}
+            </Badge>
+            <span className="flex items-center gap-1">
+              <Calendar className="size-2.5" />
+              {formatRelativeTime(activeNote.updatedAt)}
+            </span>
+          </div>
+        )}
+
+        {/* Inline tag chips */}
+        {!isTrashNote && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-6">
+            {activeNote.tags?.map((t) => (
+              <Badge key={t} variant="secondary" className="h-5 gap-1 text-[10px] font-medium">
+                <Tag className="size-2.5" />
+                {t}
+                <button type="button" onClick={() => handleRemoveTag(t)} className="hover:text-destructive">
+                  <X className="size-2.5" />
+                </button>
+              </Badge>
+            ))}
+            <form onSubmit={handleAddTag} className="inline-flex">
+              <Input
+                type="text"
+                placeholder="+ tag"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                className="h-5 w-16 text-[10px] border-dashed"
+              />
+            </form>
+          </div>
+        )}
+
+        {/* D. Editor: WYSIWYG, Markdown, or Split Preview */}
+        {isMarkdownMode ? (
+          <div className={cn('flex gap-4', showSplitPreview && 'flex-row')}>
+            <textarea
+              value={activeNote.content}
+              onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
+              disabled={isTrashNote}
+              className={cn(
+                'min-h-[450px] bg-transparent border-0 outline-none font-mono text-sm leading-relaxed resize-none',
+                showSplitPreview ? 'w-1/2 border-r border-border/40 pr-4' : 'w-full'
+              )}
+              placeholder="Write markdown..."
+            />
+            {showSplitPreview && (
+              <div
+                className="w-1/2 prose-editor min-h-[450px] text-sm leading-relaxed pl-2"
+                dangerouslySetInnerHTML={{ __html: markdownToHtml(activeNote.content) }}
+              />
+            )}
+          </div>
         ) : (
           isEditorReady ? <EditorContent editor={editor} /> : null
         )}
 
-        {/* Wikilink autocomplete */}
-        {showWikilinkMenu && wikilinkSuggestions.length > 0 && (
-          <div className="absolute z-50 w-48 rounded-lg border bg-popover shadow-md p-1">
-            {wikilinkSuggestions.map((n, i) => (
-              <button
-                key={n.id}
-                onClick={() => insertWikilink(n.title)}
-                className={cn(
-                  'w-full text-left px-2 py-1 text-xs rounded',
-                  i === wikilinkIndex ? 'bg-accent' : 'hover:bg-muted'
-                )}
-              >
-                [[{n.title}]]
-              </button>
-            ))}
+        {isMarkdownMode && !isTrashNote && (
+          <div className="mt-2">
+            <Button
+              size="xs"
+              variant="ghost"
+              className="text-[10px] text-muted-foreground gap-1"
+              onClick={() => setShowSplitPreview(!showSplitPreview)}
+            >
+              <Columns2 className="size-3" />
+              {showSplitPreview ? 'Hide preview' : 'Split preview'}
+            </Button>
           </div>
         )}
 
-        {/* Backlinks Panel (Linked references) */}
+        {/* Wikilink autocomplete */}
+        {showWikilinkMenu && wikilinkQuery && (
+          <div className="absolute z-50 w-56 rounded-xl border bg-popover shadow-lg overflow-hidden">
+            <Command>
+              <CommandList>
+                <CommandGroup heading="Link to note">
+                  {wikilinkSuggestions.map((n) => (
+                    <CommandItem key={n.id} onSelect={() => insertWikilink(n.title)}>
+                      <LinkIcon className="size-3.5" />
+                      [[{n.title}]]
+                    </CommandItem>
+                  ))}
+                  {wikilinkSuggestions.length === 0 && wikilinkQuery.trim() && (
+                    <CommandItem onSelect={() => createLinkedNote(wikilinkQuery.trim())}>
+                      <FilePlus className="size-3.5" />
+                      Create &quot;{wikilinkQuery.trim()}&quot;
+                    </CommandItem>
+                  )}
+                </CommandGroup>
+                {wikilinkSuggestions.length > 0 && wikilinkQuery.trim() && (
+                  <CommandGroup>
+                    <CommandItem onSelect={() => createLinkedNote(wikilinkQuery.trim())}>
+                      <FilePlus className="size-3.5" />
+                      Create new note
+                    </CommandItem>
+                  </CommandGroup>
+                )}
+                <CommandEmpty>No matching notes</CommandEmpty>
+              </CommandList>
+            </Command>
+          </div>
+        )}
+
+        {/* Backlinks Panel */}
         {backlinks.length > 0 && !isZenMode && (
           <div className="mt-16 border-t border-border/40 pt-8 pb-12 select-none animate-in fade-in duration-300">
             <h4 className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mb-3 flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-primary/70 animate-pulse" />
+              <Sparkles className="size-3 text-primary/70" />
               Linked References ({backlinks.length})
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {backlinks.map((linkNote: any) => (
-                <button
+              {backlinks.map((linkNote) => (
+                <Card
                   key={linkNote.id}
-                  onClick={() => {
-                    const state = useNotesStore.getState()
-                    state.setSelectedNoteId(linkNote.id)
-                  }}
-                  className="flex flex-col items-start gap-1 p-3 rounded-xl border border-border/40 bg-card/45 hover:bg-primary/5 hover:border-primary/20 transition-all text-left group shadow-xs"
+                  className="cursor-pointer hover:border-primary/30 hover:bg-primary/5 transition-colors py-3"
+                  onClick={() => setSelectedNoteId(linkNote.id)}
                 >
-                  <div className="w-full flex items-center justify-between gap-2">
-                    <span className="font-semibold text-xs text-foreground/90 group-hover:text-primary transition-colors truncate">{linkNote.title || 'Untitled Note'}</span>
-                    <span className="text-[9px] text-muted-foreground font-semibold shrink-0">[[{linkNote.title || 'Untitled'}]]</span>
-                  </div>
+                  <CardHeader className="px-3 py-0">
+                    <CardTitle className="text-xs truncate">{linkNote.title || 'Untitled Note'}</CardTitle>
+                    <CardDescription className="text-[9px]">[[{linkNote.title || 'Untitled'}]]</CardDescription>
+                  </CardHeader>
                   {linkNote.content && (
-                    <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed" 
-                       dangerouslySetInnerHTML={{ __html: linkNote.content.replace(/<[^>]*>/g, '').substring(0, 100) }} />
+                    <CardContent className="px-3 py-0">
+                      <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
+                        {linkNote.content.replace(/<[^>]*>/g, '').substring(0, 100)}
+                      </p>
+                    </CardContent>
                   )}
-                </button>
+                </Card>
               ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* 5. FLOATING COMBINED ACTIONS & STATS PILL */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 select-none transition-all duration-300 pointer-events-auto shrink-0">
-        <div className="flex items-center gap-3 px-3.5 py-2 rounded-full bg-card/90 backdrop-blur-md border border-border/50 shadow-md text-[10px] text-muted-foreground/90 transition-all duration-200 hover:shadow-lg font-semibold select-none">
-          
-          {/* Save Status Dot */}
-          <div className="flex items-center shrink-0">
-            {saveStatus === 'saving' ? (
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" title="Saving..." />
-            ) : (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" title="Saved" />
+      {/* 5. SLIM STATS PILL */}
+      <div
+        className={cn(
+          'absolute bottom-6 left-1/2 -translate-x-1/2 z-30 select-none transition-all duration-300 pointer-events-auto shrink-0',
+          isZenMode && !statsVisible && 'opacity-0 translate-y-2 pointer-events-none'
+        )}
+      >
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/80 backdrop-blur-md border border-border/40 shadow-sm text-[10px] text-muted-foreground font-medium">
+          <span
+            className={cn(
+              'size-1.5 rounded-full shrink-0',
+              saveStatus === 'saving' ? 'bg-primary animate-pulse' : 'bg-emerald-500'
             )}
-          </div>
-          
-          {/* Stats */}
-          <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground/80">
-            <span>{wordCount} words</span>
-            <span className="text-muted-foreground/20">•</span>
-            <span>{charCount} chars</span>
-            <span className="text-muted-foreground/20">•</span>
-            <span>{readingTime}</span>
-          </div>
-          
-          {/* Divider */}
-          <div className="h-3 w-px bg-border/60 mx-0.5 shrink-0" />
-          
-          {/* Note Quick Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Pin note */}
-            <button
-              onClick={() => togglePin(activeNote.id)}
-              className={cn(
-                "transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer",
-                activeNote.isPinned 
-                  ? "text-sky-500 hover:text-sky-600 dark:text-sky-400" 
-                  : "text-muted-foreground/60 hover:text-foreground"
-              )}
-              title={activeNote.isPinned ? "Unpin Note" : "Pin Note"}
-            >
-              <Pin className={cn("w-3.5 h-3.5", activeNote.isPinned && "fill-sky-500 dark:fill-sky-400")} />
-            </button>
-
-            {/* Favorite Note */}
-            <button
-              onClick={() => toggleFavorite(activeNote.id)}
-              className={cn(
-                "transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer",
-                activeNote.isFavorite 
-                  ? "text-amber-500 hover:text-amber-600" 
-                  : "text-muted-foreground/60 hover:text-foreground"
-              )}
-              title={activeNote.isFavorite ? "Remove from Favorites" : "Mark as Favorite"}
-            >
-              <Star className={cn("w-3.5 h-3.5", activeNote.isFavorite && "fill-amber-500")} />
-            </button>
-
-            {/* Archive Note */}
-            <button
-              onClick={() => toggleArchive(activeNote.id)}
-              className={cn(
-                "transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer",
-                activeNote.isArchived 
-                  ? "text-indigo-500 hover:text-indigo-600 dark:text-indigo-400" 
-                  : "text-muted-foreground/60 hover:text-foreground"
-              )}
-              title={activeNote.isArchived ? "Unarchive Note" : "Archive Note"}
-            >
-              <Archive className={cn("w-3.5 h-3.5", activeNote.isArchived && "fill-indigo-500 dark:fill-indigo-400")} />
-            </button>
-
-            {/* Note properties */}
-            <Popover>
+          />
+          <span>{wordCount}w</span>
+          <span className="text-muted-foreground/30">·</span>
+          <span>{readingTime}</span>
+          <div className="h-3 w-px bg-border/50" />
+          <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="ghost"
@@ -1377,42 +1578,33 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 </div>
               </PopoverContent>
             </Popover>
-
-          </div>
         </div>
       </div>
 
-      {/* 6. FLOATING SLASH COMMANDS POPUP */}
+      {/* 6. SLASH COMMANDS */}
       {showSlashMenu && (
         <div
-          className="absolute z-50 w-52 min-w-32 origin-top overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 animate-in fade-in slide-in-from-top-2 duration-100"
+          className="absolute z-50 w-56 origin-top overflow-hidden rounded-xl border bg-popover shadow-lg animate-in fade-in slide-in-from-top-2 duration-100"
           style={{
             top: `${slashCoords.current.top}px`,
             left: `${slashCoords.current.left}px`,
           }}
         >
-          <div className="max-h-[220px] overflow-y-auto">
-            {COMMANDS.map((cmd, i) => {
-              const Icon = cmd.icon
-              const isSelected = i === selectedIndex
-              return (
-                <button
-                  key={cmd.name}
-                  type="button"
-                  onClick={() => executeCommand(cmd)}
-                  className={cn(
-                    "relative flex w-full cursor-default items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-hidden select-none text-left",
-                    isSelected
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <Icon className="shrink-0" />
-                  <span>{cmd.name}</span>
-                </button>
-              )
-            })}
-          </div>
+          <Command>
+            <CommandList className="max-h-[240px]">
+              <CommandGroup heading="Insert block">
+                {COMMANDS.map((cmd) => {
+                  const Icon = cmd.icon
+                  return (
+                    <CommandItem key={cmd.name} onSelect={() => executeCommand(cmd)}>
+                      <Icon className="size-3.5" />
+                      {cmd.name}
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
         </div>
       )}
 
