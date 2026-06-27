@@ -17,11 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useNotesStore } from "../store/useNotesStore";
 import AISavePreview, { type AISavePreviewData } from "./AISavePreview";
-import {
-  FREE_MODELS,
-  getOpenRouterApiKey,
-  getOpenRouterModel,
-} from "../lib/ai-settings";
+import { getOpenRouterApiKey, getOpenRouterModel } from "../lib/ai-settings";
 import { buildNoteContext, streamChatCompletion } from "../lib/openrouter";
 import {
   appendAiContentToNote,
@@ -72,10 +68,6 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
   const pendingStreamRef = useRef<{ id: string; content: string } | null>(null);
-
-  const activeModel =
-    FREE_MODELS.find((m) => m.id === getOpenRouterModel())?.label ??
-    getOpenRouterModel();
 
   const activeNote = notes.find((n) => n.id === selectedNoteId);
 
@@ -334,8 +326,8 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <div className="flex h-full flex-col workspace-surface min-w-0">
-      <div className="flex items-center justify-between px-3 h-11 border-b border-[var(--workspace-border)] shrink-0 gap-2">
+    <div className="flex h-full flex-col bg-card min-w-0">
+      <div className="flex items-center justify-between px-3 h-11 border-b border-border shrink-0 gap-2">
         <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
           <Code2Icon className="size-3.5 text-primary shrink-0" />
           <span className="truncate">Chat</span>
@@ -407,7 +399,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                     "rounded-xl px-3 py-2.5 text-xs leading-relaxed max-w-full min-w-0",
                     msg.role === "user"
                       ? "ml-auto max-w-[92%] bg-primary text-primary-foreground"
-                      : "bg-[var(--workspace-subtle)] text-foreground border border-[var(--workspace-border)]",
+                      : "bg-muted text-foreground border border-border",
                   )}
                 >
                   {isWaitingForTokens ? (
@@ -464,7 +456,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
 
       {activeNote && (
         <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-md bg-[var(--workspace-subtle)] px-2 py-1 text-[10px] text-muted-foreground border border-[var(--workspace-border)]">
+          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] text-muted-foreground border border-border">
             <Paperclip className="size-3" />
             {activeNote.title || "Untitled"}.md
           </span>
@@ -483,7 +475,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         onAppend={handleAppendToOpenNote}
       />
 
-      <div className="shrink-0 p-4 border-t border-[var(--workspace-border)]">
+      <div className="shrink-0 p-4 border-t border-border">
         <div className="relative">
           <Textarea
             value={input}
@@ -501,7 +493,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                 : "Ask AI about your notes..."
             }
             className={cn(
-              "min-h-[72px] pr-12 resize-none rounded-xl text-xs bg-[var(--workspace-subtle)] border-[var(--workspace-border)]",
+              "min-h-[72px] pr-12 resize-none rounded-xl text-xs bg-muted border-border",
               isLoading && "opacity-80",
             )}
           />

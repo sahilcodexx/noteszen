@@ -64,10 +64,10 @@ export default function AISavePreview({
       <div
         className={cn(
           'relative z-10 flex w-full max-w-2xl max-h-[min(90vh,720px)] flex-col overflow-hidden',
-          'rounded-2xl border border-[var(--workspace-border)] bg-[var(--workspace-panel)] shadow-2xl'
+          'rounded-2xl border border-border bg-card shadow-2xl'
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-[var(--workspace-border)] px-5 py-4 shrink-0">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4 shrink-0">
           <div className="min-w-0">
             <h2
               id="ai-save-preview-title"
@@ -85,7 +85,7 @@ export default function AISavePreview({
           </Button>
         </div>
 
-        <div className="px-5 py-4 space-y-3 shrink-0 border-b border-[var(--workspace-border)]">
+        <div className="px-5 py-4 space-y-3 shrink-0 border-b border-border">
           <div className="space-y-1.5">
             <Label htmlFor="ai-note-title" className="text-[11px] text-muted-foreground">
               Note title
@@ -95,7 +95,7 @@ export default function AISavePreview({
               value={preview.title}
               onChange={(e) => onTitleChange(e.target.value)}
               placeholder="Note title"
-              className="h-9 text-sm bg-[var(--workspace-subtle)] border-[var(--workspace-border)]"
+              className="h-9 text-sm bg-muted border-border"
               autoFocus
             />
           </div>
@@ -109,12 +109,12 @@ export default function AISavePreview({
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
           <div
-            className="prose-editor ai-note-preview text-sm leading-relaxed break-words rounded-xl border border-[var(--workspace-border)] bg-[var(--workspace-subtle)] px-4 py-4"
+            className="prose-editor ai-note-preview text-sm leading-relaxed break-words rounded-xl border border-border bg-muted px-4 py-4"
             dangerouslySetInnerHTML={{ __html: preview.previewHtml }}
           />
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-5 py-4 border-t border-[var(--workspace-border)] bg-[var(--workspace-subtle)]/50 shrink-0">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-5 py-4 border-t border-border bg-muted/50 shrink-0">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Cancel
           </Button>

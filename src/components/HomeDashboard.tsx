@@ -139,15 +139,15 @@ export default function HomeDashboard({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden workspace-surface">
-      <div className="shrink-0 px-8 pt-7 pb-5 border-b border-[var(--workspace-border)]">
+    <div className="flex flex-col h-full overflow-hidden bg-card">
+      <div className="shrink-0 px-8 pt-7 pb-5 border-b border-border">
         <div className="flex items-start justify-between gap-4 mb-5">
           <div className="flex items-start gap-3 min-w-0">
             {sidebarCollapsed && onExpandSidebar && (
               <Button
                 variant="outline"
                 size="icon-sm"
-                className="size-8 shrink-0 mt-0.5 rounded-lg border-[var(--workspace-border)]"
+                className="size-8 shrink-0 mt-0.5 rounded-lg border-border"
                 onClick={onExpandSidebar}
                 title="Show sidebar (Ctrl+B)"
               >
@@ -178,7 +178,7 @@ export default function HomeDashboard({
               <Share2 className="size-3.5" />
               Share
             </Button>
-            <div className="flex items-center rounded-lg border border-[var(--workspace-border)] p-0.5">
+            <div className="flex items-center rounded-lg border border-border p-0.5">
               <Button
                 variant={homeViewMode === 'grid' ? 'secondary' : 'ghost'}
                 size="icon-xs"
@@ -204,7 +204,7 @@ export default function HomeDashboard({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search something or use AI"
-            className="pl-10 pr-10 h-11 rounded-xl bg-[var(--workspace-subtle)] border-[var(--workspace-border)] text-sm shadow-none"
+            className="pl-10 pr-10 h-11 rounded-xl bg-muted border-border text-sm shadow-none"
           />
           <button
             type="button"

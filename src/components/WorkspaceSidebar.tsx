@@ -83,8 +83,8 @@ export default function WorkspaceSidebar({
         className={cn(
           'w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium transition-colors',
           active
-            ? 'bg-[var(--workspace-active)] text-foreground'
-            : 'text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground'
+            ? 'bg-accent text-foreground'
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
         )}
       >
         <span className="flex items-center gap-2.5 min-w-0">
@@ -99,8 +99,8 @@ export default function WorkspaceSidebar({
   }
 
   return (
-    <aside className="flex h-full w-[210px] shrink-0 flex-col workspace-surface">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--workspace-border)]">
+    <aside className="flex h-full w-[210px] shrink-0 flex-col bg-card border border-border shadow-sm rounded-xl">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <p className="text-[11px] font-semibold text-muted-foreground truncate">{workspaceName}</p>
         <Button variant="ghost" size="icon-xs" onClick={toggleSidebar} title="Hide sidebar (Ctrl+B)">
           <PanelLeftClose className="size-3.5" />
@@ -115,7 +115,7 @@ export default function WorkspaceSidebar({
 
           <button
             type="button"
-            className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[var(--workspace-hover)]"
+            className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-accent"
           >
             <span className="flex items-center gap-2.5">
               <Bell className="size-3.5" />
@@ -127,7 +127,7 @@ export default function WorkspaceSidebar({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground"
+            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <Settings className="size-3.5" />
             Settings
@@ -136,7 +136,7 @@ export default function WorkspaceSidebar({
           <button
             type="button"
             onClick={onToggleDarkMode}
-            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground"
+            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             {isDarkMode ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
             {isDarkMode ? 'Light mode' : 'Dark mode'}
@@ -164,8 +164,8 @@ export default function WorkspaceSidebar({
                 className={cn(
                   'w-full text-left h-8 px-3 pl-6 rounded-lg text-[12px] font-medium truncate',
                   activeFolder === 'notes' && !selectedTag
-                    ? 'bg-[var(--workspace-active)] text-foreground'
-                    : 'text-muted-foreground hover:bg-[var(--workspace-hover)]'
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:bg-accent'
                 )}
               >
                 All Notes
@@ -182,8 +182,8 @@ export default function WorkspaceSidebar({
                   className={cn(
                     'w-full text-left h-8 px-3 pl-6 rounded-lg text-[12px] font-medium truncate',
                     activeFolder === folder.id && !selectedTag
-                      ? 'bg-[var(--workspace-active)] text-foreground'
-                      : 'text-muted-foreground hover:bg-[var(--workspace-hover)]'
+                      ? 'bg-accent text-foreground'
+                      : 'text-muted-foreground hover:bg-accent'
                   )}
                 >
                   {folder.name}
@@ -212,7 +212,7 @@ export default function WorkspaceSidebar({
                   key={note.id}
                   type="button"
                   onClick={() => openNote(note.id)}
-                  className="w-full flex items-center gap-2 h-8 px-3 rounded-lg text-[11px] text-muted-foreground hover:bg-[var(--workspace-hover)] hover:text-foreground text-left"
+                  className="w-full flex items-center gap-2 h-8 px-3 rounded-lg text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground text-left"
                 >
                   {note.isFavorite && <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />}
                   {!note.isFavorite && <FileText className="size-3 shrink-0 opacity-50" />}
@@ -224,7 +224,7 @@ export default function WorkspaceSidebar({
         )}
       </ScrollArea>
 
-      <div className="p-3 border-t border-[var(--workspace-border)]">
+      <div className="p-3 border-t border-border">
         <Button
           size="sm"
           className="w-full gap-1.5"

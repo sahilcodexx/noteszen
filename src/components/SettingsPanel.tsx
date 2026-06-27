@@ -56,8 +56,6 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
     importNotes,
     importSyncData,
     exportSyncData,
-    colorTheme,
-    setColorTheme,
     editorFont,
     setEditorFont,
     editorFontSize,
@@ -159,23 +157,13 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                   {isDarkMode ? 'Light Mode' : 'Dark Mode'}
                 </Button>
               </SettingRow>
-              <SettingRow label="Color Theme" hint="Choose accent color scheme">
-                <Select value={colorTheme} onValueChange={setColorTheme}>
-                  <SelectTrigger size="sm" className="w-[140px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {['default', 'ocean', 'sunset', 'forest', 'lavender', 'rose'].map((t) => (
-                      <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </SettingRow>
               <SettingRow label="Editor Font" hint="Select note writing typeface">
                 <Select value={editorFont} onValueChange={(v) => setEditorFont(v as 'sans' | 'serif' | 'mono')}>
                   <SelectTrigger size="sm" className="w-[140px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="sans">Geist Sans</SelectItem>
+                    <SelectItem value="sans">Inter Sans</SelectItem>
                     <SelectItem value="serif">Georgia Serif</SelectItem>
-                    <SelectItem value="mono">Geist Mono</SelectItem>
+                    <SelectItem value="mono">System Mono</SelectItem>
                   </SelectContent>
                 </Select>
               </SettingRow>

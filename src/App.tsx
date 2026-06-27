@@ -64,7 +64,6 @@ function MainApp() {
     createNote,
     createDailyNote,
     togglePin,
-    colorTheme,
     deleteNote,
     restoreNote,
     emptyTrash,
@@ -114,10 +113,6 @@ function MainApp() {
   useEffect(() => {
     initApp()
   }, [initApp])
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', colorTheme)
-  }, [colorTheme])
 
   const folderFilteredNotes = useMemo(
     () =>
@@ -246,9 +241,9 @@ function MainApp() {
   )
 
   return (
-    <div className="relative flex flex-col h-screen w-screen overflow-hidden text-foreground bg-[var(--workspace-canvas)]">
+    <div className="relative flex flex-col h-screen w-screen overflow-hidden text-foreground bg-background">
       {showTitleBar && (
-        <div className="fixed inset-x-0 top-0 z-50 flex h-8 items-center border-b border-border/30 bg-[var(--workspace-panel)]/90 backdrop-blur-md drag-region">
+        <div className="fixed inset-x-0 top-0 z-50 flex h-8 items-center border-b border-border/30 bg-card/90 backdrop-blur-md drag-region">
           <div className="flex items-center gap-2 pl-4 no-drag shrink-0">
             <button
               onClick={handleWinClose}
@@ -282,7 +277,7 @@ function MainApp() {
         )}
       >
         {!isZenMode && !isSidebarCollapsed && (
-          <div className="shrink-0 rounded-xl overflow-hidden workspace-panel">
+          <div className="shrink-0 rounded-xl overflow-hidden bg-card border border-border shadow-sm">
             <WorkspaceSidebar
               onOpenSettings={() => setShowSettings(true)}
               onNewFolder={() => setShowFolderDialog(true)}
@@ -294,7 +289,7 @@ function MainApp() {
 
         <main
           className={cn(
-            'flex flex-1 min-w-0 flex-col overflow-hidden rounded-xl workspace-panel',
+            'flex flex-1 min-w-0 flex-col overflow-hidden rounded-xl bg-card border border-border shadow-sm',
             isZenMode && 'rounded-none border-0 shadow-none'
           )}
         >
@@ -330,7 +325,7 @@ function MainApp() {
         {!isZenMode && isAIPanelOpen && activeFolder !== 'trash' && (
           <div
             className={cn(
-              'relative shrink-0 rounded-xl overflow-hidden workspace-panel',
+              'relative shrink-0 rounded-xl overflow-hidden bg-card border border-border shadow-sm',
               isResizingAIPanel && 'select-none'
             )}
             style={{ width: aiPanelWidth }}
@@ -350,7 +345,7 @@ function MainApp() {
           <Button
             variant="outline"
             size="icon-sm"
-            className="fixed bottom-6 right-6 z-30 rounded-full shadow-lg size-10 bg-[var(--workspace-panel)]"
+            className="fixed bottom-6 right-6 z-30 rounded-full shadow-lg size-10 bg-card"
             onClick={toggleAIPanel}
             title="Open AI panel (Ctrl+Shift+B)"
           >

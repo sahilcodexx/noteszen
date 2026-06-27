@@ -763,7 +763,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     <div
       className={cn(
         'flex-grow flex flex-col h-full overflow-hidden select-text relative editor-canvas transition-all duration-300',
-        isZenMode && 'bg-[var(--workspace-canvas)]'
+        isZenMode && 'bg-background'
       )}
       onMouseMove={() => isZenMode && setStatsVisible(true)}
       onMouseLeave={() => isZenMode && setStatsVisible(false)}
@@ -785,7 +785,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   size="xs"
                   variant="ghost"
                   onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('bold') && "bg-[var(--workspace-active)] text-foreground")}
+                  className={cn("h-7 w-7 p-0", editor?.isActive('bold') && "bg-accent text-foreground")}
                   title="Bold"
                 >
                   <Bold className="w-3.5 h-3.5" />
@@ -794,7 +794,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                   size="xs"
                   variant="ghost"
                   onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className={cn("h-7 w-7 p-0", editor?.isActive('italic') && "bg-[var(--workspace-active)] text-foreground")}
+                  className={cn("h-7 w-7 p-0", editor?.isActive('italic') && "bg-accent text-foreground")}
                   title="Italic"
                 >
                   <Italic className="w-3.5 h-3.5" />
@@ -837,7 +837,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </Button>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground/60 select-none px-1.5 min-w-[28px] text-center bg-[var(--workspace-subtle)] rounded py-0.5 border border-[var(--workspace-border)]">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground/60 select-none px-1.5 min-w-[28px] text-center bg-muted rounded py-0.5 border border-border">
                   {editorFontSize}px
                 </span>
                 <Button
@@ -948,7 +948,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 onChange={handleImageFileSelected}
               />
 
-              <div className="flex items-center gap-1 shrink-0 border-l border-[var(--workspace-border)] pl-2">
+              <div className="flex items-center gap-1 shrink-0 border-l border-border pl-2">
             <Button
               size="xs"
               variant="outline"
@@ -1009,13 +1009,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         <BubbleMenu 
           key={`bubble-${selectedNoteId}`}
           editor={editor!} 
-          className="flex items-center gap-0.5 bg-[var(--workspace-panel)] text-foreground border border-[var(--workspace-border)] shadow-lg rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
+          className="flex items-center gap-0.5 bg-card text-foreground border border-border shadow-lg rounded-xl p-1 animate-in fade-in zoom-in-95 duration-100 backdrop-blur-md"
         >
           <Button
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('bold') && "bg-[var(--workspace-active)] text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('bold') && "bg-accent text-foreground")}
             title="Bold"
           >
             <Bold className="w-3.5 h-3.5" />
@@ -1024,7 +1024,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('italic') && "bg-[var(--workspace-active)] text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('italic') && "bg-accent text-foreground")}
             title="Italic"
           >
             <Italic className="w-3.5 h-3.5" />
@@ -1033,7 +1033,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('strike') && "bg-[var(--workspace-active)] text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('strike') && "bg-accent text-foreground")}
             title="Strikethrough"
           >
             <Strikethrough className="w-3.5 h-3.5" />
@@ -1042,7 +1042,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={cn("h-7 w-7 p-0", editor.isActive('code') && "bg-[var(--workspace-active)] text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('code') && "bg-accent text-foreground")}
             title="Code"
           >
             <Code className="w-3.5 h-3.5" />
@@ -1052,7 +1052,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             size="xs"
             variant="ghost"
             onClick={setLink}
-            className={cn("h-7 w-7 p-0", editor.isActive('link') && "bg-[var(--workspace-active)] text-foreground")}
+            className={cn("h-7 w-7 p-0", editor.isActive('link') && "bg-accent text-foreground")}
             title="Add Link"
           >
             <LinkIcon className="w-3.5 h-3.5" />
@@ -1127,7 +1127,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 <Button
                   size="xs"
                   variant="ghost"
-                  className="text-xs text-muted-foreground gap-1.5 h-7 hover:bg-[var(--workspace-hover)]"
+                  className="text-xs text-muted-foreground gap-1.5 h-7 hover:bg-accent"
                 >
                   <Smile className="size-3.5" />
                   Add icon
@@ -1152,7 +1152,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 <Button
                   size="xs"
                   variant="ghost"
-                  className="text-xs text-muted-foreground gap-1.5 h-7 hover:bg-[var(--workspace-hover)]"
+                  className="text-xs text-muted-foreground gap-1.5 h-7 hover:bg-accent"
                 >
                   <ImagePlus className="size-3.5" />
                   Add cover
@@ -1325,7 +1325,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 placeholder="+ tag"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                className="h-5 w-16 text-[10px] border-dashed border-[var(--workspace-border)] bg-transparent"
+                className="h-5 w-16 text-[10px] border-dashed border-border bg-transparent"
               />
             </form>
             </div>
@@ -1412,7 +1412,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
         {/* Backlinks Panel */}
         {backlinks.length > 0 && !isZenMode && (
-          <div className="mt-16 border-t border-[var(--workspace-border)] pt-8 pb-4 select-none animate-in fade-in duration-300">
+          <div className="mt-16 border-t border-border pt-8 pb-4 select-none animate-in fade-in duration-300">
             <h4 className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mb-3 flex items-center gap-1.5">
               <Sparkles className="size-3 text-primary/70" />
               Linked References ({backlinks.length})
@@ -1421,7 +1421,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
               {backlinks.map((linkNote) => (
                 <Card
                   key={linkNote.id}
-                  className="cursor-pointer border-[var(--workspace-border)] bg-[var(--workspace-subtle)]/60 hover:border-primary/30 hover:bg-[var(--workspace-hover)] transition-colors py-3"
+                  className="cursor-pointer border-border bg-muted/60 hover:border-primary/30 hover:bg-accent transition-colors py-3"
                   onClick={() => openNote(linkNote.id)}
                 >
                   <CardHeader className="px-3 py-0">

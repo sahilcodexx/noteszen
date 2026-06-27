@@ -1,22 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/manrope";
 
 @custom-variant dark (&:is(.dark *));
 
-@theme {
-  --color-mac-bg-light: #f6f6f6;
-  --color-mac-bg-dark: #1e1e1e;
-  --color-mac-sidebar-light: rgba(235, 235, 235, 0.75);
-  --color-mac-sidebar-dark: rgba(40, 40, 40, 0.65);
-  --color-mac-active: #007aff;
-  --color-mac-active-hover: #0062cc;
-  --color-mac-border-light: rgba(0, 0, 0, 0.08);
-  --color-mac-border-dark: rgba(255, 255, 255, 0.08);
-}
-
-/* Custom Scrollbar design - dark, small, and clean */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -45,27 +34,9 @@ body {
   padding: 0;
   overflow: hidden;
   user-select: none;
-  background: var(--workspace-canvas);
   height: 100vh;
   width: 100vw;
   position: relative;
-}
-
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse 70% 55% at 15% 8%, oklch(0.72 0.07 240 / 0.14), transparent 55%),
-    radial-gradient(ellipse 55% 45% at 88% 92%, oklch(0.65 0.09 280 / 0.1), transparent 50%);
-}
-
-.dark body::before {
-  background:
-    radial-gradient(ellipse 70% 55% at 15% 8%, oklch(0.28 0 0 / 0.12), transparent 55%),
-    radial-gradient(ellipse 55% 45% at 88% 92%, oklch(0.25 0 0 / 0.08), transparent 50%);
 }
 
 #root {
@@ -77,7 +48,6 @@ body::before {
   z-index: 1;
 }
 
-/* Electron App drag regions */
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -86,80 +56,9 @@ body::before {
   -webkit-app-region: no-drag;
 }
 
-/* Prose markdown rendering styles */
-.prose-editor h1 {
-  font-family: 'Geist Variable', sans-serif;
-  font-size: 1.8em;
-  font-weight: 600;
-  margin-top: 0.8em;
-  margin-bottom: 0.4em;
-  color: inherit;
-}
-.prose-editor h2 {
-  font-family: 'Geist Variable', sans-serif;
-  font-size: 1.4em;
-  font-weight: 500;
-  margin-top: 0.8em;
-  margin-bottom: 0.4em;
-  color: inherit;
-}
-.prose-editor h3 {
-  font-family: 'Geist Variable', sans-serif;
-  font-size: 1.2em;
-  font-weight: 500;
-  margin-top: 0.8em;
-  margin-bottom: 0.4em;
-  color: inherit;
-}
-.prose-editor p {
-  margin-bottom: 0.8em;
-  line-height: 1.6;
-}
-.prose-editor ul, .prose-editor ol {
-  margin-left: 1.5em;
-  margin-bottom: 0.8em;
-  list-style-type: disc;
-}
-.prose-editor ol {
-  list-style-type: decimal;
-}
-.prose-editor li {
-  margin-bottom: 0.2em;
-}
-.prose-editor blockquote {
-  border-left: 4px solid var(--color-mac-active);
-  padding-left: 1em;
-  color: rgba(120, 120, 120, 0.8);
-  font-style: italic;
-  margin-bottom: 0.8em;
-}
-.prose-editor code {
-  background: rgba(120, 120, 120, 0.1);
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.9em;
-}
-.prose-editor pre {
-  background: rgba(120, 120, 120, 0.08);
-  padding: 1em;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin-bottom: 0.8em;
-}
-.prose-editor pre code {
-  background: transparent;
-  padding: 0;
-  font-size: 0.85em;
-}
-.prose-editor a {
-  color: var(--color-mac-active);
-  text-decoration: underline;
-}
-
 @theme inline {
-  --font-heading: 'Geist Variable', sans-serif;
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-heading: 'Manrope Variable', sans-serif;
+  --font-sans: 'Inter Variable', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -201,23 +100,16 @@ body::before {
 }
 
 :root {
-  --workspace-canvas: oklch(0.965 0.004 250);
-  --workspace-panel: oklch(1 0 0 / 0.9);
-  --workspace-border: oklch(0.91 0.006 250 / 0.5);
-  --workspace-subtle: oklch(0.975 0.004 250 / 0.75);
-  --workspace-hover: oklch(0.96 0.005 250);
-  --workspace-active: oklch(0.94 0.015 250);
-  --workspace-accent-border: oklch(0.72 0.12 240);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.488 0.243 264.376);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
@@ -226,16 +118,16 @@ body::before {
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: oklch(0.865 0.127 207.078);
+  --chart-2: oklch(0.715 0.143 215.221);
+  --chart-3: oklch(0.609 0.126 221.723);
+  --chart-4: oklch(0.52 0.105 223.128);
+  --chart-5: oklch(0.45 0.085 224.283);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.546 0.245 262.881);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
@@ -243,22 +135,15 @@ body::before {
 }
 
 .dark {
-  --workspace-canvas: oklch(0.13 0 0);
-  --workspace-panel: oklch(0.205 0 0 / 0.92);
-  --workspace-border: oklch(1 0 0 / 12%);
-  --workspace-subtle: oklch(0.24 0 0 / 0.72);
-  --workspace-hover: oklch(0.26 0 0);
-  --workspace-active: oklch(0.28 0 0);
-  --workspace-accent-border: oklch(0.55 0.12 240);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --primary: oklch(0.424 0.199 265.638);
+  --primary-foreground: oklch(0.97 0.014 254.604);
+  --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
@@ -268,70 +153,19 @@ body::before {
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: oklch(0.865 0.127 207.078);
+  --chart-2: oklch(0.715 0.143 215.221);
+  --chart-3: oklch(0.609 0.126 221.723);
+  --chart-4: oklch(0.52 0.105 223.128);
+  --chart-5: oklch(0.45 0.085 224.283);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.623 0.214 259.815);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-}
-
-/* Color Themes */
-[data-theme="ocean"] {
-  --primary: oklch(0.55 0.15 220);
-  --sidebar-primary: oklch(0.55 0.15 220);
-}
-
-[data-theme="ocean"].dark {
-  --primary: oklch(0.7 0.15 220);
-  --sidebar-primary: oklch(0.7 0.15 220);
-}
-
-[data-theme="sunset"] {
-  --primary: oklch(0.55 0.18 40);
-  --sidebar-primary: oklch(0.55 0.18 40);
-}
-
-[data-theme="sunset"].dark {
-  --primary: oklch(0.7 0.18 40);
-  --sidebar-primary: oklch(0.7 0.18 40);
-}
-
-[data-theme="forest"] {
-  --primary: oklch(0.5 0.15 140);
-  --sidebar-primary: oklch(0.5 0.15 140);
-}
-
-[data-theme="forest"].dark {
-  --primary: oklch(0.65 0.15 140);
-  --sidebar-primary: oklch(0.65 0.15 140);
-}
-
-[data-theme="lavender"] {
-  --primary: oklch(0.55 0.15 290);
-  --sidebar-primary: oklch(0.55 0.15 290);
-}
-
-[data-theme="lavender"].dark {
-  --primary: oklch(0.7 0.15 290);
-  --sidebar-primary: oklch(0.7 0.15 290);
-}
-
-[data-theme="rose"] {
-  --primary: oklch(0.55 0.18 350);
-  --sidebar-primary: oklch(0.55 0.18 350);
-}
-
-[data-theme="rose"].dark {
-  --primary: oklch(0.7 0.18 350);
-  --sidebar-primary: oklch(0.7 0.18 350);
 }
 
 @layer base {
@@ -339,95 +173,166 @@ body::before {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply text-foreground;
-    background: var(--workspace-canvas);
+    @apply bg-background text-foreground;
   }
   html {
     @apply font-sans;
   }
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Geist Variable', sans-serif;
+  h1 {
+    @apply scroll-m-20 text-4xl font-extrabold tracking-tight;
+    font-family: var(--font-heading);
+  }
+  h2 {
+    @apply scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0;
+    font-family: var(--font-heading);
+  }
+  h3 {
+    @apply scroll-m-20 text-2xl font-semibold tracking-tight;
+    font-family: var(--font-heading);
+  }
+  h4 {
+    @apply scroll-m-20 text-xl font-semibold tracking-tight;
+    font-family: var(--font-heading);
+  }
+  p {
+    @apply leading-7 [&:not(:first-child)]:mt-6;
+  }
+  blockquote {
+    @apply mt-6 border-l-2 pl-6 italic;
+  }
+  ul {
+    @apply my-6 ml-6 list-disc [&>li]:mt-2;
+  }
+  code {
+    @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold;
   }
 }
 
-.workspace-panel {
-  background: var(--workspace-panel);
-  border: 1px solid var(--workspace-border);
-  box-shadow: 0 1px 3px oklch(0 0 0 / 4%);
-  backdrop-filter: blur(14px) saturate(1.15);
-  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+.prose-editor h1 {
+  font-family: var(--font-heading);
+  font-size: 1.8em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  color: inherit;
 }
-
-.dark .workspace-panel {
-  box-shadow: 0 1px 4px oklch(0 0 0 / 28%);
+.prose-editor h2 {
+  font-family: var(--font-heading);
+  font-size: 1.4em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  color: inherit;
 }
-
-.workspace-surface {
-  background: var(--workspace-panel);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+.prose-editor h3 {
+  font-family: var(--font-heading);
+  font-size: 1.2em;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.4em;
+  color: inherit;
+}
+.prose-editor p {
+  margin-bottom: 0.8em;
+  line-height: 1.6;
+}
+.prose-editor ul,
+.prose-editor ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.8em;
+  list-style-type: disc;
+}
+.prose-editor ol {
+  list-style-type: decimal;
+}
+.prose-editor li {
+  margin-bottom: 0.2em;
+}
+.prose-editor blockquote {
+  border-left: 4px solid var(--primary);
+  padding-left: 1em;
+  color: var(--muted-foreground);
+  font-style: italic;
+  margin-bottom: 0.8em;
+}
+.prose-editor code {
+  background: var(--muted);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+.prose-editor pre {
+  background: var(--muted);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 0.8em;
+}
+.prose-editor pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.85em;
+}
+.prose-editor a {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .editor-toolbar {
   background: transparent;
-  border-bottom: 1px solid var(--workspace-border);
+  border-bottom: 1px solid var(--border);
 }
 
-.editor-canvas {
-  background: transparent;
-}
-
+.editor-canvas,
 .editor-content,
 .editor-writing-pad {
   background: transparent;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .editor-stats-pill {
-  background: var(--workspace-panel);
-  border: 1px solid var(--workspace-border);
+  background: var(--card);
+  border: 1px solid var(--border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .editor-meta-badge {
-  border-color: var(--workspace-border);
-  background: color-mix(in oklch, var(--workspace-subtle) 80%, transparent);
+  border-color: var(--border);
+  background: color-mix(in oklch, var(--muted) 80%, transparent);
   color: var(--muted-foreground);
 }
 
 .editor-toolbar-btn {
-  border-color: var(--workspace-border);
-  background: var(--workspace-subtle);
+  border-color: var(--border);
+  background: var(--muted);
   color: var(--foreground);
 }
 
 .editor-toolbar-btn:hover {
-  background: var(--workspace-hover);
+  background: var(--accent);
 }
 
-/* Custom Editor Typography and Font Sizing overrides */
 .ProseMirror {
   outline: none;
+  font-size: var(--editor-font-size, 16px) !important;
+  color: var(--foreground) !important;
+  line-height: 1.65;
 }
+
 .editor-font-sans .ProseMirror {
-  font-family: 'Geist Variable', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 .editor-font-serif .ProseMirror {
   font-family: Georgia, Cambria, "Times New Roman", Times, serif !important;
 }
 .editor-font-mono .ProseMirror {
-  font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-}
-
-.ProseMirror {
-  font-size: var(--editor-font-size, 16px) !important;
-  color: var(--foreground) !important;
-  line-height: 1.65;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
 
 .editor-content .ProseMirror p.is-editor-empty:first-child::before {
@@ -436,35 +341,35 @@ body::before {
 }
 
 .editor-content .prose-editor blockquote {
-  border-left-color: var(--workspace-accent-border);
+  border-left-color: var(--primary);
   color: var(--muted-foreground);
 }
 
 .editor-content .prose-editor code {
-  background: var(--workspace-subtle);
-  border: 1px solid var(--workspace-border);
+  background: var(--muted);
+  border: 1px solid var(--border);
 }
 
 .editor-content .prose-editor pre {
-  background: var(--workspace-subtle);
-  border: 1px solid var(--workspace-border);
+  background: var(--muted);
+  border: 1px solid var(--border);
   border-radius: 0.75rem;
 }
 
-/* Legacy AI draft banner — hidden; use the AI draft tag instead */
 .editor-content.editor-from-ai .ProseMirror > [data-type="callout"]:first-child {
   display: none !important;
 }
 
 .editor-content .callout {
   border-radius: 0.75rem;
-  border: 1px solid var(--workspace-border);
+  border: 1px solid var(--border);
   border-left-width: 3px;
 }
 
 .editor-content .ProseMirror h1 {
+  font-family: var(--font-heading);
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 1.5rem 0 0.75rem;
   letter-spacing: -0.02em;
 }
@@ -474,6 +379,7 @@ body::before {
 }
 
 .editor-content .ProseMirror h2 {
+  font-family: var(--font-heading);
   font-size: 1.15rem;
   font-weight: 600;
   margin: 1.35rem 0 0.5rem;
@@ -481,6 +387,7 @@ body::before {
 }
 
 .editor-content .ProseMirror h3 {
+  font-family: var(--font-heading);
   font-size: 1rem;
   font-weight: 600;
   margin: 1.1rem 0 0.4rem;
@@ -505,10 +412,9 @@ body::before {
 .ProseMirror h4,
 .ProseMirror h5,
 .ProseMirror h6 {
-  font-family: 'Geist Variable', sans-serif !important;
+  font-family: var(--font-heading) !important;
 }
 
-/* Tiptap Task List Styles */
 .prose-editor ul[data-type="taskList"] {
   list-style: none;
   padding: 0;
@@ -533,7 +439,7 @@ body::before {
   cursor: pointer;
   width: 14px;
   height: 14px;
-  accent-color: var(--color-mac-active);
+  accent-color: var(--primary);
 }
 
 .prose-editor ul[data-type="taskList"] li > div {
@@ -545,16 +451,14 @@ body::before {
   opacity: 0.65;
 }
 
-/* Utility to hide scrollbars */
 .scrollbar-none::-webkit-scrollbar {
   display: none !important;
 }
 .scrollbar-none {
-  -ms-overflow-style: none !important;  /* IE and Edge */
-  scrollbar-width: none !important;  /* Firefox */
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
-/* Text Highlighting */
 .prose-editor mark {
   background-color: #fef08a;
   color: inherit;
@@ -608,7 +512,6 @@ body::before {
   background-color: #7c2d12;
 }
 
-/* Syntax Highlighting in Code Blocks */
 .prose-editor pre {
   background: #1e1e2e;
   color: #cdd6f4;
@@ -656,7 +559,6 @@ body::before {
 .hljs-deletion { color: #f38ba8; }
 .hljs-addition { color: #a6e3a1; }
 
-/* Wikilinks */
 .wikilink {
   font-weight: 600;
   border-radius: 4px;
@@ -673,7 +575,6 @@ body::before {
   border-bottom: 1px dashed var(--destructive);
 }
 
-/* Callout blocks */
 .callout {
   border-radius: 8px;
   padding: 12px 16px;
@@ -693,7 +594,6 @@ body::before {
   border-left-color: color-mix(in oklch, var(--primary) 45%, transparent);
 }
 
-/* Subtle focus on active blocks — no left rail */
 .editor-active-blocks .ProseMirror > * {
   border-left: none;
   padding-left: 0;
@@ -703,17 +603,15 @@ body::before {
 }
 
 .editor-active-blocks .ProseMirror > *.ProseMirror-selectednode {
-  background: color-mix(in oklch, var(--workspace-hover) 65%, transparent);
+  background: color-mix(in oklch, var(--accent) 65%, transparent);
 }
 
-/* Mermaid blocks */
 .mermaid-block {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card);
 }
 
-/* Image captions */
 .prose-editor img + figcaption,
 .prose-editor img[title]::after {
   display: block;
@@ -723,11 +621,10 @@ body::before {
   margin-top: 0.25em;
 }
 
-/* AI chat + note preview */
 .ai-chat-prose hr,
 .ai-note-preview hr {
   border: none;
-  border-top: 1px solid var(--workspace-border);
+  border-top: 1px solid var(--border);
   margin: 0.75em 0;
 }
 
@@ -736,18 +633,21 @@ body::before {
 }
 
 .ai-note-preview h1 {
+  font-family: var(--font-heading);
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0 0 0.5em;
 }
 
 .ai-note-preview h2 {
+  font-family: var(--font-heading);
   font-size: 1.05rem;
   font-weight: 600;
   margin: 1em 0 0.4em;
 }
 
 .ai-note-preview h3 {
+  font-family: var(--font-heading);
   font-size: 0.95rem;
   font-weight: 600;
   margin: 0.8em 0 0.35em;
@@ -767,12 +667,8 @@ body::before {
   line-height: 1.55;
 }
 
-.editor-content.editor-from-ai {
-  /* AI notes are marked via tag badge only — no extra card chrome */
-}
-
 .editor-from-ai-badge {
-  background: var(--workspace-subtle);
-  border-color: var(--workspace-border);
+  background: var(--muted);
+  border-color: var(--border);
   color: var(--muted-foreground);
 }
