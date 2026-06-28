@@ -9,6 +9,7 @@ import {
   Sparkles,
   PanelLeft,
   Plus,
+  Clock,
 } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import type { Note } from '../types'
@@ -58,6 +59,12 @@ function getFolderLabel(activeFolder: string, folders: { id: string; name: strin
   return 'All Notes'
 }
 
+function sortByUpdated<T extends { updatedAt: string }>(list: T[]) {
+  return [...list].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  )
+}
+
 interface HomeDashboardProps {
   notes: Note[]
   sidebarCollapsed?: boolean
@@ -99,17 +106,20 @@ export default function HomeDashboard({
   )
 
   const filtered = useMemo(
-    () => filterNotesWithFuse(activeNotes, searchQuery),
+    () => sortByUpdated(filterNotesWithFuse(activeNotes, searchQuery)),
     [activeNotes, searchQuery]
   )
 
+  const recentlyEdited = useMemo(() => filtered.slice(0, 6), [filtered])
+
   const sectionNotes = useMemo(() => {
+    const pinnedRecent = new Set(recentlyEdited.map((n) => n.id))
     const assigned = new Set<string>()
     const result: Record<string, typeof filtered> = { ideas: [], research: [], drafts: [] }
 
     for (const section of SECTIONS) {
       for (const note of filtered) {
-        if (assigned.has(note.id)) continue
+        if (assigned.has(note.id) || pinnedRecent.has(note.id)) continue
         if (section.match(note)) {
           result[section.id].push(note)
           assigned.add(note.id)
@@ -118,11 +128,15 @@ export default function HomeDashboard({
     }
 
     for (const note of filtered) {
-      if (!assigned.has(note.id)) result.ideas.push(note)
+      if (!assigned.has(note.id) && !pinnedRecent.has(note.id)) result.ideas.push(note)
+    }
+
+    for (const section of SECTIONS) {
+      result[section.id] = sortByUpdated(result[section.id])
     }
 
     return result
-  }, [filtered])
+  }, [filtered, recentlyEdited])
 
   useEffect(() => {
     const handler = () => searchRef.current?.focus()
@@ -139,40 +153,56 @@ export default function HomeDashboard({
     })
   }
 
+  const renderNoteGrid = (items: typeof filtered, sectionId?: 'ideas' | 'research' | 'drafts') => (
+    <div
+      className={cn(
+        homeViewMode === 'grid'
+          ? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3'
+          : 'flex flex-col gap-3'
+      )}
+    >
+      {items.map((note) => (
+        <NoteCard
+          key={note.id}
+          note={note}
+          section={sectionId}
+          layout={homeViewMode}
+          onOpen={() => openNote(note.id)}
+          onToggleFavorite={() => toggleFavorite(note.id)}
+          onDelete={() => deleteNote(note.id)}
+        />
+      ))}
+    </div>
+  )
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border px-8 pt-7 pb-5">
-        <div className="flex items-start justify-between gap-4 mb-5">
-          <div className="flex items-start gap-3 min-w-0">
-            {sidebarCollapsed && onExpandSidebar && (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-8 shrink-0 mt-0.5 rounded-lg border-border"
-                onClick={onExpandSidebar}
-                title="Show sidebar (Ctrl+B)"
-              >
-                <PanelLeft className="size-4" />
-              </Button>
-            )}
-            <div className="min-w-0">
-              <p className="text-[11px] text-muted-foreground font-medium truncate">
-                {workspaceName} · {folderLabel}
-              </p>
-              <div className="flex items-baseline flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                <h1 className="text-[26px] font-semibold tracking-tight leading-tight">
-                  {greeting} 👋
-                </h1>
-                <span className="text-sm text-muted-foreground tabular-nums font-medium">
-                  {time}
-                </span>
-              </div>
+      <div className="shrink-0 space-y-3 border-b border-border px-5 py-3">
+        <div className="flex items-center gap-3">
+          {sidebarCollapsed && onExpandSidebar && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-7 shrink-0"
+              onClick={onExpandSidebar}
+              title="Show sidebar (Ctrl+B)"
+            >
+              <PanelLeft className="size-3.5" />
+            </Button>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[11px] font-medium text-muted-foreground">
+              {workspaceName} · {folderLabel}
+            </p>
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-xl font-semibold tracking-tight">{greeting} 👋</h1>
+              <span className="text-xs tabular-nums text-muted-foreground">{time}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-1 shrink-0">
+          <div className="flex shrink-0 items-center gap-1.5">
             <Button
               size="sm"
-              className="gap-1.5 text-xs h-8"
+              className="h-7 gap-1.5 text-xs"
               onClick={() => notify.info('Sharing coming soon')}
             >
               <Share2 className="size-3.5" />
@@ -197,7 +227,7 @@ export default function HomeDashboard({
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-md">
+        <div className="relative mx-auto w-full max-w-sm">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-foreground/60" />
           <Input
             ref={searchRef}
@@ -220,7 +250,7 @@ export default function HomeDashboard({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 py-6 scrollbar-none">
+      <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-none">
         {filtered.length === 0 && !searchQuery ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-sm font-medium text-muted-foreground">No notes here yet</p>
@@ -240,6 +270,17 @@ export default function HomeDashboard({
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+            {recentlyEdited.length > 0 && (
+              <section>
+                <div className="mb-3 flex items-center gap-2">
+                  <Clock className="size-4 text-primary" />
+                  <h2 className="text-sm font-semibold">Recently edited</h2>
+                  <span className="text-xs text-muted-foreground">({recentlyEdited.length})</span>
+                </div>
+                {renderNoteGrid(recentlyEdited)}
+              </section>
+            )}
+
             {SECTIONS.map((section) => {
               const Icon = section.icon
               const items = sectionNotes[section.id]
@@ -261,26 +302,7 @@ export default function HomeDashboard({
                       New note
                     </Button>
                   </div>
-
-                  <div
-                    className={cn(
-                      homeViewMode === 'grid'
-                        ? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3'
-                        : 'flex flex-col gap-3'
-                    )}
-                  >
-                    {items.map((note) => (
-                      <NoteCard
-                        key={note.id}
-                        note={note}
-                        section={section.id}
-                        layout={homeViewMode}
-                        onOpen={() => openNote(note.id)}
-                        onToggleFavorite={() => toggleFavorite(note.id)}
-                        onDelete={() => deleteNote(note.id)}
-                      />
-                    ))}
-                  </div>
+                  {renderNoteGrid(items, section.id)}
                 </section>
               )
             })}
