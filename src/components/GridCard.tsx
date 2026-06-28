@@ -41,11 +41,14 @@ export default function GridCard({
   layout = 'grid',
 }: GridCardProps) {
   const showCoverImage = layout === 'grid' && !!cover && isCoverImage(cover)
-  const cardClass = 'flex h-full w-full flex-col'
+  const standardCardClass =
+    layout === 'grid' && !showCoverImage
+      ? 'flex h-[13rem] w-full flex-col overflow-hidden'
+      : 'flex w-full flex-col'
 
   if (showCoverImage) {
     return (
-      <Card size="sm" className={cn(cardClass, 'pt-0')}>
+      <Card size="sm" className={cn(standardCardClass, 'pt-0')}>
         <CardCoverMedia cover={cover} />
         <CardHeader>
           {menu || badge ? (
@@ -72,8 +75,8 @@ export default function GridCard({
   }
 
   return (
-    <Card size="sm" className={cardClass}>
-      <CardHeader>
+    <Card size="sm" className={standardCardClass}>
+      <CardHeader className="shrink-0">
         <CardTitle className="truncate">{title}</CardTitle>
         <CardDescription className="truncate">{description}</CardDescription>
         {menu || badge ? (
@@ -85,17 +88,17 @@ export default function GridCard({
           </CardAction>
         ) : null}
       </CardHeader>
-      <CardContent className="flex-1">
+      <CardContent className="min-h-0 flex-1 overflow-hidden">
         <p
           className={cn(
             'text-muted-foreground',
-            layout === 'grid' ? 'line-clamp-3 min-h-[4.5rem]' : 'truncate'
+            layout === 'grid' ? 'line-clamp-3' : 'truncate'
           )}
         >
           {preview}
         </p>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="shrink-0">
         {footer ?? (
           <Button size="sm" className="w-full" onClick={onAction!}>
             {actionIcon}

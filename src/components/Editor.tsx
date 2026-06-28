@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react'
+import React, { useEffect, useLayoutEffect, useState, useRef, useMemo } from 'react'
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -151,7 +151,7 @@ function formatRelativeTime(dateString: string): string {
     } else {
       return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     }
-  } catch (e) {
+  } catch {
     return 'some time ago'
   }
 }
@@ -255,7 +255,10 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const [showSplitPreview, setShowSplitPreview] = useState(false)
   const [statsVisible, setStatsVisible] = useState(true)
   const editorScrollRef = useRef<HTMLDivElement>(null)
-  const slashCoords = useRef({ top: 0, left: 0 })
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 })
+  const [slashMenuCommands, setSlashMenuCommands] = useState<
+    Array<{ name: string; icon: typeof Heading1; action: () => void }>
+  >([])
   const showSlashMenuRef = useRef(showSlashMenu)
   const selectedIndexRef = useRef(selectedIndex)
   const isZenModeRef = useRef(isZenMode)
@@ -263,13 +266,16 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
-  showSlashMenuRef.current = showSlashMenu
-  selectedIndexRef.current = selectedIndex
-  isZenModeRef.current = isZenMode
-
   const selectedNoteId = noteId || storeSelectedNoteId
-  selectedNoteIdRef.current = selectedNoteId
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
+  const activeNoteId = activeNote?.id
+
+  useEffect(() => {
+    showSlashMenuRef.current = showSlashMenu
+    selectedIndexRef.current = selectedIndex
+    isZenModeRef.current = isZenMode
+    selectedNoteIdRef.current = selectedNoteId
+  }, [showSlashMenu, selectedIndex, isZenMode, selectedNoteId])
 
   const lowlight = useMemo(() => createLowlight({ js, ts, python, html, css, json, bash, sql, rust, cpp }), [])
 
@@ -340,7 +346,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     return notes
       .filter((n) => n.id !== activeNote?.id && n.folder !== 'trash' && n.title.toLowerCase().includes(q))
       .slice(0, 6)
-  }, [wikilinkQuery, notes, activeNote?.id])
+  }, [wikilinkQuery, notes, activeNoteId])
 
   const commandsRef = useRef<Array<{ name: string; icon: typeof Heading1; action: () => void }>>([])
 
@@ -356,10 +362,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         if (event.key === '/') {
           const { selection } = view.state
           const coords = view.coordsAtPos(selection.from)
-          slashCoords.current = {
+          setSlashMenuPosition({
             top: coords.top + window.scrollY + 24,
             left: coords.left + window.scrollX
-          }
+          })
+          setSlashMenuCommands([...commandsRef.current])
           setShowSlashMenu(true)
           setSelectedIndex(0)
         }
@@ -474,7 +481,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     }
   }
 
-  const renderCoverMenuItems = (onUpload: () => void) => (
+  const coverUploadInputId = `cover-upload-${selectedNoteId ?? 'new'}`
+  const coverMenuItems = (
     <>
       <DropdownMenuLabel>Gradients</DropdownMenuLabel>
       <DropdownMenuGroup>
@@ -486,9 +494,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         ))}
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={onUpload}>
-        <Upload data-icon="inline-start" />
-        Upload image
+      <DropdownMenuItem asChild>
+        <label htmlFor={coverUploadInputId} className="flex cursor-pointer items-center gap-2">
+          <Upload data-icon="inline-start" />
+          Upload image
+        </label>
       </DropdownMenuItem>
     </>
   )
@@ -558,7 +568,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       editor!.state.selection.from
     )
     if (!textBefore.includes('/')) {
-      setShowSlashMenu(false)
+      requestAnimationFrame(() => setShowSlashMenu(false))
     }
   }, [isEditorReady, showSlashMenu, editor?.state.selection.from])
 
@@ -633,7 +643,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     })),
   ]
 
-  commandsRef.current = COMMANDS
+  useLayoutEffect(() => {
+    commandsRef.current = COMMANDS
+  })
 
   const insertWikilink = (title: string) => {
     if (!editor) return
@@ -756,11 +768,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     return `${Math.ceil(mins)}m read`
   }, [wordCount])
 
-  // backlinks reference list
-  const backlinks = useMemo(() => {
-    if (!activeNote) return []
-    return notes.filter(n => n.id !== activeNote.id && n.backlinks && n.backlinks.includes(activeNote.id))
-  }, [notes, activeNote])
+  const backlinks = activeNoteId
+    ? notes.filter(
+        (n) => n.id !== activeNoteId && n.backlinks && n.backlinks.includes(activeNoteId)
+      )
+    : []
 
   if (!activeNote) {
     return (
@@ -961,6 +973,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 onChange={handleImageFileSelected}
               />
               <input
+                id={coverUploadInputId}
                 ref={coverInputRef}
                 type="file"
                 accept="image/*"
@@ -1179,7 +1192,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                {renderCoverMenuItems(() => coverInputRef.current?.click())}
+                {coverMenuItems}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -1198,7 +1211,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    {renderCoverMenuItems(() => coverInputRef.current?.click())}
+                    {coverMenuItems}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button size="xs" variant="destructive" onClick={() => updateMetadata({ cover: null })} className="backdrop-blur-md">
@@ -1597,14 +1610,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         <div
           className="absolute z-50 w-56 origin-top overflow-hidden rounded-xl border bg-popover shadow-lg animate-in fade-in slide-in-from-top-2 duration-100"
           style={{
-            top: `${slashCoords.current.top}px`,
-            left: `${slashCoords.current.left}px`,
+            top: `${slashMenuPosition.top}px`,
+            left: `${slashMenuPosition.left}px`,
           }}
         >
           <Command>
             <CommandList className="max-h-[240px]">
               <CommandGroup heading="Insert block">
-                {COMMANDS.map((cmd) => {
+                {slashMenuCommands.map((cmd) => {
                   const Icon = cmd.icon
                   return (
                     <CommandItem key={cmd.name} onSelect={() => executeCommand(cmd)}>

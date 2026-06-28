@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Clock, RotateCcw } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import { notify } from '../lib/toast'
@@ -41,10 +41,10 @@ export default function VersionHistorySheet({ noteId, open, onOpenChange }: Vers
     }
   }, [noteId, getNoteVersions])
 
-  useEffect(() => {
-    if (!open || !noteId) return
-    loadVersions()
-  }, [open, noteId, loadVersions])
+  const handleOpenChange = (nextOpen: boolean) => {
+    onOpenChange(nextOpen)
+    if (nextOpen && noteId) void loadVersions()
+  }
 
   const handleRestore = async (versionId: string) => {
     setRestoringId(versionId)
@@ -64,7 +64,7 @@ export default function VersionHistorySheet({ noteId, open, onOpenChange }: Vers
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="right" className="flex h-full w-[340px] flex-col sm:max-w-[340px]">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2 text-sm">

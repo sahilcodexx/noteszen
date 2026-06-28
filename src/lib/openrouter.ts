@@ -139,7 +139,7 @@ export async function streamChatCompletion({
       throw new DOMException('The operation was aborted.', 'AbortError')
     }
     if (combinedSignal.aborted) {
-      throw new Error('AI response timed out. Press Stop and try again.')
+      throw new Error('AI response timed out. Press Stop and try again.', { cause: err })
     }
     throw err
   } finally {

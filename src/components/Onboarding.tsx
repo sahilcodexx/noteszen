@@ -1,16 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Terminal, Search, Zap, Calendar, ArrowRight } from 'lucide-react'
 import { Button } from './ui/button'
 
 export default function Onboarding() {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const isDone = localStorage.getItem('noteszen-onboarding-done')
-    if (!isDone) {
-      setVisible(true)
-    }
-  }, [])
+  const [visible, setVisible] = useState(
+    () => !localStorage.getItem('noteszen-onboarding-done')
+  )
 
   const handleFinish = () => {
     localStorage.setItem('noteszen-onboarding-done', 'true')

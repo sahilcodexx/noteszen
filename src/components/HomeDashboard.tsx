@@ -157,7 +157,7 @@ export default function HomeDashboard({
     <div
       className={cn(
         homeViewMode === 'grid'
-          ? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3'
+          ? 'grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3'
           : 'flex flex-col gap-3'
       )}
     >

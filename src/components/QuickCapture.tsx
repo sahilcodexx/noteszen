@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Sparkles, CornerDownLeft, X, Bold, Italic, Code, List, CheckSquare } from 'lucide-react'
 import { Button } from './ui/button'
 import { getAPI } from '../tauri-bridge'
@@ -61,20 +61,16 @@ export default function QuickCapture() {
     getAPI()?.closeQuickCapture()
   }
 
-  const insertMarkdown = (syntax: string, wrapper = false) => {
+  const applyMarkdown = useCallback((syntax: string, wrapper = false) => {
     const textarea = textareaRef.current
     if (!textarea) return
 
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
     const selectedText = text.substring(start, end)
-
-    let replacement = ''
-    if (wrapper) {
-      replacement = `${syntax}${selectedText || 'text'}${syntax}`
-    } else {
-      replacement = `${syntax}${selectedText}`
-    }
+    const replacement = wrapper
+      ? `${syntax}${selectedText || 'text'}${syntax}`
+      : `${syntax}${selectedText}`
 
     const newText = text.substring(0, start) + replacement + text.substring(end)
     setText(newText)
@@ -85,7 +81,7 @@ export default function QuickCapture() {
         start + syntax.length + (selectedText ? selectedText.length : 0) + (wrapper ? syntax.length : 0)
       textarea.setSelectionRange(newCursorPos, newCursorPos)
     }, 50)
-  }
+  }, [text])
 
   const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length
   const charCount = text.length
@@ -113,24 +109,51 @@ export default function QuickCapture() {
         </div>
 
         <div className="flex items-center gap-0.5 px-3 py-2 border-b border-border/20 shrink-0 no-drag">
-          {[
-            { icon: Bold, action: () => insertMarkdown('**', true), title: 'Bold' },
-            { icon: Italic, action: () => insertMarkdown('*', true), title: 'Italic' },
-            { icon: Code, action: () => insertMarkdown('`', true), title: 'Code' },
-            { icon: List, action: () => insertMarkdown('- ', false), title: 'List' },
-            { icon: CheckSquare, action: () => insertMarkdown('- [ ] ', false), title: 'Todo' },
-          ].map(({ icon: Icon, action, title }) => (
-            <Button
-              key={title}
-              variant="ghost"
-              size="icon-xs"
-              onClick={action}
-              title={title}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Icon className="size-3.5" />
-            </Button>
-          ))}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => applyMarkdown('**', true)}
+            title="Bold"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Bold className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => applyMarkdown('*', true)}
+            title="Italic"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Italic className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => applyMarkdown('`', true)}
+            title="Code"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Code className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => applyMarkdown('- ', false)}
+            title="List"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <List className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => applyMarkdown('- [ ] ', false)}
+            title="Todo"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <CheckSquare className="size-3.5" />
+          </Button>
         </div>
 
         <textarea

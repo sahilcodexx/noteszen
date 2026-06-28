@@ -274,8 +274,9 @@ export function markdownToNoteHtml(md: string): string {
 
 export function prepareAiNoteFromOutput(raw: string): PreparedAiNote {
   const cleaned = cleanAiMarkdown(raw)
-  let { title, body } = extractAiNoteTitle(cleaned)
+  const { title: extractedTitle, body } = extractAiNoteTitle(cleaned)
   const bodyMarkdown = body || cleaned
+  let title = extractedTitle
 
   if (title === 'AI Draft') {
     const heading = bodyMarkdown.match(/^#{1,3}\s+(.+)$/m)

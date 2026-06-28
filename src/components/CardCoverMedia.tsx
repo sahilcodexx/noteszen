@@ -15,7 +15,7 @@ export default function CardCoverMedia({ cover, variant = 'card' }: CardCoverMed
       : 'aspect-video w-full object-cover'
 
   if (isCoverImage(cover)) {
-    return <CoverImage cover={cover} className={imageClass} />
+    return <CoverImage key={cover} cover={cover} className={imageClass} />
   }
 
   return (

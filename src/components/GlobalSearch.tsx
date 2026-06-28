@@ -31,13 +31,11 @@ export default function GlobalSearch() {
   }, [notes])
 
   useEffect(() => {
-    if (!query.trim()) {
-      setFtsResults([])
-      return
-    }
+    const trimmed = query.trim()
+    if (!trimmed) return
     const api = getAPI()
     if (api?.searchNotes) {
-      api.searchNotes(query, activeVaultId).then(setFtsResults).catch(() => setFtsResults([]))
+      api.searchNotes(trimmed, activeVaultId).then(setFtsResults).catch(() => setFtsResults([]))
     }
   }, [query, activeVaultId])
 
@@ -74,8 +72,6 @@ export default function GlobalSearch() {
       return { item: res.item as Note, snippet }
     })
   }, [query, fuse, notes, ftsResults])
-
-  useEffect(() => setSelectedIndex(0), [query])
 
   useEffect(() => {
     if (!isGlobalSearchOpen) return
@@ -125,7 +121,10 @@ export default function GlobalSearch() {
             type="text"
             placeholder="Search notes (FTS5 + fuzzy)..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSelectedIndex(0)
+            }}
             className="flex-grow bg-transparent border-0 outline-none text-sm placeholder-muted-foreground focus:ring-0"
             autoFocus
           />

@@ -12,11 +12,6 @@ export default function CoverImage({ cover, className }: CoverImageProps) {
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
-    setFailed(false)
-    setSrc(getCoverImageSrc(cover))
-  }, [cover])
-
-  useEffect(() => {
     if (!failed) return
     const raw = unwrapCoverPath(cover)
     if (raw.startsWith('data:') || raw.startsWith('http://') || raw.startsWith('https://')) return
