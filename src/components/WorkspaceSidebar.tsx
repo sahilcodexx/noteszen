@@ -1,24 +1,20 @@
-import { useState } from 'react'
 import {
   Star,
   Archive,
   Trash2,
-  Bell,
   Settings,
-  ChevronDown,
-  ChevronRight,
   FolderPlus,
   FileText,
   Plus,
   Moon,
   Sun,
   PanelLeftClose,
+  Inbox,
 } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-
+import { Separator } from '@/components/ui/separator'
 
 interface WorkspaceSidebarProps {
   onOpenSettings: () => void
@@ -49,8 +45,6 @@ export default function WorkspaceSidebar({
     toggleSidebar,
   } = useNotesStore()
 
-  const [workspacesOpen, setWorkspacesOpen] = useState(true)
-
   const workspaceName =
     vaults.find((v) => v.id === activeVaultId)?.name ?? 'Default Vault'
 
@@ -61,6 +55,7 @@ export default function WorkspaceSidebar({
       if (folderId === 'archive') return n.isArchived
       if (n.isArchived) return false
       if (folderId === 'favorites') return n.isFavorite
+      if (folderId === 'notes') return true
       if (folders.some((f) => f.id === folderId)) return n.folder === folderId
       return false
     }).length
@@ -68,168 +63,133 @@ export default function WorkspaceSidebar({
   const recentNotes = recentNoteIds
     .map((id) => notes.find((n) => n.id === id))
     .filter((n): n is NonNullable<typeof n> => Boolean(n && n.folder !== 'trash'))
+    .slice(0, 5)
 
-  const navItem = (id: string, label: string, icon: React.ReactNode, count: number) => {
+  const goToFolder = (id: string) => {
+    setActiveFolder(id)
+    setSelectedTag(null)
+    goHome()
+  }
+
+  const navButton = (
+    id: string,
+    label: string,
+    icon: React.ReactNode,
+    options?: { count?: number; indent?: boolean }
+  ) => {
     const active = activeFolder === id && !selectedTag
+    const count = options?.count ?? 0
+
     return (
       <button
         key={id}
         type="button"
-        onClick={() => {
-          setActiveFolder(id)
-          setSelectedTag(null)
-          goHome()
-        }}
+        onClick={() => goToFolder(id)}
         className={cn(
-          'w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium transition-colors',
+          'flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-[12px] font-medium transition-colors',
+          options?.indent && 'pl-7',
           active
             ? 'bg-accent text-foreground'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
         )}
       >
-        <span className="flex items-center gap-2.5 min-w-0">
+        <span className="flex min-w-0 flex-1 items-center gap-2">
           {icon}
           <span className="truncate">{label}</span>
         </span>
-        <Badge variant="secondary" className="text-[9px] h-4 min-w-4 px-1.5 font-normal">
-          {count}
-        </Badge>
+        {count > 0 && (
+          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">{count}</span>
+        )}
       </button>
     )
   }
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
-      <div className="flex shrink-0 items-center justify-between border-b border-sidebar-border px-4 py-3">
-        <p className="text-[11px] font-semibold text-muted-foreground truncate">{workspaceName}</p>
-        <Button variant="ghost" size="icon-xs" onClick={toggleSidebar} title="Hide sidebar (Ctrl+B)">
-          <PanelLeftClose className="size-3.5" />
-        </Button>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-3 scrollbar-none">
-        <div className="flex flex-col gap-0.5">
-          {navItem('favorites', 'Starred', <Star className="size-3.5 text-amber-500" />, countFor('favorites'))}
-          {navItem('archive', 'Archive', <Archive className="size-3.5 text-indigo-500" />, countFor('archive'))}
-          {navItem('trash', 'Trash', <Trash2 className="size-3.5 text-destructive" />, countFor('trash'))}
-
-          <button
-            type="button"
-            className="w-full flex items-center justify-between h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-accent"
-          >
-            <span className="flex items-center gap-2.5">
-              <Bell className="size-3.5" />
-              Notifications
-            </span>
-            <Badge variant="secondary" className="text-[9px] h-4 min-w-4 px-1.5 font-normal">0</Badge>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <Settings className="size-3.5" />
-            Settings
-          </button>
-
-          <button
-            type="button"
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-sidebar-border px-3 py-2.5">
+        <p className="min-w-0 truncate text-sm font-semibold">{workspaceName}</p>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={onToggleDarkMode}
-            className="w-full flex items-center gap-2.5 h-8 px-3 rounded-lg text-[12px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            title={isDarkMode ? 'Light mode' : 'Dark mode'}
           >
             {isDarkMode ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-            {isDarkMode ? 'Light mode' : 'Dark mode'}
+          </Button>
+          <Button variant="ghost" size="icon-xs" onClick={onOpenSettings} title="Settings">
+            <Settings className="size-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon-xs" onClick={toggleSidebar} title="Hide sidebar (Ctrl+B)">
+            <PanelLeftClose className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-2 scrollbar-none">
+        <div className="flex flex-col gap-0.5">
+          {navButton('notes', 'All Notes', <Inbox className="size-3.5 shrink-0" />, {
+            count: countFor('notes'),
+          })}
+          {navButton('favorites', 'Starred', <Star className="size-3.5 shrink-0 text-amber-500" />, {
+            count: countFor('favorites'),
+          })}
+
+          {folders.map((folder) =>
+            navButton(folder.id, folder.name, <FileText className="size-3.5 shrink-0 opacity-50" />, {
+              count: countFor(folder.id),
+              indent: true,
+            })
+          )}
+
+          <button
+            type="button"
+            onClick={onNewFolder}
+            className="flex h-8 w-full items-center gap-2 rounded-lg pl-7 pr-2.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <FolderPlus className="size-3.5 shrink-0" />
+            New folder
           </button>
         </div>
 
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={() => setWorkspacesOpen(!workspacesOpen)}
-            className="w-full flex items-center gap-1.5 px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70"
-          >
-            {workspacesOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-            {workspaceName.toUpperCase()}
-          </button>
-          {workspacesOpen && (
-            <div className="flex flex-col gap-0.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveFolder('notes')
-                  setSelectedTag(null)
-                  goHome()
-                }}
-                className={cn(
-                  'w-full text-left h-8 px-3 pl-6 rounded-lg text-[12px] font-medium truncate',
-                  activeFolder === 'notes' && !selectedTag
-                    ? 'bg-accent text-foreground'
-                    : 'text-muted-foreground hover:bg-accent'
-                )}
-              >
-                All Notes
-              </button>
-              {folders.map((folder) => (
-                <button
-                  key={folder.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveFolder(folder.id)
-                    setSelectedTag(null)
-                    goHome()
-                  }}
-                  className={cn(
-                    'w-full text-left h-8 px-3 pl-6 rounded-lg text-[12px] font-medium truncate',
-                    activeFolder === folder.id && !selectedTag
-                      ? 'bg-accent text-foreground'
-                      : 'text-muted-foreground hover:bg-accent'
-                  )}
-                >
-                  {folder.name}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={onNewFolder}
-                className="w-full flex items-center gap-2 h-8 px-3 pl-6 rounded-lg text-[11px] text-muted-foreground hover:text-foreground"
-              >
-                <FolderPlus className="size-3.5" />
-                New workspace
-              </button>
-            </div>
-          )}
+        <Separator className="my-2" />
+
+        <div className="flex flex-col gap-0.5">
+          {navButton('archive', 'Archive', <Archive className="size-3.5 shrink-0" />, {
+            count: countFor('archive'),
+          })}
+          {navButton('trash', 'Trash', <Trash2 className="size-3.5 shrink-0 text-destructive" />, {
+            count: countFor('trash'),
+          })}
         </div>
 
         {recentNotes.length > 0 && (
-          <div className="mt-5">
-            <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
-              Recent Notes
-            </p>
+          <>
+            <Separator className="my-2" />
+            <p className="mb-1 px-2.5 text-[10px] font-medium text-muted-foreground">Recent</p>
             <div className="flex flex-col gap-0.5">
-              {recentNotes.slice(0, 8).map((note) => (
+              {recentNotes.map((note) => (
                 <button
                   key={note.id}
                   type="button"
                   onClick={() => openNote(note.id)}
-                  className="w-full flex items-center gap-2 h-8 px-3 rounded-lg text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground text-left"
+                  className="flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-left text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  {note.isFavorite && <Star className="size-3 text-amber-500 fill-amber-500 shrink-0" />}
-                  {!note.isFavorite && <FileText className="size-3 shrink-0 opacity-50" />}
+                  {note.isFavorite ? (
+                    <Star className="size-3 shrink-0 fill-amber-500 text-amber-500" />
+                  ) : (
+                    <FileText className="size-3 shrink-0 opacity-50" />
+                  )}
                   <span className="truncate">{note.title || 'Untitled'}</span>
                 </button>
               ))}
             </div>
-          </div>
+          </>
         )}
       </div>
 
-      <div className="shrink-0 border-t border-sidebar-border p-3">
-        <Button
-          size="sm"
-          className="w-full gap-1.5"
-          onClick={() => createNote()}
-        >
+      <div className="shrink-0 border-t border-sidebar-border p-2.5">
+        <Button size="sm" className="w-full gap-1.5" onClick={() => createNote()}>
           <Plus className="size-3.5" />
           New note
         </Button>

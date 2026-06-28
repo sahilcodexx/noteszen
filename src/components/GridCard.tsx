@@ -41,13 +41,11 @@ export default function GridCard({
   layout = 'grid',
 }: GridCardProps) {
   const showCoverImage = layout === 'grid' && !!cover && isCoverImage(cover)
+  const cardClass = 'flex h-full w-full flex-col'
 
   if (showCoverImage) {
     return (
-      <Card
-        size="sm"
-        className="relative flex h-full w-full flex-col overflow-hidden rounded-xl pt-0 [&_[data-slot=card-footer]]:rounded-none [&_[data-slot=card-header]]:rounded-none"
-      >
+      <Card size="sm" className={cn(cardClass, 'pt-0')}>
         <CardCoverMedia cover={cover} />
         <CardHeader>
           {menu || badge ? (
@@ -74,10 +72,7 @@ export default function GridCard({
   }
 
   return (
-    <Card
-      size="sm"
-      className="flex h-full w-full flex-col overflow-hidden rounded-xl [&_[data-slot=card-footer]]:rounded-none [&_[data-slot=card-header]]:rounded-none"
-    >
+    <Card size="sm" className={cardClass}>
       <CardHeader>
         <CardTitle className="truncate">{title}</CardTitle>
         <CardDescription className="truncate">{description}</CardDescription>
