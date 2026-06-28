@@ -44,7 +44,10 @@ export default function GridCard({
 
   if (showCoverImage) {
     return (
-      <Card size="sm" className="relative flex h-full w-full flex-col pt-0">
+      <Card
+        size="sm"
+        className="relative flex h-full w-full flex-col overflow-hidden rounded-xl pt-0 [&_[data-slot=card-footer]]:rounded-none [&_[data-slot=card-header]]:rounded-none"
+      >
         <CardCoverMedia cover={cover} />
         <CardHeader>
           {menu || badge ? (
@@ -71,7 +74,10 @@ export default function GridCard({
   }
 
   return (
-    <Card size="sm" className="flex h-full w-full flex-col">
+    <Card
+      size="sm"
+      className="flex h-full w-full flex-col overflow-hidden rounded-xl [&_[data-slot=card-footer]]:rounded-none [&_[data-slot=card-header]]:rounded-none"
+    >
       <CardHeader>
         <CardTitle className="truncate">{title}</CardTitle>
         <CardDescription className="truncate">{description}</CardDescription>
@@ -96,7 +102,7 @@ export default function GridCard({
       </CardContent>
       <CardFooter>
         {footer ?? (
-          <Button variant="outline" size="sm" className="w-full" onClick={onAction!}>
+          <Button size="sm" className="w-full" onClick={onAction!}>
             {actionIcon}
             {actionLabel}
           </Button>

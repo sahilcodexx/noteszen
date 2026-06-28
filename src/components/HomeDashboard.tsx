@@ -171,7 +171,6 @@ export default function HomeDashboard({
           </div>
           <div className="flex items-center gap-2 pt-1 shrink-0">
             <Button
-              variant="outline"
               size="sm"
               className="gap-1.5 text-xs h-8"
               onClick={() => notify.info('Sharing coming soon')}
@@ -198,14 +197,14 @@ export default function HomeDashboard({
           </div>
         </div>
 
-        <div className="relative">
-          <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <div className="relative mx-auto w-full max-w-md">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-foreground/60" />
           <Input
             ref={searchRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search something or use AI"
-            className="pl-10 pr-10 h-11 rounded-xl bg-muted border-border text-sm shadow-none"
+            className="h-9 pl-9 pr-9 rounded-3xl border-border bg-card text-foreground shadow-md"
           />
           <button
             type="button"
@@ -213,10 +212,10 @@ export default function HomeDashboard({
               if (!isAIPanelOpen) toggleAIPanel()
               else setGlobalSearchOpen(true)
             }}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-primary/60 hover:text-primary transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground transition-colors"
             title="Open AI or global search"
           >
-            <Sparkles className="size-4" />
+            <Sparkles className="size-3.5" />
           </button>
         </div>
       </div>

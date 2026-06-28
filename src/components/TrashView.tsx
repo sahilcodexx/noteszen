@@ -104,7 +104,6 @@ export default function TrashView({
                 footer={
                   <div className="flex w-full flex-col gap-2">
                     <Button
-                      variant="outline"
                       size="sm"
                       className="w-full"
                       onClick={() => onRestore(note.id)}
