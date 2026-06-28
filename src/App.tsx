@@ -5,22 +5,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { cn } from '@/lib/utils'
 import Onboarding from './components/Onboarding'
 import QuickCapture from './components/QuickCapture'
-import SettingsPanel from './components/SettingsPanel'
 import MobileView from './components/MobileView'
 import FolderDialog from './components/FolderDialog'
 import WorkspaceSidebar from './components/WorkspaceSidebar'
 import HomeDashboard from './components/HomeDashboard'
-import AIChatPanel from './components/AIChatPanel'
-import EditorShell from './components/EditorShell'
-import TrashView from './components/TrashView'
 import { getAPI } from './tauri-bridge'
 import { filterNotesWithFuse } from './lib/search'
 import { filterNotesByContext } from './lib/note-filters'
 
 import { useNotesStore } from './store/useNotesStore'
+const AIChatPanel = lazy(() => import('./components/AIChatPanel'))
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
+const EditorShell = lazy(() => import('./components/EditorShell'))
 const GlobalSearch = lazy(() => import('./components/GlobalSearch'))
 const GraphView = lazy(() => import('./components/GraphView'))
+const SettingsPanel = lazy(() => import('./components/SettingsPanel'))
+const TrashView = lazy(() => import('./components/TrashView'))
 
 function formatRelativeTime(dateString: string): string {
   try {
@@ -51,6 +51,7 @@ function MainApp() {
     selectedTag,
     isCommandPaletteOpen,
     isGlobalSearchOpen,
+    isGraphViewOpen,
     isZenMode,
     isSidebarCollapsed,
     folders,
@@ -294,20 +295,24 @@ function MainApp() {
           )}
         >
           {isZenMode ? (
-            <EditorShell
-              sidebarCollapsed={isSidebarCollapsed}
-              onExpandSidebar={toggleSidebar}
-            />
+            <Suspense fallback={null}>
+              <EditorShell
+                sidebarCollapsed={isSidebarCollapsed}
+                onExpandSidebar={toggleSidebar}
+              />
+            </Suspense>
           ) : activeFolder === 'trash' ? (
-            <TrashView
-              notes={trashNotes}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onEmptyTrash={() => setShowEmptyTrashConfirm(true)}
-              onRestore={restoreNote}
-              onDelete={deleteNote}
-              formatRelativeTime={formatRelativeTime}
-            />
+            <Suspense fallback={null}>
+              <TrashView
+                notes={trashNotes}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onEmptyTrash={() => setShowEmptyTrashConfirm(true)}
+                onRestore={restoreNote}
+                onDelete={deleteNote}
+                formatRelativeTime={formatRelativeTime}
+              />
+            </Suspense>
           ) : mainView === 'home' ? (
             <HomeDashboard
               notes={folderFilteredNotes}
@@ -315,10 +320,12 @@ function MainApp() {
               onExpandSidebar={toggleSidebar}
             />
           ) : (
-            <EditorShell
-              sidebarCollapsed={isSidebarCollapsed}
-              onExpandSidebar={toggleSidebar}
-            />
+            <Suspense fallback={null}>
+              <EditorShell
+                sidebarCollapsed={isSidebarCollapsed}
+                onExpandSidebar={toggleSidebar}
+              />
+            </Suspense>
           )}
         </main>
 
@@ -337,7 +344,9 @@ function MainApp() {
               className="absolute left-0 top-0 bottom-0 z-10 w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-primary/25 active:bg-primary/40 transition-colors"
               onMouseDown={startAIPanelResize}
             />
-            <AIChatPanel onClose={toggleAIPanel} />
+            <Suspense fallback={null}>
+              <AIChatPanel onClose={toggleAIPanel} />
+            </Suspense>
           </div>
         )}
 
@@ -355,13 +364,17 @@ function MainApp() {
       </div>
 
       <Suspense fallback={null}>
-        <CommandPalette />
+        {isCommandPaletteOpen && <CommandPalette />}
         {isGlobalSearchOpen && <GlobalSearch />}
-        <GraphView />
+        {isGraphViewOpen && <GraphView />}
       </Suspense>
       <Onboarding />
 
-      <SettingsPanel open={showSettings} onOpenChange={setShowSettings} />
+      {showSettings && (
+        <Suspense fallback={null}>
+          <SettingsPanel open={showSettings} onOpenChange={setShowSettings} />
+        </Suspense>
+      )}
 
       <FolderDialog open={showFolderDialog} onOpenChange={setShowFolderDialog} />
 

@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { ArrowLeft, Trash2, PanelLeft } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import NoteTabs from './NoteTabs'
@@ -12,8 +12,14 @@ interface EditorShellProps {
 }
 
 export default function EditorShell({ sidebarCollapsed, onExpandSidebar }: EditorShellProps) {
-  const { goHome, notes, selectedNoteId, restoreNote, deleteNote } = useNotesStore()
+  const { goHome, notes, selectedNoteId, restoreNote, deleteNote, ensureNoteContent } = useNotesStore()
   const activeNote = notes.find((n) => n.id === selectedNoteId)
+
+  useEffect(() => {
+    if (activeNote?.contentLoaded === false) {
+      void ensureNoteContent(activeNote.id)
+    }
+  }, [activeNote?.id, activeNote?.contentLoaded, ensureNoteContent])
 
   if (!activeNote) {
     return (
@@ -63,15 +69,21 @@ export default function EditorShell({ sidebarCollapsed, onExpandSidebar }: Edito
         </div>
       )}
 
-      <Suspense
-        fallback={
-          <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-            Loading editor...
-          </div>
-        }
-      >
-        <Editor />
-      </Suspense>
+      {activeNote.contentLoaded === false ? (
+        <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+          Loading note...
+        </div>
+      ) : (
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+              Loading editor...
+            </div>
+          }
+        >
+          <Editor />
+        </Suspense>
+      )}
     </div>
   )
 }

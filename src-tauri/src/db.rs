@@ -230,23 +230,42 @@ fn row_to_note(row: &rusqlite::Row) -> Result<Note, rusqlite::Error> {
 }
 
 pub fn get_sql_notes(conn: &Connection, vault_id: Option<&str>) -> Result<Vec<Note>, rusqlite::Error> {
-    let (sql, vault_param): (String, Option<String>) = match vault_id {
-        Some(v) => (
-            "SELECT n.id, n.title, n.content, n.folder, n.isPinned, n.isFavorite, n.isArchived,
+    get_sql_notes_with_content_expr(conn, vault_id, "n.content")
+}
+
+pub fn get_sql_note_previews(conn: &Connection, vault_id: Option<&str>) -> Result<Vec<Note>, rusqlite::Error> {
+    get_sql_notes_with_content_expr(conn, vault_id, "substr(n.content, 1, 1200)")
+}
+
+pub fn get_sql_note(conn: &Connection, note_id: &str) -> Result<Option<Note>, rusqlite::Error> {
+    let sql = "SELECT n.id, n.title, n.content, n.folder, n.isPinned, n.isFavorite, n.isArchived,
                     n.createdAt, n.updatedAt, n.icon, n.cover, n.status, n.editorMode, n.trashedAt, n.vaultId,
                     (SELECT group_concat(tag) FROM tags WHERE noteId = n.id) as tagList,
                     (SELECT group_concat(targetId) FROM backlinks WHERE sourceId = n.id) as targetList
-             FROM notes n WHERE n.vaultId = ?1"
-                .to_string(),
+             FROM notes n WHERE n.id = ?1";
+    conn.query_row(sql, [note_id], row_to_note).optional()
+}
+
+fn get_sql_notes_with_content_expr(
+    conn: &Connection,
+    vault_id: Option<&str>,
+    content_expr: &str,
+) -> Result<Vec<Note>, rusqlite::Error> {
+    let (sql, vault_param): (String, Option<String>) = match vault_id {
+        Some(v) => (
+            format!("SELECT n.id, n.title, {content_expr} as content, n.folder, n.isPinned, n.isFavorite, n.isArchived,
+                    n.createdAt, n.updatedAt, n.icon, n.cover, n.status, n.editorMode, n.trashedAt, n.vaultId,
+                    (SELECT group_concat(tag) FROM tags WHERE noteId = n.id) as tagList,
+                    (SELECT group_concat(targetId) FROM backlinks WHERE sourceId = n.id) as targetList
+             FROM notes n WHERE n.vaultId = ?1"),
             Some(v.to_string()),
         ),
         None => (
-            "SELECT n.id, n.title, n.content, n.folder, n.isPinned, n.isFavorite, n.isArchived,
+            format!("SELECT n.id, n.title, {content_expr} as content, n.folder, n.isPinned, n.isFavorite, n.isArchived,
                     n.createdAt, n.updatedAt, n.icon, n.cover, n.status, n.editorMode, n.trashedAt, n.vaultId,
                     (SELECT group_concat(tag) FROM tags WHERE noteId = n.id) as tagList,
                     (SELECT group_concat(targetId) FROM backlinks WHERE sourceId = n.id) as targetList
-             FROM notes n"
-                .to_string(),
+             FROM notes n"),
             None,
         ),
     };
@@ -427,15 +446,11 @@ pub fn search_notes_fts(conn: &Connection, query: &str, vault_id: Option<&str>) 
             .collect::<Result<Vec<_>, _>>()?
     };
 
-    let all_notes = get_sql_notes(conn, vault_id)?;
-    let note_map: std::collections::HashMap<String, Note> =
-        all_notes.into_iter().map(|n| (n.id.clone(), n)).collect();
-
     let mut results = Vec::new();
     for (id, snippet) in row_pairs {
-        if let Some(note) = note_map.get(&id) {
+        if let Some(note) = get_sql_note(conn, &id)? {
             results.push(SearchResult {
-                note: note.clone(),
+                note,
                 snippet: snippet.replace("<mark>", "").replace("</mark>", ""),
             });
         }

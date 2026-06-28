@@ -9,6 +9,8 @@ const isTauri =
 function createBridge(): TauriAPI {
   return {
     getNotes: (vaultId) => invoke('get_notes', { vaultId }),
+    getNote: (noteId) => invoke('get_note', { noteId }),
+    getNotePreviews: (vaultId) => invoke('get_note_previews', { vaultId }),
     saveNote: (note, saveVersion = true) =>
       invoke('save_note', { note, saveVersion: saveVersion ?? true }),
     deleteNote: (noteId) => invoke('delete_note', { noteId }),

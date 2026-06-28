@@ -3,16 +3,19 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react'
 import Image from '@tiptap/extension-image'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import mermaid from 'mermaid'
 import React, { useEffect, useRef } from 'react'
 
-let mermaidInitialized = false
-function ensureMermaid() {
+let mermaidPromise: Promise<typeof import('mermaid').default> | null = null
+
+async function getMermaid() {
+  const mermaid = await (mermaidPromise ??= import('mermaid').then((mod) => mod.default))
   if (!mermaidInitialized) {
     mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' })
     mermaidInitialized = true
   }
+  return mermaid
 }
+let mermaidInitialized = false
 
 export const Wikilink = Mark.create({
   name: 'wikilink',
@@ -167,18 +170,21 @@ function MermaidBlockView({ node }: { node: { textContent: string } }) {
 
   useEffect(() => {
     if (!ref.current || !code.trim()) return
-    ensureMermaid()
+    let cancelled = false
     const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`
-    mermaid
-      .render(id, code.trim())
+    getMermaid()
+      .then((mermaid) => mermaid.render(id, code.trim()))
       .then(({ svg }) => {
-        if (ref.current) ref.current.innerHTML = svg
+        if (!cancelled && ref.current) ref.current.innerHTML = svg
       })
       .catch(() => {
-        if (ref.current) {
+        if (!cancelled && ref.current) {
           ref.current.innerHTML = `<pre class="text-xs text-destructive p-2">Invalid mermaid diagram</pre>`
         }
       })
+    return () => {
+      cancelled = true
+    }
   }, [code])
 
   return React.createElement(

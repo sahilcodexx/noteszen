@@ -16,6 +16,7 @@ export interface Note {
   editorMode?: 'wysiwyg' | 'markdown'
   trashedAt?: string | null
   vaultId?: string
+  contentLoaded?: boolean
 }
 
 export interface Folder {
@@ -62,6 +63,8 @@ export interface AppSettings {
 
 export interface TauriAPI {
   getNotes: (vaultId?: string) => Promise<Note[]>
+  getNote: (noteId: string) => Promise<Note | null>
+  getNotePreviews: (vaultId?: string) => Promise<Note[]>
   saveNote: (note: Note, saveVersion?: boolean) => Promise<boolean>
   deleteNote: (noteId: string) => Promise<boolean>
   importNotes: (notes: Note[], merge: boolean) => Promise<number>

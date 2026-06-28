@@ -2,7 +2,8 @@ mod db;
 
 use db::{
     create_vault, delete_folder, delete_sql_note, delete_template, export_sync_data,
-    get_folders, get_note_versions, get_setting, get_sql_notes, get_templates, get_vaults,
+    get_folders, get_note_versions, get_setting, get_sql_note, get_sql_note_previews,
+    get_sql_notes, get_templates, get_vaults,
     import_notes, import_sync_data, purge_old_trash, restore_version, save_folder, save_setting,
     save_sql_note, save_template, search_notes_fts, set_active_vault, Folder, Note, NoteVersion,
     SearchResult, Template, Vault,
@@ -46,6 +47,18 @@ fn emit_notes_changed(app: &AppHandle) {
 fn get_notes(state: State<DbState>, vault_id: Option<String>) -> Result<Vec<Note>, String> {
     let conn = conn_lock(&state)?;
     get_sql_notes(&conn, vault_id.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_note(state: State<DbState>, note_id: String) -> Result<Option<Note>, String> {
+    let conn = conn_lock(&state)?;
+    get_sql_note(&conn, &note_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_note_previews(state: State<DbState>, vault_id: Option<String>) -> Result<Vec<Note>, String> {
+    let conn = conn_lock(&state)?;
+    get_sql_note_previews(&conn, vault_id.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -339,9 +352,15 @@ fn setup_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &capture, &quit])?;
 
-    let _tray = TrayIconBuilder::new()
+    let mut tray_builder = TrayIconBuilder::new()
         .menu(&menu)
-        .tooltip("NotesZen")
+        .tooltip("NotesZen");
+
+    if let Some(icon) = app.default_window_icon() {
+        tray_builder = tray_builder.icon(icon.clone());
+    }
+
+    let _tray = tray_builder
         .on_menu_event(move |app, event| match event.id.as_ref() {
             "show" => {
                 let _ = show_main_window(app.clone());
@@ -442,6 +461,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_notes,
+            get_note,
+            get_note_previews,
             save_note,
             delete_note,
             import_notes_cmd,

@@ -44,6 +44,7 @@ interface NotesState {
   isDarkMode: boolean
 
   fetchNotes: () => Promise<void>
+  ensureNoteContent: (noteId: string) => Promise<void>
   fetchFolders: () => Promise<void>
   fetchTemplates: () => Promise<void>
   fetchVaults: () => Promise<void>
@@ -124,6 +125,17 @@ function sanitizeLoadedNotes(notes: Note[]): Note[] {
   return notes.map((note) => {
     const content = stripAiDraftBannerFromHtml(note.content)
     return content !== note.content ? { ...note, content } : note
+  })
+}
+
+function mergePreviewNotes(incoming: Note[], existing: Note[]): Note[] {
+  const existingById = new Map(existing.map((note) => [note.id, note]))
+  return incoming.map((note) => {
+    const previous = existingById.get(note.id)
+    if (previous?.contentLoaded && previous.updatedAt === note.updatedAt) {
+      return { ...note, content: previous.content, contentLoaded: true }
+    }
+    return { ...note, contentLoaded: false }
   })
 }
 
@@ -255,6 +267,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     get().trackRecent(noteId)
     get().addOpenTab(noteId)
     set({ selectedNoteId: noteId, mainView: 'editor' })
+    void get().ensureNoteContent(noteId)
   },
 
   toggleAIPanel: () => {
@@ -317,10 +330,15 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   initApp: async () => {
     await get().fetchVaults()
-    await get().fetchSettings()
-    await get().fetchNotes()
-    await get().fetchFolders()
-    await get().fetchTemplates()
+    const activeVaultId = get().activeVaultId
+    await Promise.all([
+      get().fetchSettings(),
+      get().fetchNotes(),
+      get().fetchFolders(),
+    ])
+    if (activeVaultId === get().activeVaultId) {
+      void get().fetchTemplates()
+    }
 
     const api = getAPI()
     if (api?.onNotesChanged) {
@@ -334,14 +352,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const api = getAPI()
     const vaultId = get().activeVaultId
     if (api) {
-      const raw = await api.getNotes(vaultId)
+      const raw = await api.getNotePreviews(vaultId)
       const fetched = sanitizeLoadedNotes(raw)
-      fetched.forEach((note, i) => {
-        if (note.content !== raw[i]?.content) persistNote(note)
-      })
-      set({ notes: fetched })
-      if (fetched.length > 0 && !get().selectedNoteId) {
-        const first = fetched.find((n) => n.folder !== 'trash' && !n.isArchived)
+      const notes = mergePreviewNotes(fetched, get().notes)
+      set({ notes })
+      if (notes.length > 0 && !get().selectedNoteId) {
+        const first = notes.find((n) => n.folder !== 'trash' && !n.isArchived)
         if (first) set({ selectedNoteId: first.id })
       }
     } else {
@@ -353,7 +369,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
           parsed.forEach((note, i) => {
             if (note.content !== raw[i]?.content) persistNote(note)
           })
-          set({ notes: parsed })
+          set({ notes: parsed.map((n) => ({ ...n, contentLoaded: true })) })
           if (parsed.length > 0 && !get().selectedNoteId) {
             const first = parsed.find((n) => n.folder !== 'trash' && !n.isArchived)
             if (first) set({ selectedNoteId: first.id })
@@ -363,6 +379,30 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         }
       }
     }
+  },
+
+  ensureNoteContent: async (noteId) => {
+    const existing = get().notes.find((note) => note.id === noteId)
+    if (!existing || existing.contentLoaded) return
+
+    const api = getAPI()
+    if (!api?.getNote) {
+      set({
+        notes: get().notes.map((note) =>
+          note.id === noteId ? { ...note, contentLoaded: true } : note
+        ),
+      })
+      return
+    }
+
+    const fullNote = await api.getNote(noteId)
+    if (!fullNote) return
+    const sanitized = sanitizeLoadedNotes([{ ...fullNote, contentLoaded: true }])[0]
+    set({
+      notes: get().notes.map((note) =>
+        note.id === noteId ? { ...sanitized, contentLoaded: true } : note
+      ),
+    })
   },
 
   fetchFolders: async () => {
@@ -421,6 +461,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     if (id) {
       get().trackRecent(id)
       get().addOpenTab(id)
+      void get().ensureNoteContent(id)
     }
   },
   setSearchQuery: (query) => set({ searchQuery: query }),
@@ -518,6 +559,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       status: initialFields.status ?? null,
       editorMode: initialFields.editorMode || 'wysiwyg',
       vaultId: get().activeVaultId,
+      contentLoaded: true,
     }
 
     const updatedNotes = [newNote, ...get().notes]
@@ -582,6 +624,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         const backlinks =
           nextFields.content !== undefined ? extractBacklinks(content, get().notes) : note.backlinks
         const updated = { ...note, ...nextFields, backlinks, updatedAt: new Date().toISOString() }
+        if (nextFields.content !== undefined) updated.contentLoaded = true
         updatedNote = updated
         return updated
       }
@@ -758,11 +801,32 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   deleteFolder: (id) => {
+    const activeFolder = get().activeFolder
+    const previousNotes = get().notes
     const updated = get().folders.filter((f) => f.id !== id)
-    set({ folders: updated })
+    const updatedNotes = previousNotes.map((note) =>
+      note.folder === id
+        ? { ...note, folder: 'personal', updatedAt: new Date().toISOString() }
+        : note
+    )
+    set({
+      folders: updated,
+      notes: updatedNotes,
+      ...(activeFolder === id ? { activeFolder: 'notes', mainView: 'home' as const } : {}),
+    })
     const api = getAPI()
-    if (api) api.deleteFolder(id)
-    else localStorage.setItem('noteszen-folders', JSON.stringify(updated))
+    if (api) {
+      api.deleteFolder(id).catch(console.error)
+      updatedNotes
+        .filter((note) =>
+          note.folder === 'personal' &&
+          previousNotes.some((old) => old.id === note.id && old.folder === id)
+        )
+        .forEach((note) => persistNote(note, previousNotes.find((old) => old.id === note.id)))
+    } else {
+      localStorage.setItem('noteszen-folders', JSON.stringify(updated))
+      localStorage.setItem('noteszen-db-notes', JSON.stringify(updatedNotes))
+    }
   },
 
   saveTemplate: (template) => {

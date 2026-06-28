@@ -4,17 +4,26 @@ import {
   Trash2,
   Settings,
   FolderPlus,
+  Folder,
   FileText,
   Plus,
   Moon,
   Sun,
   PanelLeftClose,
   Inbox,
+  MoreHorizontal,
+  Trash,
 } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface WorkspaceSidebarProps {
   onOpenSettings: () => void
@@ -40,6 +49,7 @@ export default function WorkspaceSidebar({
     goHome,
     openNote,
     createNote,
+    deleteFolder,
     vaults,
     activeVaultId,
     toggleSidebar,
@@ -69,6 +79,16 @@ export default function WorkspaceSidebar({
     setActiveFolder(id)
     setSelectedTag(null)
     goHome()
+  }
+
+  const handleDeleteFolder = (folderId: string, folderName: string) => {
+    const noteCount = countFor(folderId)
+    const message =
+      noteCount > 0
+        ? `Delete "${folderName}"? ${noteCount} note${noteCount === 1 ? '' : 's'} will move back to All Notes.`
+        : `Delete "${folderName}"?`
+    if (!window.confirm(message)) return
+    deleteFolder(folderId)
   }
 
   const navButton = (
@@ -136,16 +156,56 @@ export default function WorkspaceSidebar({
           })}
 
           {folders.map((folder) =>
-            navButton(folder.id, folder.name, <FileText className="size-3.5 shrink-0 opacity-50" />, {
-              count: countFor(folder.id),
-              indent: true,
-            })
+            <div key={folder.id} className="group/folder relative flex items-center">
+              <button
+                type="button"
+                onClick={() => goToFolder(folder.id)}
+                className={cn(
+                  'flex h-8 w-full min-w-0 items-center gap-2 rounded-lg pl-7 pr-8 text-[12px] font-medium transition-colors',
+                  activeFolder === folder.id && !selectedTag
+                    ? 'bg-accent text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                )}
+              >
+                <Folder className={cn('size-3.5 shrink-0', folder.color || 'text-primary')} />
+                <span className="min-w-0 flex-1 truncate text-left">{folder.name}</span>
+                {countFor(folder.id) > 0 && (
+                  <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                    {countFor(folder.id)}
+                  </span>
+                )}
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'absolute right-1.5 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-background/60 hover:text-foreground focus:opacity-100 group-hover/folder:opacity-100',
+                      activeFolder === folder.id && 'opacity-100'
+                    )}
+                    onClick={(event) => event.stopPropagation()}
+                    aria-label={`Folder actions for ${folder.name}`}
+                  >
+                    <MoreHorizontal className="size-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-40">
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => handleDeleteFolder(folder.id, folder.name)}
+                  >
+                    <Trash className="size-4" />
+                    Delete folder
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
 
           <button
             type="button"
             onClick={onNewFolder}
-            className="flex h-8 w-full items-center gap-2 rounded-lg pl-7 pr-2.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="mt-1 flex h-8 w-full items-center gap-2 rounded-lg border border-dashed border-sidebar-border px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent hover:text-foreground"
           >
             <FolderPlus className="size-3.5 shrink-0" />
             New folder
