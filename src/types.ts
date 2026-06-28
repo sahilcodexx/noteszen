@@ -83,6 +83,7 @@ export interface TauriAPI {
   exportSyncData: (vaultId: string) => Promise<string>
   importSyncData: (data: string, merge: boolean) => Promise<number>
   saveImage: (noteId: string, dataUrl: string) => Promise<string>
+  readImageDataUrl: (path: string) => Promise<string>
   minimize: () => void
   maximize: () => void
   close: () => void

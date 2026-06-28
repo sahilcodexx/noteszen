@@ -31,6 +31,7 @@ function createBridge(): TauriAPI {
     exportSyncData: (vaultId) => invoke('export_sync_data_cmd', { vaultId }),
     importSyncData: (data, merge) => invoke('import_sync_data_cmd', { data, merge }),
     saveImage: (noteId, dataUrl) => invoke('save_image', { noteId, dataUrl }),
+    readImageDataUrl: (path) => invoke('read_image_data_url', { path }),
     minimize: () => { invoke('minimize_window') },
     maximize: () => { invoke('maximize_window') },
     close: () => { invoke('close_window') },

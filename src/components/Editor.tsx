@@ -79,8 +79,12 @@ import {
   ImagePlus,
   FilePlus,
   Columns2,
+  Upload,
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
+import { resizeImage } from '@/lib/image-utils'
+import { getCoverImageSrc, saveCoverImage } from '@/lib/note-cover'
+import CardCoverMedia from './CardCoverMedia'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -257,6 +261,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const isZenModeRef = useRef(isZenMode)
   const selectedNoteIdRef = useRef(noteId || storeSelectedNoteId)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
 
   showSlashMenuRef.current = showSlashMenu
   selectedIndexRef.current = selectedIndex
@@ -454,25 +459,39 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     updateNote,
   ])
 
-  const resizeImage = (file: File, maxDim = 1920): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image()
-      img.onload = () => {
-        let { width, height } = img
-        if (width > maxDim || height > maxDim) {
-          if (width > height) { height = (height / width) * maxDim; width = maxDim }
-          else { width = (width / height) * maxDim; height = maxDim }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = width; canvas.height = height
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, width, height)
-        resolve(canvas.toDataURL(file.type || 'image/jpeg', 0.85))
-      }
-      img.onerror = reject
-      img.src = URL.createObjectURL(file)
-    })
+  const handleCoverImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file?.type.startsWith('image/')) return
+    const noteId = selectedNoteIdRef.current
+    if (!noteId) return
+    try {
+      const cover = await saveCoverImage(noteId, file)
+      updateMetadata({ cover })
+    } catch {
+      const dataUrl = await resizeImage(file, 1600)
+      updateMetadata({ cover: `img:${dataUrl}` })
+    }
   }
+
+  const renderCoverMenuItems = (onUpload: () => void) => (
+    <>
+      <DropdownMenuLabel>Gradients</DropdownMenuLabel>
+      <DropdownMenuGroup>
+        {Object.entries(COVERS).map(([key, value]) => (
+          <DropdownMenuItem key={key} onClick={() => updateMetadata({ cover: value })}>
+            <div className={cn('size-4 rounded-full border border-border/30', value)} />
+            {key}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={onUpload}>
+        <Upload data-icon="inline-start" />
+        Upload image
+      </DropdownMenuItem>
+    </>
+  )
 
   // Handle paste for images
   useEffect(() => {
@@ -497,7 +516,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         if (api && noteId) {
           try {
             const path = await api.saveImage(noteId, url)
-            editor.chain().focus().setImage({ src: `asset://localhost/${path}` }).run()
+            editor.chain().focus().setImage({ src: getCoverImageSrc(`img:${path}`) }).run()
             return
           } catch { /* fallback to base64 */ }
         }
@@ -521,7 +540,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       if (api && noteId) {
         try {
           const path = await api.saveImage(noteId, url)
-          editor?.chain().focus().setImage({ src: `asset://localhost/${path}` }).run()
+          editor?.chain().focus().setImage({ src: getCoverImageSrc(`img:${path}`) }).run()
           return
         } catch { /* fallback */ }
       }
@@ -941,6 +960,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 className="hidden"
                 onChange={handleImageFileSelected}
               />
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverImageSelected}
+              />
 
               <div className="flex items-center gap-1 shrink-0 border-l border-border pl-2">
             <Button
@@ -1153,14 +1179,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuGroup>
-                  {Object.entries(COVERS).map(([key, value]) => (
-                    <DropdownMenuItem key={key} onClick={() => updateMetadata({ cover: value })}>
-                      <div className={cn('size-4 rounded-full border border-border/30', value)} />
-                      {key}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
+                {renderCoverMenuItems(() => coverInputRef.current?.click())}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -1168,27 +1187,18 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
         {/* A. Note Cover Banner image display */}
         {noteMetadata.cover ? (
-          <div className="relative w-full h-36 rounded-2xl overflow-hidden mb-6 group/cover shadow-xs border border-border/10 animate-in slide-in-from-top duration-300">
-            <div className={cn("w-full h-full", noteMetadata.cover)} />
+          <div className="relative mb-6 w-full overflow-hidden rounded-2xl border border-border/10 shadow-xs group/cover animate-in slide-in-from-top duration-300">
+            <CardCoverMedia cover={noteMetadata.cover} variant="editor" />
             {!isTrashNote && (
-              <div className="absolute bottom-3 right-3 opacity-0 group-hover/cover:opacity-100 transition-opacity flex gap-2">
+              <div className="absolute bottom-3 right-3 z-40 flex gap-2 opacity-0 transition-opacity group-hover/cover:opacity-100">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="xs" variant="outline" className="bg-card/90 text-xs backdrop-blur-md font-semibold text-foreground/80 hover:bg-card">
+                    <Button size="xs" variant="outline" className="bg-card/90 text-xs font-semibold text-foreground/80 backdrop-blur-md hover:bg-card">
                       Change Cover
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuLabel>Select Gradient</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      {Object.entries(COVERS).map(([key, value]) => (
-                        <DropdownMenuItem key={key} onClick={() => updateMetadata({ cover: value })}>
-                          <div className={cn("size-4 rounded-full border border-border/30", value)} />
-                          {key}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
+                    {renderCoverMenuItems(() => coverInputRef.current?.click())}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button size="xs" variant="destructive" onClick={() => updateMetadata({ cover: null })} className="backdrop-blur-md">

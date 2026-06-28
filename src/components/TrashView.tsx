@@ -16,6 +16,7 @@ interface TrashViewProps {
     id: string
     title: string
     content: string
+    cover?: string | null
     tags?: string[]
     updatedAt: string
   }>
@@ -99,6 +100,7 @@ export default function TrashView({
                 title={note.title || 'Untitled'}
                 description={formatRelativeTime(note.updatedAt)}
                 preview={previewText(note.content) || 'No content yet'}
+                cover={note.cover}
                 footer={
                   <div className="flex w-full flex-col gap-2">
                     <Button

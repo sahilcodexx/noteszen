@@ -262,6 +262,23 @@ fn save_image(
 }
 
 #[tauri::command]
+fn read_image_data_url(path: String) -> Result<String, String> {
+    let bytes = fs::read(&path).map_err(|e| e.to_string())?;
+    let mime = if path.ends_with(".png") {
+        "image/png"
+    } else if path.ends_with(".webp") {
+        "image/webp"
+    } else if path.ends_with(".gif") {
+        "image/gif"
+    } else {
+        "image/jpeg"
+    };
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+    Ok(format!("data:{mime};base64,{b64}"))
+}
+
+#[tauri::command]
 fn minimize_window(window: Window) -> Result<(), String> {
     window.minimize().map_err(|e| e.to_string())
 }
@@ -446,6 +463,7 @@ pub fn run() {
             export_sync_data_cmd,
             import_sync_data_cmd,
             save_image,
+            read_image_data_url,
             minimize_window,
             maximize_window,
             close_window,

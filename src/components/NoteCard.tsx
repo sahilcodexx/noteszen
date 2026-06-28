@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import GridCard from './GridCard'
 
 function previewText(content: string, max = 140) {
@@ -85,6 +86,8 @@ export default function NoteCard({
       title={note.title || 'Untitled'}
       description={formatTime(note.updatedAt)}
       preview={previewText(note.content, layout === 'list' ? 80 : 140) || 'No content yet'}
+      cover={note.cover}
+      badge={note.isFavorite ? <Badge variant="secondary">Starred</Badge> : undefined}
       actionLabel="Open"
       onAction={onOpen}
       layout={layout}
