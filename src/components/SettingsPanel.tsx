@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNotesStore } from '../store/useNotesStore'
 import { getAPI } from '../tauri-bridge'
-import { Settings, Info, Keyboard, Database, LayoutTemplate, Palette, Sparkles } from 'lucide-react'
+import { Settings, Info, Keyboard, Database, Palette, Sparkles } from 'lucide-react'
 import {
   getOpenRouterApiKey,
   setOpenRouterApiKey,
@@ -11,7 +11,6 @@ import {
   hasOpenRouterApiKey,
 } from '../lib/ai-settings'
 import { notify } from '../lib/toast'
-import TemplateGallery from './TemplateGallery'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -149,10 +148,6 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
             <TabsTrigger value="data">
               <Database data-icon="inline-start" />
               Data
-            </TabsTrigger>
-            <TabsTrigger value="templates">
-              <LayoutTemplate data-icon="inline-start" />
-              Templates
             </TabsTrigger>
             <TabsTrigger value="ai">
               <Sparkles data-icon="inline-start" />
@@ -333,10 +328,6 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                   </div>
                 </Field>
               </FieldGroup>
-            </TabsContent>
-
-            <TabsContent value="templates" className="mt-0">
-              <TemplateGallery />
             </TabsContent>
 
             <TabsContent value="ai" className="mt-0">

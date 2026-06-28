@@ -365,6 +365,12 @@ body {
   line-height: 1.65;
 }
 
+.ProseMirror .spellcheck-error {
+  text-decoration: underline wavy var(--destructive);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
 .editor-font-sans .ProseMirror {
   font-family: 'Inter Variable', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }

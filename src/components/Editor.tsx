@@ -7,6 +7,7 @@ import Link from '@tiptap/extension-link'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { Wikilink, Callout, MermaidBlock, ResizableImage, createWikilinkExtension } from '../lib/tiptap-extensions'
+import { createSpellcheckExtension } from '../lib/spellcheck'
 import Highlight from '@tiptap/extension-highlight'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Typography from '@tiptap/extension-typography'
@@ -308,10 +309,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       Callout,
       Wikilink,
       createWikilinkExtension(resolveNoteId),
+      createSpellcheckExtension(),
       Highlight.configure({ multicolor: true }),
       Typography,
     ],
-    [lowlight, resolveNoteId]
+    [lowlight, resolveNoteId, appSettings.spellCheckLanguage]
   )
 
   // Zoom handlers for text sizing (14px to 128px)
@@ -441,6 +443,15 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   const isEditorReady = Boolean(editor && !editor.isDestroyed && editor.schema)
 
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return
+    const dom = editor.view.dom
+    dom.setAttribute('spellcheck', 'true')
+    dom.setAttribute('lang', appSettings.spellCheckLanguage)
+    dom.setAttribute('autocorrect', 'on')
+    dom.setAttribute('autocapitalize', 'sentences')
+  }, [editor, appSettings.spellCheckLanguage, isEditorReady])
+
   // Synchronize note contents on select and toggle editable state
   useEffect(() => {
     if (!isEditorReady || !activeNote || !editor?.schema) return
@@ -466,6 +477,10 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     updateNote,
   ])
 
+  const openCoverUpload = () => {
+    coverInputRef.current?.click()
+  }
+
   const handleCoverImageSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
@@ -481,7 +496,6 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     }
   }
 
-  const coverUploadInputId = `cover-upload-${selectedNoteId ?? 'new'}`
   const coverMenuItems = (
     <>
       <DropdownMenuLabel>Gradients</DropdownMenuLabel>
@@ -494,11 +508,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         ))}
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <label htmlFor={coverUploadInputId} className="flex cursor-pointer items-center gap-2">
-          <Upload data-icon="inline-start" />
-          Upload image
-        </label>
+      <DropdownMenuItem
+        onSelect={(event) => {
+          event.preventDefault()
+          window.setTimeout(openCoverUpload, 0)
+        }}
+      >
+        <Upload data-icon="inline-start" />
+        Upload image
       </DropdownMenuItem>
     </>
   )
@@ -793,7 +810,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       onMouseMove={() => isZenMode && setStatsVisible(true)}
       onMouseLeave={() => isZenMode && setStatsVisible(false)}
     >
-      
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleCoverImageSelected}
+      />
+
       {/* 1. STICKY FORMATTING TOOLBAR */}
       {!isZenMode && (
         <div className="h-10 editor-toolbar px-4 grid grid-cols-[1fr_auto_auto] items-center gap-2 shrink-0 select-none z-20 w-full">
@@ -972,15 +996,6 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
                 className="hidden"
                 onChange={handleImageFileSelected}
               />
-              <input
-                id={coverUploadInputId}
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleCoverImageSelected}
-              />
-
               <div className="flex items-center gap-1 shrink-0 border-l border-border pl-2">
             <Button
               size="xs"
@@ -1201,7 +1216,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         {/* A. Note Cover Banner image display */}
         {noteMetadata.cover ? (
           <div className="relative mb-6 w-full overflow-hidden rounded-2xl border border-border/10 shadow-xs group/cover animate-in slide-in-from-top duration-300">
-            <CardCoverMedia cover={noteMetadata.cover} variant="editor" />
+            <CardCoverMedia key={noteMetadata.cover} cover={noteMetadata.cover} variant="editor" />
             {!isTrashNote && (
               <div className="absolute bottom-3 right-3 z-40 flex gap-2 opacity-0 transition-opacity group-hover/cover:opacity-100">
                 <DropdownMenu>
