@@ -1,8 +1,11 @@
 import { LayoutTemplate, Plus } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import GridCard from './GridCard'
+
+function previewText(content: string, max = 140) {
+  return content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, max)
+}
 
 export default function TemplateGallery() {
   const { templates, createNoteFromTemplate } = useNotesStore()
@@ -22,25 +25,17 @@ export default function TemplateGallery() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
       {templates.map((t) => (
-        <Card key={t.id} size="sm" className="hover:ring-primary/20 transition-all">
-          <CardHeader>
-            <CardTitle className="text-xs">{t.name}</CardTitle>
-            <CardDescription className="text-[10px] line-clamp-1">{t.title}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-[10px] text-muted-foreground line-clamp-3">
-              {t.content.replace(/<[^>]*>/g, '').substring(0, 100)}
-            </p>
-          </CardContent>
-          <CardFooter>
-            <Button size="xs" variant="outline" onClick={() => createNoteFromTemplate(t.id)}>
-              <Plus data-icon="inline-start" />
-              Use Template
-            </Button>
-          </CardFooter>
-        </Card>
+        <GridCard
+          key={t.id}
+          title={t.name}
+          description={t.title}
+          preview={previewText(t.content) || 'No content yet'}
+          actionLabel="Use Template"
+          actionIcon={<Plus data-icon="inline-start" />}
+          onAction={() => createNoteFromTemplate(t.id)}
+        />
       ))}
     </div>
   )

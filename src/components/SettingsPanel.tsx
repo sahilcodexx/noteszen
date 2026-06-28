@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useNotesStore } from '../store/useNotesStore'
 import { getAPI } from '../tauri-bridge'
 import { Settings, Info, Keyboard, Database, LayoutTemplate, Palette, Sparkles } from 'lucide-react'
@@ -14,7 +14,14 @@ import { notify } from '../lib/toast'
 import TemplateGallery from './TemplateGallery'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -23,6 +30,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldTitle,
+} from '@/components/ui/field'
 
 const SHORTCUTS = [
   { action: 'New Note', keys: 'Ctrl+N' },
@@ -118,220 +132,292 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] border shadow-2xl flex flex-col no-drag max-h-[85vh]">
-        <DialogHeader>
-          <DialogTitle className="text-sm font-bold flex items-center gap-1.5">
-            <Settings className="size-5 text-primary" />
-            NotesZen Preferences
+      <DialogContent className="no-drag flex max-h-[85vh] max-w-lg flex-col gap-0 p-0">
+        <DialogHeader className="border-b border-border px-6 py-4">
+          <DialogTitle className="flex items-center gap-2">
+            <Settings />
+            Settings
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="general" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="w-full">
-            <TabsTrigger value="general" className="text-xs">
+        <Tabs defaultValue="general" className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="mx-6 mt-4 w-[calc(100%-3rem)]">
+            <TabsTrigger value="general">
               <Palette data-icon="inline-start" />
               General
             </TabsTrigger>
-            <TabsTrigger value="data" className="text-xs">
+            <TabsTrigger value="data">
               <Database data-icon="inline-start" />
               Data
             </TabsTrigger>
-            <TabsTrigger value="templates" className="text-xs">
+            <TabsTrigger value="templates">
               <LayoutTemplate data-icon="inline-start" />
               Templates
             </TabsTrigger>
-            <TabsTrigger value="ai" className="text-xs">
+            <TabsTrigger value="ai">
               <Sparkles data-icon="inline-start" />
               AI
             </TabsTrigger>
-            <TabsTrigger value="shortcuts" className="text-xs">
+            <TabsTrigger value="shortcuts">
               <Keyboard data-icon="inline-start" />
               Keys
             </TabsTrigger>
           </TabsList>
 
-          <div className="overflow-y-auto flex-1 py-3 select-none">
-            <TabsContent value="general" className="flex flex-col gap-4 mt-0">
-              <SettingRow label="Interface Theme" hint="Toggle light or dark modes">
-                <Button variant="outline" size="sm" onClick={toggleDarkMode}>
-                  {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-                </Button>
-              </SettingRow>
-              <SettingRow label="Editor Font" hint="Select note writing typeface">
-                <Select value={editorFont} onValueChange={(v) => setEditorFont(v as 'sans' | 'serif' | 'mono')}>
-                  <SelectTrigger size="sm" className="w-[140px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sans">Inter Sans</SelectItem>
-                    <SelectItem value="serif">Georgia Serif</SelectItem>
-                    <SelectItem value="mono">System Mono</SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingRow>
-              <SettingRow label="Font Size" hint="14px to 128px">
-                <input
-                  type="number"
-                  min={14}
-                  max={128}
-                  value={editorFontSize}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    if (!isNaN(parsed)) setEditorFontSize(Math.max(14, Math.min(128, parsed)))
-                  }}
-                  className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card w-20 text-center"
-                />
-              </SettingRow>
-              <SettingRow label="Spell Check" hint="Browser spellcheck language">
-                <Select value={appSettings.spellCheckLanguage} onValueChange={(v) => setAppSettings({ spellCheckLanguage: v })}>
-                  <SelectTrigger size="sm" className="w-[140px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                  </SelectContent>
-                </Select>
-              </SettingRow>
-              <SettingRow label="Trash Auto-Purge" hint="Days before permanent delete (0 = off)">
-                <input
-                  type="number"
-                  min={0}
-                  max={365}
-                  value={appSettings.trashAutoPurgeDays}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    if (!isNaN(parsed)) setAppSettings({ trashAutoPurgeDays: parsed })
-                  }}
-                  className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card w-20 text-center"
-                />
-              </SettingRow>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <TabsContent value="general" className="mt-0">
+              <FieldGroup>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Theme</FieldTitle>
+                    <FieldDescription>Switch between light and dark mode</FieldDescription>
+                  </FieldContent>
+                  <Button variant="outline" size="sm" onClick={toggleDarkMode}>
+                    {isDarkMode ? 'Light' : 'Dark'}
+                  </Button>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Editor font</FieldTitle>
+                    <FieldDescription>Typeface used in the note editor</FieldDescription>
+                  </FieldContent>
+                  <Select value={editorFont} onValueChange={(v) => setEditorFont(v as 'sans' | 'serif' | 'mono')}>
+                    <SelectTrigger size="sm" className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sans">Inter Sans</SelectItem>
+                      <SelectItem value="serif">Georgia Serif</SelectItem>
+                      <SelectItem value="mono">System Mono</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Font size</FieldTitle>
+                    <FieldDescription>14px to 128px</FieldDescription>
+                  </FieldContent>
+                  <Input
+                    type="number"
+                    min={14}
+                    max={128}
+                    value={editorFontSize}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10)
+                      if (!isNaN(parsed)) setEditorFontSize(Math.max(14, Math.min(128, parsed)))
+                    }}
+                    className="w-20 text-center"
+                  />
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Spell check</FieldTitle>
+                    <FieldDescription>Browser spellcheck language</FieldDescription>
+                  </FieldContent>
+                  <Select
+                    value={appSettings.spellCheckLanguage}
+                    onValueChange={(v) => setAppSettings({ spellCheckLanguage: v })}
+                  >
+                    <SelectTrigger size="sm" className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                      <SelectItem value="de">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Trash auto-purge</FieldTitle>
+                    <FieldDescription>Days before permanent delete (0 = off)</FieldDescription>
+                  </FieldContent>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={appSettings.trashAutoPurgeDays}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10)
+                      if (!isNaN(parsed)) setAppSettings({ trashAutoPurgeDays: parsed })
+                    }}
+                    className="w-20 text-center"
+                  />
+                </Field>
+              </FieldGroup>
             </TabsContent>
 
-            <TabsContent value="data" className="flex flex-col gap-4 mt-0">
-              <SettingRow label="Storage" hint={api ? 'SQLite + FTS5' : 'Web localStorage'}>
-                <Badge variant={api ? 'default' : 'outline'} className="text-[9px] font-bold">
-                  {api ? 'TAURI + SQLITE' : 'WEB FALLBACK'}
-                </Badge>
-              </SettingRow>
-              <SettingRow label="Export Backup" hint="Download JSON copy of all notes">
-                <Button variant="outline" size="sm" onClick={handleExport}>Export JSON</Button>
-              </SettingRow>
-              <SettingRow label="Import Backup" hint="Restore or merge notes from JSON">
-                <Button variant="outline" size="sm" onClick={handleImport}>Import JSON</Button>
-              </SettingRow>
-              <SettingRow label="Sync Export" hint="Export vault for Syncthing/Dropbox">
-                <Button variant="outline" size="sm" onClick={handleSyncExport}>Export Vault</Button>
-              </SettingRow>
-              <SettingRow label="Active Vault" hint="Switch workspaces">
-                <Select value={activeVaultId} onValueChange={(v) => setActiveVault(v)}>
-                  <SelectTrigger size="sm" className="w-[140px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {vaults.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </SettingRow>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="New vault name"
-                  value={newVaultName}
-                  onChange={(e) => setNewVaultName(e.target.value)}
-                  className="text-xs border border-border rounded px-2 py-1 bg-card flex-1"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    if (newVaultName.trim()) {
-                      createVault(newVaultName.trim())
-                      notify.success(`Vault "${newVaultName.trim()}" created`)
-                      setNewVaultName('')
-                    }
-                  }}
-                >
-                  Add Vault
-                </Button>
-              </div>
+            <TabsContent value="data" className="mt-0">
+              <FieldGroup>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Storage</FieldTitle>
+                    <FieldDescription>Where your notes are saved</FieldDescription>
+                  </FieldContent>
+                  <Badge variant={api ? 'default' : 'outline'}>
+                    {api ? 'SQLite' : 'Local'}
+                  </Badge>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Export backup</FieldTitle>
+                    <FieldDescription>Download a JSON copy of all notes</FieldDescription>
+                  </FieldContent>
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    Export
+                  </Button>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Import backup</FieldTitle>
+                    <FieldDescription>Restore or merge notes from JSON</FieldDescription>
+                  </FieldContent>
+                  <Button variant="outline" size="sm" onClick={handleImport}>
+                    Import
+                  </Button>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Sync export</FieldTitle>
+                    <FieldDescription>Export vault for Syncthing or Dropbox</FieldDescription>
+                  </FieldContent>
+                  <Button variant="outline" size="sm" onClick={handleSyncExport}>
+                    Export vault
+                  </Button>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Active vault</FieldTitle>
+                    <FieldDescription>Switch between workspaces</FieldDescription>
+                  </FieldContent>
+                  <Select value={activeVaultId} onValueChange={(v) => setActiveVault(v)}>
+                    <SelectTrigger size="sm" className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vaults.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldContent>
+                    <FieldTitle>New vault</FieldTitle>
+                    <FieldDescription>Create an additional workspace</FieldDescription>
+                  </FieldContent>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Vault name"
+                      value={newVaultName}
+                      onChange={(e) => setNewVaultName(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        if (newVaultName.trim()) {
+                          createVault(newVaultName.trim())
+                          notify.success(`Vault "${newVaultName.trim()}" created`)
+                          setNewVaultName('')
+                        }
+                      }}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </Field>
+              </FieldGroup>
             </TabsContent>
 
             <TabsContent value="templates" className="mt-0">
               <TemplateGallery />
             </TabsContent>
 
-            <TabsContent value="ai" className="flex flex-col gap-4 mt-0">
-              <SettingRow label="OpenRouter API Key" hint="Get a free key at openrouter.ai">
-                <input
-                  type="password"
-                  value={openRouterKey}
-                  onChange={(e) => {
-                    setOpenRouterKeyState(e.target.value)
-                    setOpenRouterApiKey(e.target.value)
-                  }}
-                  placeholder="sk-or-v1-..."
-                  className="text-xs border border-border/80 rounded px-2.5 py-1 bg-card w-[180px]"
-                />
-              </SettingRow>
-              <SettingRow label="AI Model" hint="Free models via OpenRouter">
-                <Select
-                  value={openRouterModel}
-                  onValueChange={(v) => {
-                    setOpenRouterModelState(v)
-                    setOpenRouterModel(v)
-                  }}
-                >
-                  <SelectTrigger size="sm" className="w-[180px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {FREE_MODELS.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </SettingRow>
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted border border-border">
-                <Sparkles className="size-5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[10px] text-muted-foreground leading-normal">
-                  {hasOpenRouterApiKey()
-                    ? 'AI Workspace is connected. Use the right panel to chat about your notes.'
-                    : 'Add your OpenRouter API key to enable live AI responses in the workspace panel.'}
-                </p>
-              </div>
+            <TabsContent value="ai" className="mt-0">
+              <FieldGroup>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>OpenRouter API key</FieldTitle>
+                    <FieldDescription>Get a free key at openrouter.ai</FieldDescription>
+                  </FieldContent>
+                  <Input
+                    type="password"
+                    value={openRouterKey}
+                    onChange={(e) => {
+                      setOpenRouterKeyState(e.target.value)
+                      setOpenRouterApiKey(e.target.value)
+                    }}
+                    placeholder="sk-or-v1-..."
+                    className="w-[180px]"
+                  />
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>AI model</FieldTitle>
+                    <FieldDescription>Free models via OpenRouter</FieldDescription>
+                  </FieldContent>
+                  <Select
+                    value={openRouterModel}
+                    onValueChange={(v) => {
+                      setOpenRouterModelState(v)
+                      setOpenRouterModel(v)
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FREE_MODELS.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/50 p-4">
+                  <Sparkles className="mt-0.5 shrink-0 text-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    {hasOpenRouterApiKey()
+                      ? 'AI workspace is connected. Use the right panel to chat about your notes.'
+                      : 'Add your OpenRouter API key to enable live AI responses in the workspace panel.'}
+                  </p>
+                </div>
+              </FieldGroup>
             </TabsContent>
 
             <TabsContent value="shortcuts" className="mt-0">
-              <div className="border rounded-lg p-3 flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1 rounded-2xl border border-border p-3">
                 {SHORTCUTS.map((s) => (
-                  <div key={s.action} className="flex justify-between text-[10px] py-0.5">
+                  <div key={s.action} className="flex items-center justify-between py-1.5 text-sm">
                     <span className="text-muted-foreground">{s.action}</span>
-                    <kbd className="font-mono bg-muted px-1.5 rounded text-[9px]">{s.keys}</kbd>
+                    <kbd className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">{s.keys}</kbd>
                   </div>
                 ))}
               </div>
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted border border-border mt-3">
-                <Info className="size-5 text-primary shrink-0 mt-0.5" />
-                <p className="text-[10px] text-muted-foreground leading-normal">
-                  Quick Capture: <kbd className="font-mono bg-muted-foreground/20 px-1 rounded">Ctrl+Shift+Space</kbd>.
-                  Mobile view: <kbd className="font-mono bg-muted-foreground/20 px-1 rounded">#mobile</kbd>.
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-muted/50 p-4">
+                <Info className="mt-0.5 shrink-0 text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Quick capture with <kbd className="rounded bg-muted px-1.5 font-mono text-xs">Ctrl+Shift+Space</kbd>.
+                  Mobile view: type <kbd className="rounded bg-muted px-1.5 font-mono text-xs">#mobile</kbd> in search.
                 </p>
               </div>
             </TabsContent>
           </div>
         </Tabs>
 
-        <Button onClick={() => onOpenChange(false)} className="mt-2 w-full">Done</Button>
+        <DialogFooter className="border-t border-border px-6 py-4">
+          <Button className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function SettingRow({ label, hint, children }: { label: string; hint: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between border-b pb-3 border-border">
-      <div>
-        <p className="text-xs font-semibold">{label}</p>
-        <p className="text-[10px] text-muted-foreground">{hint}</p>
-      </div>
-      {children}
-    </div>
   )
 }

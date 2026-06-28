@@ -36,13 +36,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import GridCard from './GridCard'
 import { Badge } from '@/components/ui/badge'
 import { 
   Heading1, 
@@ -1417,26 +1411,23 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
               <Sparkles className="size-3 text-primary/70" />
               Linked References ({backlinks.length})
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {backlinks.map((linkNote) => (
-                <Card
-                  key={linkNote.id}
-                  className="cursor-pointer border-border bg-muted/60 hover:border-primary/30 hover:bg-accent transition-colors py-3"
-                  onClick={() => openNote(linkNote.id)}
-                >
-                  <CardHeader className="px-3 py-0">
-                    <CardTitle className="text-xs truncate">{linkNote.title || 'Untitled Note'}</CardTitle>
-                    <CardDescription className="text-[9px]">[[{linkNote.title || 'Untitled'}]]</CardDescription>
-                  </CardHeader>
-                  {linkNote.content && (
-                    <CardContent className="px-3 py-0">
-                      <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">
-                        {linkNote.content.replace(/<[^>]*>/g, '').substring(0, 100)}
-                      </p>
-                    </CardContent>
-                  )}
-                </Card>
-              ))}
+            <div className="grid grid-cols-1 items-stretch gap-2 md:grid-cols-2">
+              {backlinks.map((linkNote) => {
+                const preview = linkNote.content
+                  ? linkNote.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, 140)
+                  : ''
+                const linkLabel = linkNote.title || 'Untitled'
+                return (
+                  <GridCard
+                    key={linkNote.id}
+                    title={linkNote.title || 'Untitled Note'}
+                    description={`[[${linkLabel}]]`}
+                    preview={preview || 'No content yet'}
+                    actionLabel="Open"
+                    onAction={() => openNote(linkNote.id)}
+                  />
+                )
+              })}
             </div>
           </div>
         )}

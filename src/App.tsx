@@ -241,7 +241,7 @@ function MainApp() {
   )
 
   return (
-    <div className="relative flex flex-col h-screen w-screen overflow-hidden text-foreground bg-background">
+    <div className="relative flex flex-col h-screen w-screen overflow-hidden text-foreground workspace-shell">
       {showTitleBar && (
         <div className="fixed inset-x-0 top-0 z-50 flex h-8 items-center border-b border-border/30 bg-card/90 backdrop-blur-md drag-region">
           <div className="flex items-center gap-2 pl-4 no-drag shrink-0">
@@ -272,12 +272,12 @@ function MainApp() {
 
       <div
         className={cn(
-          'flex flex-1 min-h-0 w-full overflow-hidden gap-2 px-2 pb-2',
+          'flex min-h-0 flex-1 w-full items-stretch overflow-hidden gap-1.5 p-1.5',
           showTitleBar ? 'pt-10' : 'pt-2'
         )}
       >
         {!isZenMode && !isSidebarCollapsed && (
-          <div className="shrink-0 rounded-xl overflow-hidden bg-card border border-border shadow-sm">
+          <div className="workspace-panel min-h-0 shrink-0 self-stretch w-[210px] !bg-sidebar">
             <WorkspaceSidebar
               onOpenSettings={() => setShowSettings(true)}
               onNewFolder={() => setShowFolderDialog(true)}
@@ -289,8 +289,8 @@ function MainApp() {
 
         <main
           className={cn(
-            'flex flex-1 min-w-0 flex-col overflow-hidden rounded-xl bg-card border border-border shadow-sm',
-            isZenMode && 'rounded-none border-0 shadow-none'
+            'workspace-panel workspace-canvas flex min-h-0 flex-1 min-w-0 self-stretch flex-col',
+            isZenMode && 'rounded-none border-0'
           )}
         >
           {isZenMode ? (
@@ -325,7 +325,7 @@ function MainApp() {
         {!isZenMode && isAIPanelOpen && activeFolder !== 'trash' && (
           <div
             className={cn(
-              'relative shrink-0 rounded-xl overflow-hidden bg-card border border-border shadow-sm',
+              'workspace-panel relative min-h-0 shrink-0 self-stretch',
               isResizingAIPanel && 'select-none'
             )}
             style={{ width: aiPanelWidth }}
@@ -355,7 +355,7 @@ function MainApp() {
       </div>
 
       <Suspense fallback={null}>
-        {isCommandPaletteOpen && <CommandPalette />}
+        <CommandPalette />
         {isGlobalSearchOpen && <GlobalSearch />}
         <GraphView />
       </Suspense>

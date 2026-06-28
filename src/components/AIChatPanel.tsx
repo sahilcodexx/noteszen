@@ -326,8 +326,8 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <div className="flex h-full flex-col bg-card min-w-0">
-      <div className="flex items-center justify-between px-3 h-11 border-b border-border shrink-0 gap-2">
+    <div className="flex h-full min-h-0 flex-col min-w-0">
+      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border px-3">
         <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
           <Code2Icon className="size-3.5 text-primary shrink-0" />
           <span className="truncate">Chat</span>
@@ -385,7 +385,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <div ref={chatScrollRef} className="flex-1 min-h-0">
+      <div ref={chatScrollRef} className="min-h-0 flex-1">
         <ScrollArea className="h-full px-4 py-4">
           <div className="flex flex-col gap-3 min-w-0">
             {messages.map((msg) => {
@@ -475,7 +475,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
         onAppend={handleAppendToOpenNote}
       />
 
-      <div className="shrink-0 p-4 border-t border-border">
+      <div className="shrink-0 border-t border-border p-4">
         <div className="relative">
           <Textarea
             value={input}

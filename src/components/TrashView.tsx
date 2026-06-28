@@ -2,7 +2,14 @@ import { Trash2, Search, X, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import GridCard from './GridCard'
 
 interface TrashViewProps {
   notes: Array<{
@@ -20,6 +27,10 @@ interface TrashViewProps {
   formatRelativeTime: (d: string) => string
 }
 
+function previewText(content: string, max = 140) {
+  return content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, max)
+}
+
 export default function TrashView({
   notes,
   searchQuery,
@@ -30,8 +41,8 @@ export default function TrashView({
   formatRelativeTime,
 }: TrashViewProps) {
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-card">
-      <div className="h-14 border-b border-border flex items-center justify-between shrink-0 px-8">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-8">
         <div className="flex items-center gap-2">
           <Trash2 className="size-4 text-destructive" />
           <h1 className="text-sm font-bold">Trash Bin</h1>
@@ -60,51 +71,61 @@ export default function TrashView({
           </div>
           {notes.length > 0 && (
             <Button variant="destructive" size="sm" onClick={onEmptyTrash}>
-              <Trash2 className="size-3.5" />
+              <Trash2 />
               Empty Trash
             </Button>
           )}
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-8 py-8">
+      <div className="min-h-0 flex-1 overflow-y-auto px-8 py-8">
         {notes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Trash2 className="size-10 text-destructive/40 mb-4" />
-            <h2 className="text-sm font-bold">Trash is empty</h2>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Deleted notes appear here until restored or permanently removed.
-            </p>
-          </div>
+          <Empty className="mx-auto min-h-[min(420px,60vh)] max-w-md border-none">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Trash2 />
+              </EmptyMedia>
+              <EmptyTitle>Trash is empty</EmptyTitle>
+              <EmptyDescription>
+                Deleted notes appear here until restored or permanently removed.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl">
+          <div className="grid max-w-5xl grid-cols-1 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {notes.map((note) => (
-              <div
+              <GridCard
                 key={note.id}
-                className="flex flex-col p-4 rounded-xl border border-border bg-muted hover:shadow-sm transition-all"
-              >
-                <h3 className="font-semibold text-sm truncate">{note.title || 'Untitled'}</h3>
-                <p className="text-xs text-muted-foreground line-clamp-3 mt-2 flex-1">
-                  {note.content.replace(/<[^>]*>/g, '').substring(0, 160)}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-2">
-                  {formatRelativeTime(note.updatedAt)}
-                </p>
-                <div className="flex gap-2 mt-3 pt-3 border-t border-border/40">
-                  <Button variant="outline" size="xs" onClick={() => onRestore(note.id)}>
-                    <RotateCcw data-icon="inline-start" />
-                    Restore
-                  </Button>
-                  <Button variant="destructive" size="xs" onClick={() => onDelete(note.id)}>
-                    <Trash2 data-icon="inline-start" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
+                title={note.title || 'Untitled'}
+                description={formatRelativeTime(note.updatedAt)}
+                preview={previewText(note.content) || 'No content yet'}
+                footer={
+                  <div className="flex w-full flex-col gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => onRestore(note.id)}
+                    >
+                      <RotateCcw data-icon="inline-start" />
+                      Restore
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => onDelete(note.id)}
+                    >
+                      <Trash2 data-icon="inline-start" />
+                      Delete
+                    </Button>
+                  </div>
+                }
+              />
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   )
 }

@@ -18,7 +18,7 @@ import { useNotesStore } from '../store/useNotesStore'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
+
 
 interface WorkspaceSidebarProps {
   onOpenSettings: () => void
@@ -99,15 +99,15 @@ export default function WorkspaceSidebar({
   }
 
   return (
-    <aside className="flex h-full w-[210px] shrink-0 flex-col bg-card border border-border shadow-sm rounded-xl">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-sidebar text-sidebar-foreground">
+      <div className="flex shrink-0 items-center justify-between border-b border-sidebar-border px-4 py-3">
         <p className="text-[11px] font-semibold text-muted-foreground truncate">{workspaceName}</p>
         <Button variant="ghost" size="icon-xs" onClick={toggleSidebar} title="Hide sidebar (Ctrl+B)">
           <PanelLeftClose className="size-3.5" />
         </Button>
       </div>
 
-      <ScrollArea className="flex-1 px-2 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 py-3 scrollbar-none">
         <div className="flex flex-col gap-0.5">
           {navItem('favorites', 'Starred', <Star className="size-3.5 text-amber-500" />, countFor('favorites'))}
           {navItem('archive', 'Archive', <Archive className="size-3.5 text-indigo-500" />, countFor('archive'))}
@@ -222,9 +222,9 @@ export default function WorkspaceSidebar({
             </div>
           </div>
         )}
-      </ScrollArea>
+      </div>
 
-      <div className="p-3 border-t border-border">
+      <div className="shrink-0 border-t border-sidebar-border p-3">
         <Button
           size="sm"
           className="w-full gap-1.5"

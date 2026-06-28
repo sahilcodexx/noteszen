@@ -25,7 +25,7 @@ export default function EditorShell({ sidebarCollapsed, onExpandSidebar }: Edito
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-      <div className="flex items-center gap-2 h-9 px-4 border-b border-border shrink-0 bg-card">
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-4">
         {sidebarCollapsed && onExpandSidebar && (
           <Button
             variant="outline"

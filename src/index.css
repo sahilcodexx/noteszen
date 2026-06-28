@@ -56,6 +56,30 @@ body {
   -webkit-app-region: no-drag;
 }
 
+.workspace-shell {
+  background: var(--background);
+}
+
+.workspace-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  background: var(--card);
+  isolation: isolate;
+}
+
+/* Cards use bg-card — canvas needs contrast so shadow-md reads */
+.workspace-panel.workspace-canvas {
+  background: var(--muted);
+}
+
+.dark .workspace-panel.workspace-canvas {
+  background: var(--background);
+}
+
 @theme inline {
   --font-heading: 'Manrope Variable', sans-serif;
   --font-sans: 'Inter Variable', sans-serif;

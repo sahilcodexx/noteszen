@@ -8,6 +8,7 @@ import {
   Share2,
   Sparkles,
   PanelLeft,
+  Plus,
 } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
 import type { Note } from '../types'
@@ -139,8 +140,8 @@ export default function HomeDashboard({
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-card">
-      <div className="shrink-0 px-8 pt-7 pb-5 border-b border-border">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-border px-8 pt-7 pb-5">
         <div className="flex items-start justify-between gap-4 mb-5">
           <div className="flex items-start gap-3 min-w-0">
             {sidebarCollapsed && onExpandSidebar && (
@@ -222,12 +223,12 @@ export default function HomeDashboard({
 
       <div className="flex-1 overflow-y-auto px-8 py-6 scrollbar-none">
         {filtered.length === 0 && !searchQuery ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center max-w-sm mx-auto">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-sm font-medium text-muted-foreground">No notes here yet</p>
-            <p className="text-xs text-muted-foreground/70 mt-1 mb-6">
+            <p className="mt-1 text-xs text-muted-foreground/70">
               Start with an idea, research note, or draft
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+            <div className="mt-8 grid w-full max-w-lg grid-cols-1 gap-3 sm:grid-cols-3">
               {SECTIONS.map((section) => (
                 <NewNoteCard
                   key={section.id}
@@ -239,24 +240,34 @@ export default function HomeDashboard({
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-8 max-w-5xl">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
             {SECTIONS.map((section) => {
               const Icon = section.icon
               const items = sectionNotes[section.id]
-              if (items.length === 0 && searchQuery) return null
+              if (items.length === 0) return null
               return (
                 <section key={section.id}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon className={cn('size-4', section.iconClass)} />
-                    <h2 className="text-sm font-semibold">{section.title}</h2>
-                    <span className="text-xs text-muted-foreground">({items.length})</span>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Icon className={cn('size-4', section.iconClass)} />
+                      <h2 className="text-sm font-semibold">{section.title}</h2>
+                      <span className="text-xs text-muted-foreground">({items.length})</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNewInSection(section.id)}
+                    >
+                      <Plus data-icon="inline-start" />
+                      New note
+                    </Button>
                   </div>
 
                   <div
                     className={cn(
                       homeViewMode === 'grid'
-                        ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3'
-                        : 'flex flex-col gap-2'
+                        ? 'grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3'
+                        : 'flex flex-col gap-3'
                     )}
                   >
                     {items.map((note) => (
@@ -270,10 +281,6 @@ export default function HomeDashboard({
                         onDelete={() => deleteNote(note.id)}
                       />
                     ))}
-                    <NewNoteCard
-                      layout={homeViewMode}
-                      onClick={() => handleNewInSection(section.id)}
-                    />
                   </div>
                 </section>
               )

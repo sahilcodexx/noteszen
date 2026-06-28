@@ -1,6 +1,5 @@
 import { MoreHorizontal, Star } from 'lucide-react'
 import type { Note } from '../types'
-import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,8 +7,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import GridCard from './GridCard'
 
-function previewText(content: string, max = 100) {
+function previewText(content: string, max = 140) {
   return content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, max)
 }
 
@@ -29,11 +29,39 @@ function formatTime(dateString: string) {
   }
 }
 
-const ACCENT: Record<string, string> = {
-  ideas: 'border-l-primary',
-  research: 'border-l-violet-400',
-  drafts: 'border-l-amber-400',
-  default: 'border-l-primary',
+function NoteCardMenu({
+  note,
+  onToggleFavorite,
+  onDelete,
+}: {
+  note: Note
+  onToggleFavorite?: () => void
+  onDelete?: () => void
+}) {
+  if (!onToggleFavorite && !onDelete) return null
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+        <Button variant="ghost" size="icon-xs">
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        {onToggleFavorite && (
+          <DropdownMenuItem onClick={onToggleFavorite}>
+            <Star />
+            {note.isFavorite ? 'Unfavorite' : 'Favorite'}
+          </DropdownMenuItem>
+        )}
+        {onDelete && (
+          <DropdownMenuItem variant="destructive" onClick={onDelete}>
+            Delete
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 interface NoteCardProps {
@@ -47,79 +75,26 @@ interface NoteCardProps {
 
 export default function NoteCard({
   note,
-  section = 'default',
   onOpen,
   onToggleFavorite,
   onDelete,
   layout = 'grid',
 }: NoteCardProps) {
-  const accent = ACCENT[section] ?? ACCENT.default
-
-  if (layout === 'list') {
-    return (
-      <button
-        type="button"
-        onClick={onOpen}
-        className={cn(
-          'w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/60 text-left',
-          'hover:shadow-sm hover:bg-muted transition-all border-l-[3px]',
-          accent
-        )}
-      >
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{note.title || 'Untitled'}</p>
-          <p className="text-xs text-muted-foreground truncate">{previewText(note.content, 80)}</p>
-        </div>
-        <span className="text-[10px] text-muted-foreground shrink-0">{formatTime(note.updatedAt)}</span>
-      </button>
-    )
-  }
-
   return (
-    <div
-      className={cn(
-        'group relative flex flex-col rounded-xl border border-border bg-muted/60 p-4 min-h-[130px]',
-        'hover:shadow-sm hover:bg-muted transition-all cursor-pointer border-l-[3px]',
-        accent
-      )}
-      onClick={onOpen}
-      onKeyDown={(e) => e.key === 'Enter' && onOpen()}
-      role="button"
-      tabIndex={0}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <h3 className="text-sm font-semibold leading-snug line-clamp-2 pr-6">
-          {note.title || 'Untitled'}
-        </h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-muted-foreground"
-            >
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-            {onToggleFavorite && (
-              <DropdownMenuItem onClick={onToggleFavorite}>
-                <Star className="size-3.5" />
-                {note.isFavorite ? 'Unfavorite' : 'Favorite'}
-              </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                Delete
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <p className="text-xs text-muted-foreground line-clamp-3 flex-1 leading-relaxed">
-        {previewText(note.content) || 'No content yet'}
-      </p>
-      <p className="text-[10px] text-muted-foreground/80 mt-3">{formatTime(note.updatedAt)}</p>
-    </div>
+    <GridCard
+      title={note.title || 'Untitled'}
+      description={formatTime(note.updatedAt)}
+      preview={previewText(note.content, layout === 'list' ? 80 : 140) || 'No content yet'}
+      actionLabel="Open"
+      onAction={onOpen}
+      layout={layout}
+      menu={
+        <NoteCardMenu
+          note={note}
+          onToggleFavorite={onToggleFavorite}
+          onDelete={onDelete}
+        />
+      }
+    />
   )
 }
