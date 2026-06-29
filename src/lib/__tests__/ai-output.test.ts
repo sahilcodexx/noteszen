@@ -15,7 +15,7 @@ Key Differences: Official TS vs. Go-based Transpilers
     expect(cleaned).not.toContain(':---')
   })
 
-  it('renders valid markdown tables as tables', () => {
+  it('renders valid markdown tables as editor-safe comparison lists', () => {
     const html = markdownToNoteHtml(`
 | Tool | Purpose |
 | --- | --- |
@@ -23,8 +23,9 @@ Key Differences: Official TS vs. Go-based Transpilers
 | esbuild | Fast transpilation |
 `)
 
-    expect(html).toContain('<table>')
-    expect(html).toContain('<th>Tool</th>')
-    expect(html).toContain('<td>Fast transpilation</td>')
+    expect(html).toContain('ai-comparison-list')
+    expect(html).toContain('<strong>tsc</strong>')
+    expect(html).toContain('<strong>Purpose:</strong> Fast transpilation')
+    expect(html).not.toContain('<table>')
   })
 })
