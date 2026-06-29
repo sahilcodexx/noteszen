@@ -11,7 +11,15 @@ import { Badge } from '@/components/ui/badge'
 import GridCard from './GridCard'
 
 function previewText(content: string, max = 140) {
-  return content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().substring(0, max)
+  return content
+    .replace(/<pre[^>]*>/gi, ' ')
+    .replace(/<\/pre>/gi, ' ')
+    .replace(/<code[^>]*>/gi, ' ')
+    .replace(/<\/code>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, max)
 }
 
 function formatTime(dateString: string) {
@@ -81,11 +89,13 @@ export default function NoteCard({
   onDelete,
   layout = 'grid',
 }: NoteCardProps) {
+  const preview = previewText(note.content, layout === 'list' ? 80 : 140)
+
   return (
     <GridCard
       title={note.title || 'Untitled'}
       description={formatTime(note.updatedAt)}
-      preview={previewText(note.content, layout === 'list' ? 80 : 140) || 'No content yet'}
+      preview={preview || (note.contentLoaded === false ? 'Loading content...' : 'No content yet')}
       cover={note.cover}
       badge={note.isFavorite ? <Badge variant="secondary">Starred</Badge> : undefined}
       actionLabel="Open"

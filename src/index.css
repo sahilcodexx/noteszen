@@ -317,15 +317,19 @@ body {
   font-size: 0.9em;
 }
 .prose-editor pre {
-  background: var(--muted);
-  padding: 1em;
-  border-radius: 8px;
+  background: var(--code);
+  color: var(--code-foreground);
+  border: 1px solid var(--border);
+  padding: 1rem;
+  border-radius: var(--radius-xl);
   overflow-x: auto;
-  margin-bottom: 0.8em;
+  margin: 1rem 0;
+  box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.08), 0 2px 4px -2px oklch(0 0 0 / 0.08);
 }
 .prose-editor pre code {
   background: transparent;
   padding: 0;
+  color: inherit;
   font-size: 0.85em;
 }
 
@@ -481,9 +485,17 @@ body {
 }
 
 .editor-content .prose-editor pre {
-  background: var(--muted);
+  background: var(--code);
+  color: var(--code-foreground);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius-xl);
+}
+
+.editor-content .prose-editor pre code {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
 }
 
 .editor-content.editor-from-ai .ProseMirror > [data-type="callout"]:first-child {
@@ -643,13 +655,15 @@ body {
 }
 
 .prose-editor pre {
-  background: #1e1e2e;
-  color: #cdd6f4;
-  border-radius: 8px;
-  padding: 16px;
+  background: var(--code);
+  color: var(--code-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 1rem;
   overflow-x: auto;
   font-size: 13px;
   line-height: 1.6;
+  box-shadow: 0 4px 6px -1px oklch(0 0 0 / 0.08), 0 2px 4px -2px oklch(0 0 0 / 0.08);
 }
 
 .prose-editor pre code {

@@ -87,6 +87,7 @@ import { resizeImage } from '@/lib/image-utils'
 import { getCoverImageSrc, saveCoverImage } from '@/lib/note-cover'
 import CardCoverMedia from './CardCoverMedia'
 import EditorCodeBlock from './EditorCodeBlock'
+import type { Note } from '../types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -267,6 +268,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const selectedNoteIdRef = useRef(noteId || storeSelectedNoteId)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
+  const activeNoteRef = useRef<Note | null>(null)
 
   const selectedNoteId = noteId || storeSelectedNoteId
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
@@ -277,7 +279,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     selectedIndexRef.current = selectedIndex
     isZenModeRef.current = isZenMode
     selectedNoteIdRef.current = selectedNoteId
-  }, [showSlashMenu, selectedIndex, isZenMode, selectedNoteId])
+    activeNoteRef.current = activeNote
+  }, [showSlashMenu, selectedIndex, isZenMode, selectedNoteId, activeNote])
 
   const lowlight = useMemo(() => createLowlight({ js, ts, python, html, css, json, bash, sql, rust, cpp }), [])
 
@@ -449,6 +452,23 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   })
 
   const isEditorReady = Boolean(editor && !editor.isDestroyed && editor.schema)
+
+  useEffect(() => {
+    const flushEditor = () => {
+      const noteIdToUpdate = selectedNoteIdRef.current
+      const currentNote = activeNoteRef.current
+      if (!noteIdToUpdate || !currentNote || !editor || editor.isDestroyed || !editor.schema) return
+      if (currentNote.folder === 'trash' || currentNote.editorMode === 'markdown') return
+
+      const content = editor.getHTML()
+      if (content !== currentNote.content) {
+        updateNote(noteIdToUpdate, { content })
+      }
+    }
+
+    window.addEventListener('noteszen:flush-editor', flushEditor)
+    return () => window.removeEventListener('noteszen:flush-editor', flushEditor)
+  }, [editor, updateNote])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return

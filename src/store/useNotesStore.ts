@@ -132,7 +132,10 @@ function mergePreviewNotes(incoming: Note[], existing: Note[]): Note[] {
   const existingById = new Map(existing.map((note) => [note.id, note]))
   return incoming.map((note) => {
     const previous = existingById.get(note.id)
-    if (previous?.contentLoaded && previous.updatedAt === note.updatedAt) {
+    if (
+      previous?.contentLoaded &&
+      (previous.updatedAt === note.updatedAt || previous.content.length >= note.content.length)
+    ) {
       return { ...note, content: previous.content, contentLoaded: true }
     }
     return { ...note, contentLoaded: false }
@@ -140,6 +143,11 @@ function mergePreviewNotes(incoming: Note[], existing: Note[]): Note[] {
 }
 
 function persistNote(note: Note, previousNote?: Note) {
+  if (note.contentLoaded === false) {
+    console.warn('Skipped saving unloaded note preview:', note.id)
+    return
+  }
+
   const api = getAPI()
   if (api) {
     api.saveNote(note, true).catch((err) => console.error('Failed to save note:', err))
@@ -250,7 +258,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   setMainView: (view) => set({ mainView: view }),
 
-  goHome: () => set({ mainView: 'home' }),
+  goHome: () => {
+    window.dispatchEvent(new CustomEvent('noteszen:flush-editor'))
+    set({ mainView: 'home' })
+  },
 
   setDarkMode: (dark) => {
     localStorage.setItem('noteszen-dark-mode', String(dark))
@@ -264,6 +275,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   openNote: (noteId) => {
+    window.dispatchEvent(new CustomEvent('noteszen:flush-editor'))
     get().trackRecent(noteId)
     get().addOpenTab(noteId)
     set({ selectedNoteId: noteId, mainView: 'editor' })
