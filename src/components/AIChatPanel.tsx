@@ -193,7 +193,11 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     const systemParts = [
       "You are a helpful writing assistant inside NotesZen, a note-taking app.",
       'Answer the user directly. Start with the substance — never open with meta commentary about the app, copy/paste, or "here is a breakdown you can paste".',
-      "Be concise, practical, and friendly. Use markdown when helpful (headings, lists, bold).",
+      "Write polished, note-ready markdown with clear headings and compact paragraphs.",
+      "Do not use markdown tables. Use comparison lists with bold labels instead, because the editor is optimized for headings, paragraphs, lists, quotes, and code blocks.",
+      "Never output malformed table fragments like \"Feature: ...\" bullets, raw separator rows, or decorative dashes.",
+      "Prefer this structure for explanations: short intro, ## Key Points, ## Comparison or Details, ## Takeaway.",
+      "Be concise, practical, and friendly. Use markdown headings, lists, bold, and code spans when helpful.",
       "Do not mention that you are formatting for notes unless the user explicitly asks.",
     ];
     if (noteContext) {

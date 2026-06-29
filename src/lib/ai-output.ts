@@ -66,6 +66,11 @@ function isTableSeparator(line: string): boolean {
   return /^\|?[\s\-:|]+\|?$/.test(line.trim())
 }
 
+function hasTableShape(line: string): boolean {
+  const trimmed = line.trim()
+  return trimmed.startsWith('|') && trimmed.endsWith('|') && parseTableRow(trimmed).length >= 2
+}
+
 function parseTableRow(line: string): string[] {
   return line
     .trim()
@@ -76,34 +81,76 @@ function parseTableRow(line: string): string[] {
 }
 
 function tableBlockToHtml(lines: string[]): string {
-  const rows = lines.filter((line) => line.trim() && !isTableSeparator(line))
+  const rows = lines.filter((line) => line.trim() && !isTableSeparator(line) && hasTableShape(line))
   if (rows.length === 0) return ''
 
   const parsed = rows.map(parseTableRow)
   const headers = parsed[0]
   const body = parsed.slice(1)
 
-  if (headers.length >= 2 && body.length > 0) {
+  if (headers.length >= 2 && body.length > 0 && body.every((row) => row.length === headers.length)) {
+    const [primaryHeader, ...detailHeaders] = headers
     const items = body
       .map((row) => {
-        const pairs = headers
-          .map((header, i) => {
-            const value = row[i]?.trim()
-            if (!value) return ''
-            return `<strong>${formatInline(header)}:</strong> ${formatInline(value)}`
+        const [primary, ...details] = row
+        const detailText = details
+          .map((cell, index) => {
+            const header = detailHeaders[index]
+            if (!header || !cell) return ''
+            return `<strong>${formatInline(header)}:</strong> ${formatInline(cell)}`
           })
           .filter(Boolean)
-          .join(' — ')
-        return pairs ? `<li><p>${pairs}</p></li>` : ''
+          .join(' · ')
+
+        const title = primary
+          ? `<strong>${formatInline(primary)}</strong>`
+          : `<strong>${formatInline(primaryHeader)}</strong>`
+        return `<li><p>${title}${detailText ? ` — ${detailText}` : ''}</p></li>`
       })
-      .filter(Boolean)
-    if (items.length) return `<ul>${items.join('')}</ul>`
+      .join('')
+    return `<ul class="ai-comparison-list">${items}</ul>`
   }
 
   const fallback = rows
-    .map((row) => `<p>${formatInline(row.replace(/\|/g, ' · '))}</p>`)
+    .map((row) => `<p>${formatInline(row.replace(/\|/g, ' — '))}</p>`)
     .join('')
   return fallback
+}
+
+function normalizeAiMarkdown(text: string): string {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const out: string[] = []
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i]
+    const trimmed = line.trim()
+
+    if (/^\s*[-*]\s*Feature:\s*[-:|]*\s*$/i.test(trimmed)) continue
+    if (/^\s*[-*]\s*Feature:\s*[-:|]+\s*/i.test(trimmed)) {
+      line = line.replace(/^\s*[-*]\s*Feature:\s*[-:|]+\s*/i, '- ')
+    } else if (/^\s*[-*]\s*Feature:\s*/i.test(trimmed)) {
+      line = line.replace(/^\s*[-*]\s*Feature:\s*/i, '- ')
+    }
+
+    line = line
+      .replace(/\s*:---+\s*/g, ': ')
+      .replace(/\s*---+\s*—\s*/g, ' — ')
+      .replace(/\s*---+\s*/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trimEnd()
+
+    if (/^Key Differences\s*:/i.test(line)) {
+      out.push('', '## Key Differences', '')
+      continue
+    }
+
+    out.push(line)
+  }
+
+  return out
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
 function markdownBlocksToHtml(md: string): string {
@@ -136,9 +183,9 @@ function markdownBlocksToHtml(md: string): string {
       continue
     }
 
-    if (trimmed.startsWith('|') && trimmed.includes('|')) {
+    if (hasTableShape(trimmed)) {
       const tableLines: string[] = []
-      while (i < lines.length && lines[i].trim().includes('|')) {
+      while (i < lines.length && hasTableShape(lines[i].trim())) {
         tableLines.push(lines[i])
         i++
       }
@@ -239,7 +286,7 @@ export function cleanAiMarkdown(raw: string): string {
   text = stripMetaPreamble(text)
   text = text.replace(/\r\n/g, '\n')
   text = text.replace(/\n{3,}/g, '\n\n')
-  return text.trim()
+  return normalizeAiMarkdown(text)
 }
 
 export function extractAiNoteTitle(md: string): { title: string; body: string } {
