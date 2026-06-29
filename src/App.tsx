@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
-import { Trash2, Sparkles } from 'lucide-react'
+import { ListTodo, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -14,7 +14,7 @@ import { filterNotesWithFuse } from './lib/search'
 import { filterNotesByContext } from './lib/note-filters'
 
 import { useNotesStore } from './store/useNotesStore'
-const AIChatPanel = lazy(() => import('./components/AIChatPanel'))
+const TodoPanel = lazy(() => import('./components/TodoPanel'))
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
 const EditorShell = lazy(() => import('./components/EditorShell'))
 const GlobalSearch = lazy(() => import('./components/GlobalSearch'))
@@ -332,20 +332,20 @@ function MainApp() {
         {!isZenMode && isAIPanelOpen && activeFolder !== 'trash' && (
           <div
             className={cn(
-              'workspace-panel relative min-h-0 shrink-0 self-stretch',
+              'workspace-panel relative min-h-0 shrink-0 self-stretch overflow-hidden',
               isResizingAIPanel && 'select-none'
             )}
-            style={{ width: aiPanelWidth }}
+            style={{ width: aiPanelWidth, minWidth: 260, maxWidth: 420 }}
           >
             <div
               role="separator"
               aria-orientation="vertical"
-              aria-label="Resize AI panel"
+              aria-label="Resize todo panel"
               className="absolute left-0 top-0 bottom-0 z-10 w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-primary/25 active:bg-primary/40 transition-colors"
               onMouseDown={startAIPanelResize}
             />
             <Suspense fallback={null}>
-              <AIChatPanel onClose={toggleAIPanel} />
+              <TodoPanel onClose={toggleAIPanel} />
             </Suspense>
           </div>
         )}
@@ -356,9 +356,9 @@ function MainApp() {
             size="icon-sm"
             className="fixed bottom-6 right-6 z-30 rounded-full shadow-lg size-10 bg-card"
             onClick={toggleAIPanel}
-            title="Open AI panel (Ctrl+Shift+B)"
+            title="Open todo panel (Ctrl+Shift+B)"
           >
-            <Sparkles className="size-4 text-primary" />
+            <ListTodo className="size-4 text-primary" />
           </Button>
         )}
       </div>

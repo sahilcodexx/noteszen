@@ -6,7 +6,7 @@ import {
   LayoutGrid,
   List,
   Share2,
-  Sparkles,
+  ListTodo,
   PanelLeft,
   Plus,
   Clock,
@@ -233,7 +233,7 @@ export default function HomeDashboard({
             ref={searchRef}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search something or use AI"
+            placeholder="Search notes or open todos"
             className="h-9 pl-9 pr-9 rounded-3xl border-border bg-card text-foreground shadow-md"
           />
           <button
@@ -243,9 +243,9 @@ export default function HomeDashboard({
               else setGlobalSearchOpen(true)
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground transition-colors"
-            title="Open AI or global search"
+            title="Open todos or global search"
           >
-            <Sparkles className="size-3.5" />
+            <ListTodo className="size-3.5" />
           </button>
         </div>
       </div>

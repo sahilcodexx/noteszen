@@ -471,6 +471,63 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   }, [editor, updateNote])
 
   useEffect(() => {
+    const jumpToTask = (event: Event) => {
+      const root = editorScrollRef.current
+      if (!root) return
+      const index = Number((event as CustomEvent<{ index?: number }>).detail?.index)
+      if (!Number.isFinite(index)) return
+
+      window.setTimeout(() => {
+        const tasks = root.querySelectorAll<HTMLElement>(
+          '.prose-editor li[data-type="taskItem"], .markdown-preview li'
+        )
+        const target = tasks[index]
+        if (!target) return
+        const rootRect = root.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+        root.scrollTo({
+          top: Math.max(0, root.scrollTop + targetRect.top - rootRect.top - 80),
+          behavior: 'smooth',
+        })
+      }, 80)
+    }
+
+    const jumpToHeading = (event: Event) => {
+      const root = editorScrollRef.current
+      if (!root) return
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id
+      if (!id) return
+
+      window.setTimeout(() => {
+        const escapedId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id
+        const direct = root.querySelector<HTMLElement>(`#${escapedId}`)
+        const fallbackIndex = Number(id.replace('heading-', ''))
+        const fallback = Number.isFinite(fallbackIndex)
+          ? root.querySelectorAll<HTMLElement>(
+              '.prose-editor h1, .prose-editor h2, .prose-editor h3'
+            )[fallbackIndex]
+          : null
+        const target = direct || fallback
+        if (!target) return
+
+        const rootRect = root.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+        root.scrollTo({
+          top: Math.max(0, root.scrollTop + targetRect.top - rootRect.top - 24),
+          behavior: 'smooth',
+        })
+      }, 80)
+    }
+
+    window.addEventListener('noteszen:jump-task', jumpToTask)
+    window.addEventListener('noteszen:jump-heading', jumpToHeading)
+    return () => {
+      window.removeEventListener('noteszen:jump-task', jumpToTask)
+      window.removeEventListener('noteszen:jump-heading', jumpToHeading)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!editor || editor.isDestroyed) return
     const dom = editor.view.dom
     dom.setAttribute('spellcheck', 'true')

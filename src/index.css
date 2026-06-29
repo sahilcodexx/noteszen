@@ -252,8 +252,20 @@ body {
   blockquote {
     @apply mt-6 border-l-2 pl-6 italic;
   }
-  ul {
+  ul:not(.task-panel-list):not(.prose-editor ul):not([data-slot]) {
     @apply my-6 ml-6 list-disc [&>li]:mt-2;
+  }
+
+  .task-panel-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .task-panel-list > li {
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
   code {
     @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold;
