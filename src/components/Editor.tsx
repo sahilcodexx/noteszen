@@ -28,8 +28,8 @@ import { getSlashPlugins } from '../lib/plugins'
 
 import HighlightColorMenu, { DEFAULT_HIGHLIGHT_COLOR } from './HighlightColorMenu'
 import TableOfContents from './TableOfContents'
-import { markdownToHtml } from '../lib/markdown-preview'
 import { stripAiDraftBannerFromHtml } from '../lib/ai-output'
+import MarkdownPreview from './MarkdownPreview'
 import {
   Command,
   CommandEmpty,
@@ -1391,8 +1391,23 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             <TableOfContents
               html={activeNote.content}
               onNavigate={(id) => {
-                const el = editorScrollRef.current?.querySelector(`[id="${id}"]`)
-                el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                const root = editorScrollRef.current
+                if (!root) return
+                window.setTimeout(() => {
+                  const escapedId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id
+                  const direct = root.querySelector<HTMLElement>(`#${escapedId}`)
+                  const fallbackIndex = Number(id.replace('heading-', ''))
+                  const fallback = Number.isFinite(fallbackIndex)
+                    ? root.querySelectorAll<HTMLElement>('.prose-editor h1, .prose-editor h2, .prose-editor h3')[fallbackIndex]
+                    : null
+                  const target = direct || fallback
+                  if (!target) return
+
+                  const rootRect = root.getBoundingClientRect()
+                  const targetRect = target.getBoundingClientRect()
+                  const top = root.scrollTop + targetRect.top - rootRect.top - 24
+                  root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+                }, 80)
               }}
             />
           </div>
@@ -1412,9 +1427,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
               placeholder="Write markdown..."
             />
             {showSplitPreview && (
-              <div
-                className="w-1/2 prose-editor min-h-[450px] text-sm leading-relaxed pl-2"
-                dangerouslySetInnerHTML={{ __html: markdownToHtml(activeNote.content) }}
+              <MarkdownPreview
+                markdown={activeNote.content}
+                className="min-h-[450px] w-1/2 overflow-x-hidden pl-2"
               />
             )}
           </div>
