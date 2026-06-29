@@ -178,7 +178,8 @@ function markdownBlocksToHtml(md: string): string {
       }
       const code = escapeHtml(codeLines.join('\n'))
       const langClass = lang ? ` class="language-${lang}"` : ''
-      blocks.push(`<pre><code${langClass}>${code}</code></pre>`)
+      const commandAttr = isCommandLikeCode(lang, codeLines.join('\n')) ? ' data-command-block="true"' : ''
+      blocks.push(`<pre${commandAttr}><code${langClass}>${code}</code></pre>`)
       i++
       continue
     }
@@ -277,6 +278,15 @@ function markdownBlocksToHtml(md: string): string {
   }
 
   return blocks.join('')
+}
+
+function isCommandLikeCode(language: string, code: string): boolean {
+  const lang = language.toLowerCase()
+  const trimmed = code.trim()
+  return (
+    ['bash', 'sh', 'shell', 'zsh', 'terminal'].includes(lang) ||
+    /^(npm|npx|pnpm|yarn|bun|bunx|cargo|git|curl|wget)\s+/m.test(trimmed)
+  )
 }
 
 export function cleanAiMarkdown(raw: string): string {

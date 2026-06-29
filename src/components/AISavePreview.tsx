@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import AIMarkdownView from './AIMarkdownView'
 
 export interface AISavePreviewData {
   title: string
+  bodyMarkdown: string
   previewHtml: string
   contentHtml: string
   tags: string[]
@@ -108,10 +110,12 @@ export default function AISavePreview({
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
-          <div
-            className="prose-editor ai-note-preview text-sm leading-relaxed break-words rounded-xl border border-border bg-muted px-4 py-4"
-            dangerouslySetInnerHTML={{ __html: preview.previewHtml }}
-          />
+          <div className="rounded-xl border border-border bg-muted px-4 py-4">
+            <AIMarkdownView
+              markdown={preview.bodyMarkdown}
+              className="ai-note-preview text-sm leading-relaxed"
+            />
+          </div>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-5 py-4 border-t border-border bg-muted/50 shrink-0">

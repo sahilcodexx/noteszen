@@ -21,11 +21,11 @@ import { getOpenRouterApiKey, getOpenRouterModel } from "../lib/ai-settings";
 import { buildNoteContext, streamChatCompletion } from "../lib/openrouter";
 import {
   appendAiContentToNote,
-  markdownToChatHtml,
   prepareAiNoteFromOutput,
 } from "../lib/ai-output";
 import { notify } from "../lib/toast";
 import AITypingIndicator from "./AITypingIndicator";
+import AIMarkdownView from "./AIMarkdownView";
 
 interface Message {
   id: string;
@@ -194,7 +194,10 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
       "You are a helpful writing assistant inside NotesZen, a note-taking app.",
       'Answer the user directly. Start with the substance — never open with meta commentary about the app, copy/paste, or "here is a breakdown you can paste".',
       "Write polished, note-ready markdown with clear headings and compact paragraphs.",
-      "Do not use markdown tables. Use comparison lists with bold labels instead, because the editor is optimized for headings, paragraphs, lists, quotes, and code blocks.",
+      "Default to prose paragraphs. Use bullets only for true checklists, feature summaries, steps, or comparisons where scanning matters.",
+      "Do not create a 'Key Points' section unless the user asks for a summary. Prefer direct sections with short explanatory paragraphs.",
+      "Do not use markdown tables. Use comparison paragraphs or compact comparison lists with bold labels instead, because the editor is optimized for headings, paragraphs, lists, quotes, and code blocks.",
+      "When showing terminal commands, use a fenced bash code block and keep the command block focused.",
       "Never output malformed table fragments like \"Feature: ...\" bullets, raw separator rows, or decorative dashes.",
       "Prefer this structure for explanations: short intro, ## Key Points, ## Comparison or Details, ## Takeaway.",
       "Be concise, practical, and friendly. Use markdown headings, lists, bold, and code spans when helpful.",
@@ -288,6 +291,7 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
     const prepared = prepareAiNoteFromOutput(content);
     setNotePreview({
       title: prepared.title,
+      bodyMarkdown: prepared.bodyMarkdown,
       contentHtml: prepared.contentHtml,
       previewHtml: prepared.previewHtml,
       tags: prepared.tags,
@@ -415,11 +419,9 @@ export default function AIChatPanel({ onClose }: { onClose?: () => void }) {
                       {msg.content}
                     </p>
                   ) : msg.role === "assistant" && !isWelcome ? (
-                    <div
-                      className="prose-editor ai-chat-prose break-words [&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
-                      dangerouslySetInnerHTML={{
-                        __html: markdownToChatHtml(msg.content),
-                      }}
+                    <AIMarkdownView
+                      markdown={msg.content}
+                      className="[&_pre]:my-2 [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-black/20 [&_pre]:overflow-x-auto [&_code]:text-[11px] [&_h2]:text-sm [&_h3]:text-xs [&_p]:my-1"
                     />
                   ) : (
                     <p className="whitespace-pre-wrap break-words">

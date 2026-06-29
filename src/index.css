@@ -139,6 +139,8 @@ body {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-code: var(--code);
+  --color-code-foreground: var(--code-foreground);
 }
 
 :root {
@@ -177,6 +179,8 @@ body {
   --sidebar-ring: oklch(0.65 0 0);
   --canvas-surface: oklch(0.975 0.004 286);
   --editor-surface: oklch(0.995 0.001 286);
+  --code: oklch(0.985 0 0);
+  --code-foreground: oklch(0.141 0.005 285.823);
 }
 
 .dark {
@@ -212,6 +216,8 @@ body {
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
   --editor-surface: transparent;
+  --code: oklch(0.21 0.006 285.885);
+  --code-foreground: oklch(0.985 0 0);
 }
 
 @layer base {
@@ -321,6 +327,51 @@ body {
   background: transparent;
   padding: 0;
   font-size: 0.85em;
+}
+
+.prose-editor pre[data-command-block="true"] {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: color-mix(in oklch, var(--card) 72%, var(--muted));
+  padding-top: 2.35rem;
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+}
+
+.prose-editor pre[data-command-block="true"]::before {
+  content: "terminal";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1.8rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0 0.75rem;
+  font-size: 0.68rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--muted-foreground);
+  background: color-mix(in oklch, var(--card) 82%, transparent);
+}
+
+.prose-editor pre[data-command-block="true"] code::before {
+  content: "$ ";
+  color: var(--primary);
+  user-select: none;
+}
+
+.prose-editor [data-code-block-view] pre {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.75rem;
+}
+
+.prose-editor [data-code-block-view] code {
+  display: block;
+  background: transparent;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
 }
 .prose-editor a {
   color: var(--primary);

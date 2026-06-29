@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useMemo } from 'react'
-import { useEditor, EditorContent, useEditorState } from '@tiptap/react'
+import { ReactNodeViewRenderer, useEditor, EditorContent, useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -86,6 +86,7 @@ import { cn } from "@/lib/utils"
 import { resizeImage } from '@/lib/image-utils'
 import { getCoverImageSrc, saveCoverImage } from '@/lib/note-cover'
 import CardCoverMedia from './CardCoverMedia'
+import EditorCodeBlock from './EditorCodeBlock'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -304,7 +305,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       TaskList,
       TaskItem.configure({ nested: true }),
       ResizableImage.configure({ inline: false, allowBase64: true }),
-      CodeBlockLowlight.configure({ lowlight }),
+      CodeBlockLowlight
+        .extend({
+          addNodeView() {
+            return ReactNodeViewRenderer(EditorCodeBlock)
+          },
+        })
+        .configure({ lowlight }),
       MermaidBlock,
       Callout,
       Wikilink,
