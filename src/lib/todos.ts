@@ -1,25 +1,133 @@
 import type { Note } from '@/types'
 
-export interface NoteTodo {
-  index: number
+export interface SidebarTodo {
+  id: string
   text: string
   checked: boolean
+  createdAt: string
 }
 
-export interface NoteTodoWithMeta extends NoteTodo {
+export interface NoteTodoWithMeta extends SidebarTodo {
   noteId: string
   noteTitle: string
 }
 
-export function extractAllOpenTodos(notes: Note[], excludeNoteId?: string): NoteTodoWithMeta[] {
+const STORAGE_KEY = 'noteszen-note-todos'
+
+export function loadNoteTodosStorage(): Record<string, SidebarTodo[]> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, SidebarTodo[]>
+    return typeof parsed === 'object' && parsed !== null ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveNoteTodosStorage(data: Record<string, SidebarTodo[]>): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+}
+
+export function getTodosForNote(
+  data: Record<string, SidebarTodo[]>,
+  noteId: string
+): SidebarTodo[] {
+  return data[noteId] ?? []
+}
+
+export function addTodoToStore(
+  data: Record<string, SidebarTodo[]>,
+  noteId: string,
+  text: string
+): Record<string, SidebarTodo[]> {
+  const cleanText = text.trim()
+  if (!cleanText) return data
+
+  const todo: SidebarTodo = {
+    id: crypto.randomUUID(),
+    text: cleanText,
+    checked: false,
+    createdAt: new Date().toISOString(),
+  }
+
+  return {
+    ...data,
+    [noteId]: [...(data[noteId] ?? []), todo],
+  }
+}
+
+export function toggleTodoInStore(
+  data: Record<string, SidebarTodo[]>,
+  noteId: string,
+  todoId: string
+): Record<string, SidebarTodo[]> {
+  const todos = data[noteId]
+  if (!todos) return data
+
+  return {
+    ...data,
+    [noteId]: todos.map((todo) =>
+      todo.id === todoId ? { ...todo, checked: !todo.checked } : todo
+    ),
+  }
+}
+
+export function deleteTodoFromStore(
+  data: Record<string, SidebarTodo[]>,
+  noteId: string,
+  todoId: string
+): Record<string, SidebarTodo[]> {
+  const todos = data[noteId]
+  if (!todos) return data
+
+  const next = todos.filter((todo) => todo.id !== todoId)
+  if (next.length === 0) {
+    const { [noteId]: _, ...rest } = data
+    return rest
+  }
+
+  return { ...data, [noteId]: next }
+}
+
+export function clearCompletedTodosFromStore(
+  data: Record<string, SidebarTodo[]>,
+  noteId: string
+): Record<string, SidebarTodo[]> {
+  const todos = data[noteId]
+  if (!todos) return data
+
+  const next = todos.filter((todo) => !todo.checked)
+  if (next.length === 0) {
+    const { [noteId]: _, ...rest } = data
+    return rest
+  }
+
+  return { ...data, [noteId]: next }
+}
+
+export function removeTodosForNote(
+  data: Record<string, SidebarTodo[]>,
+  noteId: string
+): Record<string, SidebarTodo[]> {
+  if (!(noteId in data)) return data
+  const { [noteId]: _, ...rest } = data
+  return rest
+}
+
+export function extractAllOpenTodos(
+  notes: Note[],
+  noteTodosByNoteId: Record<string, SidebarTodo[]>,
+  excludeNoteId?: string
+): NoteTodoWithMeta[] {
   const result: NoteTodoWithMeta[] = []
 
   for (const note of notes) {
     if (note.folder === 'trash' || note.isArchived) continue
     if (excludeNoteId && note.id === excludeNoteId) continue
 
-    for (const todo of extractTodos(note)) {
-      if (!todo.checked) {
+    for (const todo of getTodosForNote(noteTodosByNoteId, note.id)) {
+      if (!todo.checked && todo.text.trim()) {
         result.push({
           ...todo,
           noteId: note.id,
@@ -30,157 +138,4 @@ export function extractAllOpenTodos(notes: Note[], excludeNoteId?: string): Note
   }
 
   return result.sort((a, b) => a.noteTitle.localeCompare(b.noteTitle))
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function plainTextFromHtml(html: string) {
-  return html
-    .replace(/<input[^>]*>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-export function extractTodos(note: Note | null | undefined): NoteTodo[] {
-  if (!note?.content) return []
-
-  const todos: NoteTodo[] = []
-  const content = note.content
-
-  if (note.editorMode === 'markdown') {
-    const regex = /^[-*]\s+\[([ xX])\]\s+(.+)$/gm
-    let match: RegExpExecArray | null
-    while ((match = regex.exec(content)) !== null) {
-      todos.push({
-        index: todos.length,
-        checked: match[1].toLowerCase() === 'x',
-        text: match[2].trim(),
-      })
-    }
-    return todos
-  }
-
-  const htmlTaskRegex = /<li\b(?=[^>]*(?:data-type=["']taskItem["']|data-checked=))[^>]*>[\s\S]*?<\/li>/gi
-  let match: RegExpExecArray | null
-  while ((match = htmlTaskRegex.exec(content)) !== null) {
-    const item = match[0]
-    todos.push({
-      index: todos.length,
-      checked: /data-checked=["']true["']/i.test(item) || /<input[^>]*checked/i.test(item),
-      text: plainTextFromHtml(item),
-    })
-  }
-
-  return todos
-}
-
-export function addTodoToContent(note: Note, text: string): string {
-  const cleanText = text.trim()
-  if (!cleanText) return note.content
-
-  if (note.editorMode === 'markdown') {
-    const separator = note.content.trim() ? '\n' : ''
-    return `${note.content}${separator}- [ ] ${cleanText}`
-  }
-
-  const html = `<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>${escapeHtml(cleanText)}</p></div></li></ul>`
-  return `${note.content || ''}${html}`
-}
-
-export function removeCompletedTodosFromContent(note: Note): string {
-  if (!note.content) return note.content
-
-  if (note.editorMode === 'markdown') {
-    return note.content.replace(/^[-*]\s+\[[xX]\]\s+.+\n?/gm, '').replace(/\n{3,}/g, '\n\n')
-  }
-
-  return note.content.replace(
-    /<li\b(?=[^>]*(?:data-type=["']taskItem["']|data-checked=))[^>]*>[\s\S]*?<\/li>/gi,
-    (item) => {
-      const checked =
-        /data-checked=["']true["']/i.test(item) || /<input[^>]*checked/i.test(item)
-      return checked ? '' : item
-    }
-  )
-}
-
-export function removeTodoFromContent(note: Note, targetIndex: number): string {
-  if (targetIndex < 0 || !note.content) return note.content
-
-  if (note.editorMode === 'markdown') {
-    let currentIndex = 0
-    return note.content
-      .replace(/^[-*]\s+\[[ xX]\]\s+.+\n?/gm, (line) => {
-        if (currentIndex !== targetIndex) {
-          currentIndex += 1
-          return line
-        }
-        currentIndex += 1
-        return ''
-      })
-      .replace(/\n{3,}/g, '\n\n')
-  }
-
-  let currentIndex = 0
-  return note.content.replace(
-    /<li\b(?=[^>]*(?:data-type=["']taskItem["']|data-checked=))[^>]*>[\s\S]*?<\/li>/gi,
-    (item) => {
-      if (currentIndex !== targetIndex) {
-        currentIndex += 1
-        return item
-      }
-      currentIndex += 1
-      return ''
-    }
-  )
-}
-
-export function toggleTodoInContent(note: Note, targetIndex: number): string {
-  if (targetIndex < 0) return note.content
-
-  if (note.editorMode === 'markdown') {
-    let currentIndex = 0
-    return note.content.replace(/^([-*]\s+\[)([ xX])(\]\s+.+)$/gm, (line, start, checked, end) => {
-      if (currentIndex !== targetIndex) {
-        currentIndex += 1
-        return line
-      }
-      currentIndex += 1
-      return `${start}${checked.toLowerCase() === 'x' ? ' ' : 'x'}${end}`
-    })
-  }
-
-  let currentIndex = 0
-  return note.content.replace(
-    /<li\b(?=[^>]*(?:data-type=["']taskItem["']|data-checked=))[^>]*>[\s\S]*?<\/li>/gi,
-    (item) => {
-      if (currentIndex !== targetIndex) {
-        currentIndex += 1
-        return item
-      }
-
-      currentIndex += 1
-      const nextChecked = !(/data-checked=["']true["']/i.test(item) || /<input[^>]*checked/i.test(item))
-      let updated = item
-
-      if (/data-checked=/i.test(updated)) {
-        updated = updated.replace(/data-checked=["'](?:true|false)["']/i, `data-checked="${nextChecked}"`)
-      } else {
-        updated = updated.replace(/^<li\b/i, `<li data-checked="${nextChecked}"`)
-      }
-
-      updated = nextChecked
-        ? updated.replace(/<input\b(?![^>]*checked)/i, '<input checked')
-        : updated.replace(/\schecked(?:=["'][^"']*["'])?/i, '')
-
-      return updated
-    }
-  )
 }

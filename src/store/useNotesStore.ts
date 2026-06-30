@@ -7,6 +7,19 @@ import {
   saveLocalNoteVersion,
 } from '../lib/note-versions'
 import { stripAiDraftBannerFromHtml } from '../lib/ai-output'
+import {
+  addTodoToStore,
+  clearCompletedTodosFromStore,
+  deleteTodoFromStore,
+  extractAllOpenTodos,
+  getTodosForNote,
+  loadNoteTodosStorage,
+  removeTodosForNote,
+  saveNoteTodosStorage,
+  toggleTodoInStore,
+  type NoteTodoWithMeta,
+  type SidebarTodo,
+} from '../lib/todos'
 
 interface NotesState {
   notes: Note[]
@@ -42,6 +55,7 @@ interface NotesState {
   isAIPanelExpanded: boolean
   homeViewMode: 'grid' | 'list'
   isDarkMode: boolean
+  noteTodosByNoteId: Record<string, SidebarTodo[]>
 
   fetchNotes: () => Promise<void>
   ensureNoteContent: (noteId: string) => Promise<void>
@@ -103,6 +117,12 @@ interface NotesState {
   getNoteVersions: (noteId: string) => Promise<NoteVersion[]>
   restoreVersion: (versionId: string) => Promise<Note | null | void>
   trackRecent: (noteId: string) => void
+  getNoteTodos: (noteId: string) => SidebarTodo[]
+  addNoteTodo: (noteId: string, text: string) => void
+  toggleNoteTodo: (noteId: string, todoId: string) => void
+  deleteNoteTodo: (noteId: string, todoId: string) => void
+  clearCompletedNoteTodos: (noteId: string) => void
+  getAllOpenNoteTodos: (excludeNoteId?: string) => NoteTodoWithMeta[]
 }
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
@@ -255,6 +275,36 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   isAIPanelExpanded: initialAIPanelWidth >= AI_PANEL_EXPANDED_WIDTH,
   homeViewMode: initialHomeViewMode,
   isDarkMode: initialDarkMode,
+  noteTodosByNoteId: loadNoteTodosStorage(),
+
+  getNoteTodos: (noteId) => getTodosForNote(get().noteTodosByNoteId, noteId),
+
+  addNoteTodo: (noteId, text) => {
+    const next = addTodoToStore(get().noteTodosByNoteId, noteId, text)
+    saveNoteTodosStorage(next)
+    set({ noteTodosByNoteId: next })
+  },
+
+  toggleNoteTodo: (noteId, todoId) => {
+    const next = toggleTodoInStore(get().noteTodosByNoteId, noteId, todoId)
+    saveNoteTodosStorage(next)
+    set({ noteTodosByNoteId: next })
+  },
+
+  deleteNoteTodo: (noteId, todoId) => {
+    const next = deleteTodoFromStore(get().noteTodosByNoteId, noteId, todoId)
+    saveNoteTodosStorage(next)
+    set({ noteTodosByNoteId: next })
+  },
+
+  clearCompletedNoteTodos: (noteId) => {
+    const next = clearCompletedTodosFromStore(get().noteTodosByNoteId, noteId)
+    saveNoteTodosStorage(next)
+    set({ noteTodosByNoteId: next })
+  },
+
+  getAllOpenNoteTodos: (excludeNoteId) =>
+    extractAllOpenTodos(get().notes, get().noteTodosByNoteId, excludeNoteId),
 
   setMainView: (view) => set({ mainView: view }),
 
@@ -664,9 +714,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
     if (target.folder === 'trash') {
       const updatedNotes = get().notes.filter((n) => n.id !== id)
+      const nextTodos = removeTodosForNote(get().noteTodosByNoteId, id)
+      saveNoteTodosStorage(nextTodos)
       const wasSelected = get().selectedNoteId === id
       set({
         notes: updatedNotes,
+        noteTodosByNoteId: nextTodos,
         openNoteTabs: tabs,
         ...(wasSelected ? { selectedNoteId: null, mainView: 'home' as const } : {}),
       })
@@ -711,7 +764,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   emptyTrash: () => {
     const trashNotes = get().notes.filter((n) => n.folder === 'trash')
     const updatedNotes = get().notes.filter((n) => n.folder !== 'trash')
-    set({ notes: updatedNotes })
+    let nextTodos = get().noteTodosByNoteId
+    for (const note of trashNotes) {
+      nextTodos = removeTodosForNote(nextTodos, note.id)
+    }
+    saveNoteTodosStorage(nextTodos)
+    set({ notes: updatedNotes, noteTodosByNoteId: nextTodos })
     if (get().selectedNoteId && trashNotes.some((n) => n.id === get().selectedNoteId)) {
       set({ selectedNoteId: null })
     }
