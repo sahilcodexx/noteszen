@@ -36,6 +36,7 @@ import {
   FieldGroup,
   FieldTitle,
 } from '@/components/ui/field'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
 
 const SHORTCUTS = [
   { action: 'New Note', keys: 'Ctrl+N' },
@@ -55,6 +56,18 @@ const SHORTCUTS = [
 interface SettingsPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+function ShortcutKeys({ keys }: { keys: string }) {
+  const parts = keys.split('+')
+
+  return (
+    <KbdGroup>
+      {parts.map((part, index) => (
+        <Kbd key={`${part}-${index}`}>{part}</Kbd>
+      ))}
+    </KbdGroup>
+  )
 }
 
 export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps) {
@@ -388,15 +401,15 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                 {SHORTCUTS.map((s) => (
                   <div key={s.action} className="flex items-center justify-between py-1.5 text-sm">
                     <span className="text-muted-foreground">{s.action}</span>
-                    <kbd className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">{s.keys}</kbd>
+                    <ShortcutKeys keys={s.keys} />
                   </div>
                 ))}
               </div>
               <div className="mt-4 flex items-start gap-3 rounded-2xl border border-border bg-muted/50 p-4">
                 <Info className="mt-0.5 shrink-0 text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Quick capture with <kbd className="rounded bg-muted px-1.5 font-mono text-xs">Ctrl+Shift+Space</kbd>.
-                  Mobile view: type <kbd className="rounded bg-muted px-1.5 font-mono text-xs">#mobile</kbd> in search.
+                  Quick capture with <ShortcutKeys keys="Ctrl+Shift+Space" />.
+                  Mobile view: type <Kbd>#mobile</Kbd> in search.
                 </p>
               </div>
             </TabsContent>

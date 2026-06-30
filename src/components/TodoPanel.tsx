@@ -1,14 +1,10 @@
 import { useMemo, useState } from 'react'
-import { FileText, Plus, Trash2, X } from 'lucide-react'
+import { CircleCheck, CircleSlash, FileText, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Calendar, CalendarDayButton } from '@/components/ui/calendar'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Empty,
   EmptyDescription,
@@ -16,18 +12,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from '@/components/ui/input-group'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { notify } from '@/lib/toast'
 import { useNotesStore } from '@/store/useNotesStore'
 import type { SidebarTodo } from '@/lib/todos'
 
 const PANEL_X = 'px-3'
+
+type TaskFilter = 'unfinished' | 'done'
 
 export default function TodoPanel({ onClose }: { onClose?: () => void }) {
   const {
@@ -40,7 +33,7 @@ export default function TodoPanel({ onClose }: { onClose?: () => void }) {
     clearCompletedNoteTodos,
   } = useNotesStore()
   const [draft, setDraft] = useState('')
-  const [doneOpen, setDoneOpen] = useState(false)
+  const [taskFilter, setTaskFilter] = useState<TaskFilter>('unfinished')
   const [date, setDate] = useState<Date | undefined>(new Date())
 
   const activeNote = notes.find((note) => note.id === selectedNoteId) || null
@@ -50,6 +43,7 @@ export default function TodoPanel({ onClose }: { onClose?: () => void }) {
   )
   const openTodos = todos.filter((todo) => !todo.checked)
   const doneTodos = todos.filter((todo) => todo.checked)
+  const visibleTodos = taskFilter === 'unfinished' ? openTodos : doneTodos
 
   const addTodo = () => {
     if (!activeNote || !draft.trim()) return
@@ -99,85 +93,87 @@ export default function TodoPanel({ onClose }: { onClose?: () => void }) {
                   addTodo()
                 }}
               >
-                <InputGroup className="h-9 w-full">
-                  <InputGroupInput
+                <div className="relative">
+                  <Input
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     placeholder="New task..."
-                    className="text-sm"
+                    className="pr-9 text-sm"
                   />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      type="submit"
-                      variant="ghost"
-                      size="icon-xs"
-                      disabled={!draft.trim()}
-                      title="Add task"
-                    >
-                      <Plus />
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={!draft.trim()}
+                    title="Add task"
+                    className="absolute top-1/2 right-1.5 -translate-y-1/2"
+                  >
+                    <Plus />
+                  </Button>
+                </div>
               </form>
             </div>
 
+            <div
+              className={cn(
+                'flex shrink-0 items-center justify-between border-b border-border',
+                PANEL_X
+              )}
+            >
+              <Tabs
+                value={taskFilter}
+                onValueChange={(value) => setTaskFilter(value as TaskFilter)}
+                className="gap-0"
+              >
+                <TabsList variant="line" className="h-9 gap-5 bg-transparent p-0">
+                  <TabsTrigger
+                    value="unfinished"
+                    className="flex-none gap-1.5 px-0 after:bg-primary data-active:text-foreground"
+                  >
+                    <CircleSlash className="size-3.5" />
+                    Unfinished
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="done"
+                    className="flex-none gap-1.5 px-0 after:bg-primary data-active:text-foreground"
+                  >
+                    <CircleCheck className="size-3.5" />
+                    Done
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              {taskFilter === 'done' && doneTodos.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="h-6 shrink-0 text-[11px] text-muted-foreground"
+                  onClick={clearCompleted}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+
             <ScrollArea className="min-h-0 flex-1">
-              <div className={cn('pb-4', PANEL_X)}>
-                {openTodos.length === 0 && doneTodos.length === 0 ? (
+              <div className={cn('pb-4 pt-2', PANEL_X)}>
+                {visibleTodos.length === 0 ? (
                   <p className="py-8 text-center text-xs text-muted-foreground">
-                    No tasks yet. Add one above.
+                    {taskFilter === 'unfinished'
+                      ? 'No tasks yet. Add one above.'
+                      : 'No completed tasks.'}
                   </p>
                 ) : (
-                  <>
-                    {openTodos.length > 0 && (
-                      <ul className="task-panel-list flex min-w-0 flex-col gap-0.5">
-                        {openTodos.map((todo) => (
-                          <TaskRow
-                            key={todo.id}
-                            todo={todo}
-                            onToggle={() => toggleNoteTodo(activeNote.id, todo.id)}
-                            onDelete={() => deleteNoteTodo(activeNote.id, todo.id)}
-                          />
-                        ))}
-                      </ul>
-                    )}
-
-                    {doneTodos.length > 0 && (
-                      <Collapsible open={doneOpen} onOpenChange={setDoneOpen} className="mt-2">
-                        <div className="flex items-center justify-between gap-2 px-1">
-                          <CollapsibleTrigger asChild>
-                            <button
-                              type="button"
-                              className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                            >
-                              Completed ({doneTodos.length})
-                            </button>
-                          </CollapsibleTrigger>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className="h-6 text-[11px] text-muted-foreground"
-                            onClick={clearCompleted}
-                          >
-                            Clear
-                          </Button>
-                        </div>
-                        <CollapsibleContent>
-                          <ul className="task-panel-list mt-1 flex min-w-0 flex-col gap-0.5">
-                            {doneTodos.map((todo) => (
-                              <TaskRow
-                                key={todo.id}
-                                todo={todo}
-                                onToggle={() => toggleNoteTodo(activeNote.id, todo.id)}
-                                onDelete={() => deleteNoteTodo(activeNote.id, todo.id)}
-                                completed
-                              />
-                            ))}
-                          </ul>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    )}
-                  </>
+                  <ul className="task-panel-list flex min-w-0 flex-col gap-0.5">
+                    {visibleTodos.map((todo) => (
+                      <TaskRow
+                        key={todo.id}
+                        todo={todo}
+                        onToggle={() => toggleNoteTodo(activeNote.id, todo.id)}
+                        onDelete={() => deleteNoteTodo(activeNote.id, todo.id)}
+                        completed={taskFilter === 'done'}
+                      />
+                    ))}
+                  </ul>
                 )}
               </div>
             </ScrollArea>
