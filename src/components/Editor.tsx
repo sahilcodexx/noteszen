@@ -541,19 +541,23 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     if (!isEditorReady || !activeNote || !editor?.schema) return
 
     const content = stripAiDraftBannerFromHtml(activeNote.content || '')
+
     if (content !== activeNote.content) {
       updateNote(activeNote.id, { content })
     }
 
     const currentContent = editor.getHTML()
     if (currentContent !== content) {
-      editor.commands.setContent(content, { emitUpdate: false })
+      queueMicrotask(() => {
+        if (editor.isDestroyed) return
+        editor.commands.setContent(content, { emitUpdate: false })
+      })
     }
     editor.setEditable(activeNote.folder !== 'trash')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedNoteId,
     isEditorReady,
-    activeNote,
     activeNote?.id,
     activeNote?.content,
     activeNote?.title,
@@ -878,8 +882,13 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   if (!activeNote) {
     return (
-      <div className="flex-grow flex items-center justify-center text-muted-foreground select-none">
-        No active note
+      <div className="flex-grow flex flex-col items-center justify-center text-muted-foreground select-none gap-2">
+        <svg viewBox="0 0 80 80" className="size-16 text-muted-foreground/20 mb-2" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 45 L30 55 L55 25" />
+          <circle cx="40" cy="40" r="28" />
+        </svg>
+        <p className="text-sm font-medium tracking-tight">Open a note to begin</p>
+        <p className="text-xs text-muted-foreground/50">or create something new</p>
       </div>
     )
   }
