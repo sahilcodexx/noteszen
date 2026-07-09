@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useMemo } from 'react'
+import React, { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { ReactNodeViewRenderer, useEditor, EditorContent, useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
@@ -323,7 +323,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       Highlight.configure({ multicolor: true }),
       Typography,
     ],
-    [lowlight, resolveNoteId, appSettings.spellCheckLanguage]
+    [lowlight, resolveNoteId]
   )
 
   // Zoom handlers for text sizing (14px to 128px)
@@ -356,7 +356,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     if (!wikilinkQuery) return []
     const q = wikilinkQuery.toLowerCase()
     return notes
-      .filter((n) => n.id !== activeNote?.id && n.folder !== 'trash' && n.title.toLowerCase().includes(q))
+      .filter((n) => n.id !== activeNoteId && n.folder !== 'trash' && n.title.toLowerCase().includes(q))
       .slice(0, 6)
   }, [wikilinkQuery, notes, activeNoteId])
 
@@ -553,6 +553,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   }, [
     selectedNoteId,
     isEditorReady,
+    activeNote,
     activeNote?.id,
     activeNote?.content,
     activeNote?.title,
@@ -671,7 +672,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     if (!textBefore.includes('/')) {
       requestAnimationFrame(() => setShowSlashMenu(false))
     }
-  }, [isEditorReady, showSlashMenu, editor?.state.selection.from])
+  }, [isEditorReady, showSlashMenu, editor, editor?.state.selection.from])
 
   const COMMANDS = [
     {
@@ -748,7 +749,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     commandsRef.current = COMMANDS
   })
 
-  const insertWikilink = (title: string) => {
+  const insertWikilink = useCallback((title: string) => {
     if (!editor) return
     const { from } = editor.state.selection
     const textBefore = editor.state.doc.textBetween(Math.max(0, from - 30), from)
@@ -761,12 +762,12 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     }
     setShowWikilinkMenu(false)
     setWikilinkQuery('')
-  }
+  }, [editor])
 
-  const createLinkedNote = (title: string) => {
+  const createLinkedNote = useCallback((title: string) => {
     createNote({ title: title.trim(), content: '' })
     insertWikilink(title.trim())
-  }
+  }, [createNote, insertWikilink])
 
   useEffect(() => {
     const onWikilinkClick = (e: Event) => {
@@ -783,7 +784,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       window.removeEventListener('noteszen:wikilink-click', onWikilinkClick)
       window.removeEventListener('noteszen:wikilink-create', onWikilinkCreate)
     }
-  }, [setSelectedNoteId, createNote])
+  }, [setSelectedNoteId, createNote, createLinkedNote])
 
   const executeCommand = (cmd: typeof COMMANDS[0]) => {
     cmd.action()

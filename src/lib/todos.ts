@@ -83,7 +83,8 @@ export function deleteTodoFromStore(
 
   const next = todos.filter((todo) => todo.id !== todoId)
   if (next.length === 0) {
-    const { [noteId]: _, ...rest } = data
+    const rest = { ...data }
+    delete rest[noteId]
     return rest
   }
 
@@ -99,7 +100,8 @@ export function clearCompletedTodosFromStore(
 
   const next = todos.filter((todo) => !todo.checked)
   if (next.length === 0) {
-    const { [noteId]: _, ...rest } = data
+    const rest = { ...data }
+    delete rest[noteId]
     return rest
   }
 
@@ -111,7 +113,8 @@ export function removeTodosForNote(
   noteId: string
 ): Record<string, SidebarTodo[]> {
   if (!(noteId in data)) return data
-  const { [noteId]: _, ...rest } = data
+  const rest = { ...data }
+  delete rest[noteId]
   return rest
 }
 

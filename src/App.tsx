@@ -131,18 +131,17 @@ function MainApp() {
     [folderFilteredNotes, searchQuery]
   )
 
-  const sortNotes = (list: typeof filteredNotes) =>
-    [...list].sort((a, b) => {
-      if (noteSort === 'title') return (a.title || '').localeCompare(b.title || '')
-      if (noteSort === 'created') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      }
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    })
-
   const sortedNotes = useMemo(() => {
-    const pinned = sortNotes(filteredNotes.filter((n) => n.isPinned))
-    const unpinned = sortNotes(filteredNotes.filter((n) => !n.isPinned))
+    const sortFn = (list: typeof filteredNotes) =>
+      [...list].sort((a, b) => {
+        if (noteSort === 'title') return (a.title || '').localeCompare(b.title || '')
+        if (noteSort === 'created') {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        }
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      })
+    const pinned = sortFn(filteredNotes.filter((n) => n.isPinned))
+    const unpinned = sortFn(filteredNotes.filter((n) => !n.isPinned))
     return [...pinned, ...unpinned]
   }, [filteredNotes, noteSort])
 

@@ -8,7 +8,7 @@ export default function MobileView() {
 
   useEffect(() => {
     initApp()
-  }, [])
+  }, [initApp])
 
   const filtered = useMemo(() => {
     const active = notes.filter((n) => n.folder !== 'trash' && !n.isArchived)

@@ -95,7 +95,7 @@ export default function GlobalSearch() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isGlobalSearchOpen, results, selectedIndex])
+  }, [isGlobalSearchOpen, results, selectedIndex, openNote, setGlobalSearchOpen])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -105,7 +105,7 @@ export default function GlobalSearch() {
     }
     if (isGlobalSearchOpen) document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isGlobalSearchOpen])
+  }, [isGlobalSearchOpen, setGlobalSearchOpen])
 
   if (!isGlobalSearchOpen) return null
 
