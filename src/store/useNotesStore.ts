@@ -302,6 +302,7 @@ const defaultSettings: AppSettings = {
   trashAutoPurgeDays: 30,
   spellCheckLanguage: 'en',
   syncFolderPath: '',
+  enableCustomSpellcheck: false,
 }
 
 export const useNotesStore = create<NotesState>((set, get) => ({
@@ -592,11 +593,13 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       const trashDays = await api.getSetting('trashAutoPurgeDays')
       const spellLang = await api.getSetting('spellCheckLanguage')
       const syncPath = await api.getSetting('syncFolderPath')
+      const enableCustom = await api.getSetting('enableCustomSpellcheck')
       set({
         appSettings: {
           trashAutoPurgeDays: trashDays ? parseInt(trashDays, 10) : 30,
           spellCheckLanguage: spellLang || 'en',
           syncFolderPath: syncPath || '',
+          enableCustomSpellcheck: enableCustom === 'true',
         },
       })
     }
@@ -665,6 +668,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       }
       if (settings.syncFolderPath !== undefined) {
         api.saveSetting('syncFolderPath', settings.syncFolderPath)
+      }
+      if (settings.enableCustomSpellcheck !== undefined) {
+        api.saveSetting('enableCustomSpellcheck', String(settings.enableCustomSpellcheck))
       }
     }
   },
@@ -860,6 +866,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const target = get().notes.find((n) => n.id === id)
     if (!target) return
     const api = getAPI()
+    lastLocalSaveAt = Date.now()
 
     const tabs = get().openNoteTabs.filter((tabId) => tabId !== id)
 
@@ -920,6 +927,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       nextTodos = removeTodosForNote(nextTodos, note.id)
     }
     saveNoteTodosStorage(nextTodos)
+    lastLocalSaveAt = Date.now()
     set({ notes: updatedNotes, noteTodosByNoteId: nextTodos })
     if (get().selectedNoteId && trashNotes.some((n) => n.id === get().selectedNoteId)) {
       set({ selectedNoteId: null })
