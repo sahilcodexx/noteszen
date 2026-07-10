@@ -52,7 +52,28 @@ export default function GlobalSearch() {
     }
 
     if (ftsResults.length > 0) {
-      return ftsResults.map((r) => ({ item: r.note, snippet: r.snippet }))
+      return ftsResults.map((r) => ({
+        item: {
+          id: r.id,
+          title: r.title,
+          updatedAt: r.updatedAt,
+          content: '',
+          folder: '',
+          tags: [],
+          backlinks: [],
+          isPinned: false,
+          isFavorite: false,
+          isArchived: false,
+          createdAt: '',
+          icon: null,
+          cover: null,
+          status: null,
+          editorMode: 'wysiwyg',
+          vaultId: '',
+          contentLoaded: false,
+        } as Note,
+        snippet: r.snippet,
+      }))
     }
 
     const searchResults = fuse.search(query)
