@@ -37,6 +37,7 @@ import {
   FieldTitle,
 } from '@/components/ui/field'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { Switch } from '@/components/ui/switch'
 
 const SHORTCUTS = [
   { action: 'New Note', keys: 'Ctrl+N' },
@@ -236,6 +237,16 @@ export default function SettingsPanel({ open, onOpenChange }: SettingsPanelProps
                       <SelectItem value="de">German</SelectItem>
                     </SelectContent>
                   </Select>
+                </Field>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>Custom Spellcheck</FieldTitle>
+                    <FieldDescription>JS dictionary offline scanning (more CPU & RAM)</FieldDescription>
+                  </FieldContent>
+                  <Switch
+                    checked={appSettings.enableCustomSpellcheck || false}
+                    onCheckedChange={(checked) => setAppSettings({ enableCustomSpellcheck: checked })}
+                  />
                 </Field>
                 <Field orientation="horizontal">
                   <FieldContent>
