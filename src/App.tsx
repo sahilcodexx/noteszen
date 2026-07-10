@@ -14,6 +14,7 @@ import { filterNotesWithFuse } from './lib/search'
 import { filterNotesByContext } from './lib/note-filters'
 
 import { useNotesStore } from './store/useNotesStore'
+import { useShallow } from 'zustand/react/shallow'
 const TodoPanel = lazy(() => import('./components/TodoPanel'))
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
 const EditorShell = lazy(() => import('./components/EditorShell'))
@@ -77,7 +78,43 @@ function MainApp() {
     openNote,
     isDarkMode,
     toggleDarkMode,
-  } = useNotesStore()
+  } = useNotesStore(
+    useShallow((s) => ({
+      notes: s.notes,
+      selectedNoteId: s.selectedNoteId,
+      searchQuery: s.searchQuery,
+      activeFolder: s.activeFolder,
+      selectedTag: s.selectedTag,
+      isCommandPaletteOpen: s.isCommandPaletteOpen,
+      isGlobalSearchOpen: s.isGlobalSearchOpen,
+      isGraphViewOpen: s.isGraphViewOpen,
+      isZenMode: s.isZenMode,
+      isSidebarCollapsed: s.isSidebarCollapsed,
+      folders: s.folders,
+      recentNoteIds: s.recentNoteIds,
+      initApp: s.initApp,
+      setSelectedNoteId: s.setSelectedNoteId,
+      setSearchQuery: s.setSearchQuery,
+      toggleSidebar: s.toggleSidebar,
+      setCommandPaletteOpen: s.setCommandPaletteOpen,
+      setGlobalSearchOpen: s.setGlobalSearchOpen,
+      createNote: s.createNote,
+      createDailyNote: s.createDailyNote,
+      togglePin: s.togglePin,
+      deleteNote: s.deleteNote,
+      restoreNote: s.restoreNote,
+      emptyTrash: s.emptyTrash,
+      noteSort: s.noteSort,
+      mainView: s.mainView,
+      isAIPanelOpen: s.isAIPanelOpen,
+      aiPanelWidth: s.aiPanelWidth,
+      setAIPanelWidth: s.setAIPanelWidth,
+      toggleAIPanel: s.toggleAIPanel,
+      openNote: s.openNote,
+      isDarkMode: s.isDarkMode,
+      toggleDarkMode: s.toggleDarkMode,
+    }))
+  )
 
   const [showSettings, setShowSettings] = useState(false)
   const [showFolderDialog, setShowFolderDialog] = useState(false)

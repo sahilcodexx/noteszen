@@ -15,6 +15,7 @@ import {
   Trash,
 } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
+import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -53,7 +54,24 @@ export default function WorkspaceSidebar({
     vaults,
     activeVaultId,
     toggleSidebar,
-  } = useNotesStore()
+  } = useNotesStore(
+    useShallow((s) => ({
+      notes: s.notes,
+      activeFolder: s.activeFolder,
+      selectedTag: s.selectedTag,
+      folders: s.folders,
+      recentNoteIds: s.recentNoteIds,
+      setActiveFolder: s.setActiveFolder,
+      setSelectedTag: s.setSelectedTag,
+      goHome: s.goHome,
+      openNote: s.openNote,
+      createNote: s.createNote,
+      deleteFolder: s.deleteFolder,
+      vaults: s.vaults,
+      activeVaultId: s.activeVaultId,
+      toggleSidebar: s.toggleSidebar,
+    }))
+  )
 
   const workspaceName =
     vaults.find((v) => v.id === activeVaultId)?.name ?? 'Default Vault'
