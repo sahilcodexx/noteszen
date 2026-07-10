@@ -1,10 +1,20 @@
 import { useMemo, useEffect } from 'react'
 import { useNotesStore } from '../store/useNotesStore'
+import { useShallow } from 'zustand/react/shallow'
 import { FileText, Search, Star, Calendar } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 export default function MobileView() {
-  const { notes, searchQuery, setSearchQuery, selectedNoteId, setSelectedNoteId, initApp } = useNotesStore()
+  const { notes, searchQuery, setSearchQuery, selectedNoteId, setSelectedNoteId, initApp } = useNotesStore(
+    useShallow((s) => ({
+      notes: s.notes,
+      searchQuery: s.searchQuery,
+      setSearchQuery: s.setSearchQuery,
+      selectedNoteId: s.selectedNoteId,
+      setSelectedNoteId: s.setSelectedNoteId,
+      initApp: s.initApp,
+    }))
+  )
 
   useEffect(() => {
     initApp()

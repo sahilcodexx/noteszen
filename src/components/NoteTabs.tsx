@@ -1,10 +1,19 @@
 import { X } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
+import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 export default function NoteTabs() {
-  const { notes, selectedNoteId, openNoteTabs, setSelectedNoteId, removeOpenTab } = useNotesStore()
+  const { notes, selectedNoteId, openNoteTabs, setSelectedNoteId, removeOpenTab } = useNotesStore(
+    useShallow((s) => ({
+      notes: s.notes,
+      selectedNoteId: s.selectedNoteId,
+      openNoteTabs: s.openNoteTabs,
+      setSelectedNoteId: s.setSelectedNoteId,
+      removeOpenTab: s.removeOpenTab,
+    }))
+  )
 
   if (openNoteTabs.length <= 1) return null
 

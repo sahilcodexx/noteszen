@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { notify } from '@/lib/toast'
 import { useNotesStore } from '@/store/useNotesStore'
+import { useShallow } from 'zustand/react/shallow'
 import type { SidebarTodo } from '@/lib/todos'
 
 const PANEL_X = 'px-3'
@@ -31,7 +32,17 @@ export default function TodoPanel({ onClose }: { onClose?: () => void }) {
     toggleNoteTodo,
     deleteNoteTodo,
     clearCompletedNoteTodos,
-  } = useNotesStore()
+  } = useNotesStore(
+    useShallow((s) => ({
+      notes: s.notes,
+      selectedNoteId: s.selectedNoteId,
+      noteTodosByNoteId: s.noteTodosByNoteId,
+      addNoteTodo: s.addNoteTodo,
+      toggleNoteTodo: s.toggleNoteTodo,
+      deleteNoteTodo: s.deleteNoteTodo,
+      clearCompletedNoteTodos: s.clearCompletedNoteTodos,
+    }))
+  )
   const [draft, setDraft] = useState('')
   const [taskFilter, setTaskFilter] = useState<TaskFilter>('unfinished')
   const [date, setDate] = useState<Date | undefined>(new Date())

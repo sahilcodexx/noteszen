@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react'
 import { ArrowLeft, Trash2, PanelLeft } from 'lucide-react'
 import { useNotesStore } from '../store/useNotesStore'
+import { useShallow } from 'zustand/react/shallow'
 import NoteTabs from './NoteTabs'
 import { Button } from '@/components/ui/button'
 
@@ -12,7 +13,16 @@ interface EditorShellProps {
 }
 
 export default function EditorShell({ sidebarCollapsed, onExpandSidebar }: EditorShellProps) {
-  const { goHome, notes, selectedNoteId, restoreNote, deleteNote, ensureNoteContent } = useNotesStore()
+  const { goHome, notes, selectedNoteId, restoreNote, deleteNote, ensureNoteContent } = useNotesStore(
+    useShallow((s) => ({
+      goHome: s.goHome,
+      notes: s.notes,
+      selectedNoteId: s.selectedNoteId,
+      restoreNote: s.restoreNote,
+      deleteNote: s.deleteNote,
+      ensureNoteContent: s.ensureNoteContent,
+    }))
+  )
   const activeNote = notes.find((n) => n.id === selectedNoteId)
 
   useEffect(() => {
