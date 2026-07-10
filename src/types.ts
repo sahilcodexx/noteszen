@@ -51,14 +51,17 @@ export interface Vault {
 }
 
 export interface SearchResult {
-  note: Note
+  id: string
+  title: string
   snippet: string
+  updatedAt: string
 }
 
 export interface AppSettings {
   trashAutoPurgeDays: number
   spellCheckLanguage: string
   syncFolderPath: string
+  enableCustomSpellcheck?: boolean
 }
 
 export interface TauriAPI {

@@ -65,8 +65,10 @@ pub struct Vault {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
-    pub note: Note,
+    pub id: String,
+    pub title: String,
     pub snippet: String,
+    pub updated_at: String,
 }
 
 fn add_column_if_missing(conn: &Connection, table: &str, column: &str, definition: &str) {
@@ -234,7 +236,7 @@ pub fn get_sql_notes(conn: &Connection, vault_id: Option<&str>) -> Result<Vec<No
 }
 
 pub fn get_sql_note_previews(conn: &Connection, vault_id: Option<&str>) -> Result<Vec<Note>, rusqlite::Error> {
-    get_sql_notes_with_content_expr(conn, vault_id, "substr(n.content, 1, 1200)")
+    get_sql_notes_with_content_expr(conn, vault_id, "substr(n.content, 1, 300)")
 }
 
 pub fn get_sql_note(conn: &Connection, note_id: &str) -> Result<Option<Note>, rusqlite::Error> {
@@ -420,25 +422,31 @@ pub fn search_notes_fts(conn: &Connection, query: &str, vault_id: Option<&str>) 
         .join(" AND ");
 
     let sql = if vault_id.is_some() {
-        "SELECT f.note_id, snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
+        "SELECT n.id, n.title, n.updatedAt, snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
          FROM notes_fts f
          JOIN notes n ON n.id = f.note_id
          WHERE notes_fts MATCH ?1 AND n.vaultId = ?2 AND n.folder != 'trash'
          ORDER BY rank LIMIT 50"
     } else {
-        "SELECT f.note_id, snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
+        "SELECT n.id, n.title, n.updatedAt, snippet(notes_fts, 2, '<mark>', '</mark>', '...', 32) as snippet
          FROM notes_fts f
          JOIN notes n ON n.id = f.note_id
          WHERE notes_fts MATCH ?1 AND n.folder != 'trash'
          ORDER BY rank LIMIT 50"
     };
 
-    fn map_fts_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<(String, String)> {
-        Ok((row.get(0)?, row.get(1)?))
+    fn map_fts_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchResult> {
+        let snippet: String = row.get(3)?;
+        Ok(SearchResult {
+            id: row.get(0)?,
+            title: row.get(1)?,
+            updated_at: row.get(2)?,
+            snippet: snippet.replace("<mark>", "").replace("</mark>", ""),
+        })
     }
 
     let mut stmt = conn.prepare(sql)?;
-    let row_pairs: Vec<(String, String)> = if let Some(v) = vault_id {
+    let results: Vec<SearchResult> = if let Some(v) = vault_id {
         stmt.query_map(params![fts_query, v], map_fts_row)?
             .collect::<Result<Vec<_>, _>>()?
     } else {
@@ -446,15 +454,6 @@ pub fn search_notes_fts(conn: &Connection, query: &str, vault_id: Option<&str>) 
             .collect::<Result<Vec<_>, _>>()?
     };
 
-    let mut results = Vec::new();
-    for (id, snippet) in row_pairs {
-        if let Some(note) = get_sql_note(conn, &id)? {
-            results.push(SearchResult {
-                note,
-                snippet: snippet.replace("<mark>", "").replace("</mark>", ""),
-            });
-        }
-    }
     Ok(results)
 }
 
