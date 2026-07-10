@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useMemo, useCallback } from 'react'
-import { ReactNodeViewRenderer, useEditor, EditorContent, useEditorState } from '@tiptap/react'
+import { ReactNodeViewRenderer, useEditor, EditorContent } from '@tiptap/react'
+import { useShallow } from 'zustand/react/shallow'
 import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -246,7 +247,30 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     setSelectedNoteId,
     openNote,
     createNote,
-  } = useNotesStore()
+    stageNoteContent,
+    flushNoteContent,
+  } = useNotesStore(
+    useShallow((s) => ({
+      notes: s.notes,
+      selectedNoteId: s.selectedNoteId,
+      updateNote: s.updateNote,
+      editorFont: s.editorFont,
+      editorFontSize: s.editorFontSize,
+      setEditorFontSize: s.setEditorFontSize,
+      isZenMode: s.isZenMode,
+      setZenMode: s.setZenMode,
+      togglePin: s.togglePin,
+      toggleFavorite: s.toggleFavorite,
+      toggleArchive: s.toggleArchive,
+      saveStatus: s.saveStatus,
+      appSettings: s.appSettings,
+      setSelectedNoteId: s.setSelectedNoteId,
+      openNote: s.openNote,
+      createNote: s.createNote,
+      stageNoteContent: s.stageNoteContent,
+      flushNoteContent: s.flushNoteContent,
+    }))
+  )
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [copied, setCopied] = useState(false)
@@ -274,6 +298,19 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const activeNote = notes.find(n => n.id === selectedNoteId) || null
   const activeNoteId = activeNote?.id
 
+  const [markdownContent, setMarkdownContent] = useState('')
+
+  useEffect(() => {
+    if (activeNote && activeNote.contentLoaded) {
+      setMarkdownContent((prev) => {
+        if (activeNote.content !== prev) {
+          return activeNote.content || ''
+        }
+        return prev
+      })
+    }
+  }, [activeNote?.id, activeNote?.contentLoaded, activeNote?.content])
+
   useEffect(() => {
     showSlashMenuRef.current = showSlashMenu
     selectedIndexRef.current = selectedIndex
@@ -284,15 +321,21 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
   const lowlight = useMemo(() => createLowlight({ js, ts, python, html, css, json, bash, sql, rust, cpp }), [])
 
-  const resolveNoteId = useMemo(
-    () => (title: string) => {
-      const match = notes.find(
-        (n) => n.title.toLowerCase() === title.trim().toLowerCase() && n.folder !== 'trash'
-      )
-      return match?.id ?? null
-    },
-    [notes]
-  )
+  const titleIndexRef = useRef<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    const map = new Map<string, string>()
+    for (const note of notes) {
+      if (note.folder !== 'trash') {
+        map.set(note.title.trim().toLowerCase(), note.id)
+      }
+    }
+    titleIndexRef.current = map
+  }, [notes])
+
+  const resolveNoteId = useCallback((title: string) => {
+    return titleIndexRef.current.get(title.trim().toLowerCase()) ?? null
+  }, [])
 
   const extensions = useMemo(
     () => [
@@ -319,11 +362,11 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       Callout,
       Wikilink,
       createWikilinkExtension(resolveNoteId),
-      createSpellcheckExtension(),
+      ...(appSettings.enableCustomSpellcheck ? [createSpellcheckExtension()] : []),
       Highlight.configure({ multicolor: true }),
       Typography,
     ],
-    [lowlight, resolveNoteId]
+    [lowlight, resolveNoteId, appSettings.enableCustomSpellcheck]
   )
 
   // Zoom handlers for text sizing (14px to 128px)
@@ -435,7 +478,8 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     onUpdate: ({ editor: activeEditor }) => {
       const noteIdToUpdate = selectedNoteIdRef.current
       if (noteIdToUpdate && !activeEditor.isDestroyed && activeEditor.schema) {
-        updateNote(noteIdToUpdate, { content: activeEditor.getHTML() })
+        stageNoteContent(noteIdToUpdate, activeEditor.getHTML())
+        updateWordCountDebounced()
         const { from } = activeEditor.state.selection
         const textBefore = activeEditor.state.doc.textBetween(Math.max(0, from - 30), from)
         const match = textBefore.match(/\[\[([^\]]*)$/)
@@ -462,13 +506,14 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
       const content = editor.getHTML()
       if (content !== currentNote.content) {
-        updateNote(noteIdToUpdate, { content })
+        stageNoteContent(noteIdToUpdate, content)
+        flushNoteContent(noteIdToUpdate)
       }
     }
 
     window.addEventListener('noteszen:flush-editor', flushEditor)
     return () => window.removeEventListener('noteszen:flush-editor', flushEditor)
-  }, [editor, updateNote])
+  }, [editor, stageNoteContent, flushNoteContent])
 
   useEffect(() => {
     const jumpToTask = (event: Event) => {
@@ -847,24 +892,34 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
 
-  // Stats Counters — only read from a live editor instance
-  const textContent = useEditorState({
-    editor,
-    selector: ({ editor: activeEditor }) => {
-      if (!activeEditor || activeEditor.isDestroyed || !activeEditor.schema) {
-        return ''
-      }
+  const [wordCount, setWordCount] = useState(0)
+  const wordCountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const updateWordCountDebounced = useCallback(() => {
+    if (wordCountTimeoutRef.current) clearTimeout(wordCountTimeoutRef.current)
+    wordCountTimeoutRef.current = setTimeout(() => {
+      if (!editor || editor.isDestroyed || !editor.schema) return
       try {
-        return activeEditor.getText()
-      } catch {
-        return ''
+        const text = editor.getText()
+        const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length
+        setWordCount(words)
+      } catch (err) {
+        console.error(err)
       }
-    },
-  }) ?? ''
-  const wordCount = useMemo(() => {
-    if (!textContent.trim()) return 0
-    return textContent.trim().split(/\s+/).length
-  }, [textContent])
+    }, 1000)
+  }, [editor])
+
+  // Sync word count on initial load and selection changes
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !activeNote) return
+    try {
+      const text = editor.getText()
+      const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length
+      setWordCount(words)
+    } catch {
+      setWordCount(0)
+    }
+  }, [selectedNoteId, isEditorReady, editor, activeNote?.contentLoaded])
 
   const readingTime = useMemo(() => {
     const wpm = 200
@@ -1484,8 +1539,12 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
         {isMarkdownMode ? (
           <div className={cn('flex gap-4', showSplitPreview && 'flex-row')}>
             <textarea
-              value={activeNote.content}
-              onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
+              value={markdownContent}
+              onChange={(e) => {
+                const val = e.target.value
+                setMarkdownContent(val)
+                stageNoteContent(activeNote.id, val)
+              }}
               disabled={isTrashNote}
               className={cn(
                 'min-h-[450px] bg-transparent border-0 outline-none font-mono text-sm leading-relaxed resize-none',
@@ -1495,7 +1554,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
             />
             {showSplitPreview && (
               <MarkdownPreview
-                markdown={activeNote.content}
+                markdown={markdownContent}
                 className="min-h-[450px] w-1/2 overflow-x-hidden pl-2"
               />
             )}
