@@ -101,6 +101,11 @@ interface NotesState {
   createNoteFromTemplate: (templateId: string) => void
   createDailyNote: () => void
   updateNote: (id: string, fields: Partial<Note>) => void
+  /** Stage editor HTML without re-rendering the full notes list every keystroke. */
+  stageNoteContent: (id: string, content: string) => void
+  /** Flush staged content into the store + disk. Omit id to flush all drafts. */
+  flushNoteContent: (id?: string) => void
+  unloadInactiveNoteContent: () => void
   deleteNote: (id: string) => void
   restoreNote: (id: string) => void
   emptyTrash: () => void
@@ -125,20 +130,46 @@ interface NotesState {
   getAllOpenNoteTodos: (excludeNoteId?: string) => NoteTodoWithMeta[]
 }
 
-let saveTimeout: ReturnType<typeof setTimeout> | null = null
+const MAX_LOADED_NOTE_BODIES = 8
+const CONTENT_SAVE_DEBOUNCE_MS = 800
+const NOTES_CHANGED_DEBOUNCE_MS = 1200
+const LOCAL_SAVE_SUPPRESS_MS = 1800
 
-function extractBacklinks(content: string, allNotes: Note[]): string[] {
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
+let contentSaveTimeout: ReturnType<typeof setTimeout> | null = null
+let notesChangedTimeout: ReturnType<typeof setTimeout> | null = null
+let lastLocalSaveAt = 0
+const contentDrafts = new Map<string, string>()
+
+function buildTitleIndex(notes: Note[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const note of notes) {
+    if (note.folder === 'trash') continue
+    const key = note.title.trim().toLowerCase()
+    if (key) map.set(key, note.id)
+  }
+  return map
+}
+
+function extractBacklinks(content: string, titleIndex: Map<string, string>): string[] {
   const linkRegex = /\[\[(.*?)\]\]/g
-  const matches = [...content.matchAll(linkRegex)]
   const targetIds: string[] = []
-  for (const match of matches) {
+  let match: RegExpExecArray | null
+  while ((match = linkRegex.exec(content)) !== null) {
     const title = match[1]?.trim().toLowerCase()
-    if (title) {
-      const targetNote = allNotes.find((n) => n.title.toLowerCase() === title)
-      if (targetNote) targetIds.push(targetNote.id)
-    }
+    if (!title) continue
+    const targetId = titleIndex.get(title)
+    if (targetId) targetIds.push(targetId)
   }
   return Array.from(new Set(targetIds))
+}
+
+function toPreviewContent(content: string, max = 320): string {
+  return content
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
 }
 
 function sanitizeLoadedNotes(notes: Note[]): Note[] {
@@ -162,12 +193,43 @@ function mergePreviewNotes(incoming: Note[], existing: Note[]): Note[] {
   })
 }
 
+function keepIdsForContent(): Set<string> {
+  const { selectedNoteId, openNoteTabs, splitViewNoteId } = useNotesStore.getState()
+  const keep = new Set<string>(openNoteTabs)
+  if (selectedNoteId) keep.add(selectedNoteId)
+  if (splitViewNoteId) keep.add(splitViewNoteId)
+  return keep
+}
+
+function unloadNotesOutsideKeep(notes: Note[], keep: Set<string>): Note[] {
+  let loaded = 0
+  for (const note of notes) {
+    if (note.contentLoaded) loaded++
+  }
+  if (loaded <= MAX_LOADED_NOTE_BODIES) {
+    return notes.map((note) => {
+      if (keep.has(note.id) || !note.contentLoaded) return note
+      return note
+    })
+  }
+
+  return notes.map((note) => {
+    if (keep.has(note.id) || !note.contentLoaded) return note
+    return {
+      ...note,
+      content: toPreviewContent(note.content),
+      contentLoaded: false,
+    }
+  })
+}
+
 function persistNote(note: Note, previousNote?: Note) {
   if (note.contentLoaded === false) {
     console.warn('Skipped saving unloaded note preview:', note.id)
     return
   }
 
+  lastLocalSaveAt = Date.now()
   const api = getAPI()
   if (api) {
     api.saveNote(note, true).catch((err) => console.error('Failed to save note:', err))
@@ -310,7 +372,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   goHome: () => {
     window.dispatchEvent(new CustomEvent('noteszen:flush-editor'))
+    get().flushNoteContent()
     set({ mainView: 'home' })
+    get().unloadInactiveNoteContent()
   },
 
   setDarkMode: (dark) => {
@@ -326,10 +390,12 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   openNote: (noteId) => {
     window.dispatchEvent(new CustomEvent('noteszen:flush-editor'))
+    get().flushNoteContent()
     get().trackRecent(noteId)
     get().addOpenTab(noteId)
     set({ selectedNoteId: noteId, mainView: 'editor' })
     void get().ensureNoteContent(noteId)
+    get().unloadInactiveNoteContent()
   },
 
   toggleAIPanel: () => {
@@ -371,6 +437,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   removeOpenTab: (noteId) => {
+    contentDrafts.delete(noteId)
     const tabs = get().openNoteTabs.filter((id) => id !== noteId)
     const { selectedNoteId } = get()
     if (selectedNoteId === noteId) {
@@ -382,6 +449,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     } else {
       set({ openNoteTabs: tabs })
     }
+    get().unloadInactiveNoteContent()
   },
 
   setNoteListWidth: (width) => {
@@ -405,7 +473,13 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const api = getAPI()
     if (api?.onNotesChanged) {
       api.onNotesChanged(() => {
-        get().fetchNotes()
+        // Ignore our own autosave echoes and coalesce external updates.
+        if (Date.now() - lastLocalSaveAt < LOCAL_SAVE_SUPPRESS_MS) return
+        if (notesChangedTimeout) clearTimeout(notesChangedTimeout)
+        notesChangedTimeout = setTimeout(() => {
+          if (Date.now() - lastLocalSaveAt < LOCAL_SAVE_SUPPRESS_MS) return
+          void get().fetchNotes()
+        }, NOTES_CHANGED_DEBOUNCE_MS)
       })
     }
   },
@@ -459,12 +533,25 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
     const fullNote = await api.getNote(noteId)
     if (!fullNote) return
+    // Drop a stale load if the user navigated away while fetching.
+    if (get().selectedNoteId !== noteId && !get().openNoteTabs.includes(noteId)) return
     const sanitized = sanitizeLoadedNotes([{ ...fullNote, contentLoaded: true }])[0]
     set({
-      notes: get().notes.map((note) =>
-        note.id === noteId ? { ...sanitized, contentLoaded: true } : note
+      notes: unloadNotesOutsideKeep(
+        get().notes.map((note) =>
+          note.id === noteId ? { ...sanitized, contentLoaded: true } : note
+        ),
+        keepIdsForContent()
       ),
     })
+  },
+
+  unloadInactiveNoteContent: () => {
+    const keep = keepIdsForContent()
+    const next = unloadNotesOutsideKeep(get().notes, keep)
+    if (next !== get().notes && next.some((n, i) => n !== get().notes[i])) {
+      set({ notes: next })
+    }
   },
 
   fetchFolders: async () => {
@@ -516,6 +603,8 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   setSelectedNoteId: (id) => {
+    window.dispatchEvent(new CustomEvent('noteszen:flush-editor'))
+    get().flushNoteContent()
     set({
       selectedNoteId: id,
       mainView: id ? 'editor' : get().mainView,
@@ -525,6 +614,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       get().addOpenTab(id)
       void get().ensureNoteContent(id)
     }
+    get().unloadInactiveNoteContent()
   },
   setSearchQuery: (query) => set({ searchQuery: query }),
   setActiveFolder: (folder) => set({ activeFolder: folder, selectedTag: null }),
@@ -678,13 +768,18 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const nextFields = { ...fields }
     if (nextFields.content !== undefined) {
       nextFields.content = stripAiDraftBannerFromHtml(nextFields.content)
+      contentDrafts.delete(id)
     }
     let updatedNote: Note | null = null
+    const titleIndex =
+      nextFields.content !== undefined ? buildTitleIndex(get().notes) : null
     const updatedNotes = get().notes.map((note) => {
       if (note.id === id) {
         const content = nextFields.content !== undefined ? nextFields.content : note.content
         const backlinks =
-          nextFields.content !== undefined ? extractBacklinks(content, get().notes) : note.backlinks
+          nextFields.content !== undefined && titleIndex
+            ? extractBacklinks(content, titleIndex)
+            : note.backlinks
         const updated = { ...note, ...nextFields, backlinks, updatedAt: new Date().toISOString() }
         if (nextFields.content !== undefined) updated.contentLoaded = true
         updatedNote = updated
@@ -703,6 +798,62 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       }, 600)
       set({ notes: updatedNotes, saveStatus: 'saving' })
     }
+  },
+
+  stageNoteContent: (id, content) => {
+    const cleaned = stripAiDraftBannerFromHtml(content)
+    contentDrafts.set(id, cleaned)
+    if (get().saveStatus !== 'saving') set({ saveStatus: 'saving' })
+    if (contentSaveTimeout) clearTimeout(contentSaveTimeout)
+    contentSaveTimeout = setTimeout(() => {
+      get().flushNoteContent(id)
+    }, CONTENT_SAVE_DEBOUNCE_MS)
+  },
+
+  flushNoteContent: (id) => {
+    if (contentSaveTimeout) {
+      clearTimeout(contentSaveTimeout)
+      contentSaveTimeout = null
+    }
+
+    const ids = id ? [id] : Array.from(contentDrafts.keys())
+    if (ids.length === 0) return
+
+    const titleIndex = buildTitleIndex(get().notes)
+    let notes = get().notes
+    let didChange = false
+    const toPersist: { note: Note; previous?: Note }[] = []
+
+    for (const noteId of ids) {
+      const draft = contentDrafts.get(noteId)
+      if (draft === undefined) continue
+      contentDrafts.delete(noteId)
+      const previous = notes.find((n) => n.id === noteId)
+      if (!previous) continue
+      if (previous.content === draft && previous.contentLoaded) continue
+
+      const updated: Note = {
+        ...previous,
+        content: draft,
+        contentLoaded: true,
+        backlinks: extractBacklinks(draft, titleIndex),
+        updatedAt: new Date().toISOString(),
+      }
+      notes = notes.map((n) => (n.id === noteId ? updated : n))
+      toPersist.push({ note: updated, previous })
+      didChange = true
+    }
+
+    if (!didChange) {
+      if (get().saveStatus !== 'saved') set({ saveStatus: 'saved' })
+      return
+    }
+
+    set({ notes, saveStatus: 'saving' })
+    for (const { note, previous } of toPersist) {
+      persistNote(note, previous)
+    }
+    set({ saveStatus: 'saved' })
   },
 
   deleteNote: (id) => {
