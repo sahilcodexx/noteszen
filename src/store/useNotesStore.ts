@@ -181,13 +181,18 @@ function sanitizeLoadedNotes(notes: Note[]): Note[] {
 
 function mergePreviewNotes(incoming: Note[], existing: Note[]): Note[] {
   const existingById = new Map(existing.map((note) => [note.id, note]))
+  const keep = keepIdsForContent()
   return incoming.map((note) => {
     const previous = existingById.get(note.id)
-    if (
-      previous?.contentLoaded &&
-      (previous.updatedAt === note.updatedAt || previous.content.length >= note.content.length)
-    ) {
-      return { ...note, content: previous.content, contentLoaded: true }
+    if (previous?.contentLoaded) {
+      const isKeep = keep.has(note.id)
+      if (
+        isKeep ||
+        previous.updatedAt === note.updatedAt ||
+        previous.content.length >= note.content.length
+      ) {
+        return { ...note, content: previous.content, contentLoaded: true }
+      }
     }
     return { ...note, contentLoaded: false }
   })
