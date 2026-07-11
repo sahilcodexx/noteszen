@@ -385,7 +385,7 @@ function renderMarkdownBlocks(markdown: string, keyPrefix: string): ReactNode[] 
 
 export default function MarkdownPreview({ markdown, className }: MarkdownPreviewProps) {
   return (
-    <div className={cn('prose-editor markdown-preview max-w-none text-sm leading-relaxed', className)}>
+    <div className={cn('typeset typeset-article max-w-[37em]', className)}>
       {renderMarkdownBlocks(markdown, 'root')}
     </div>
   )
