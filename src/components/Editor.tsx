@@ -322,6 +322,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   const lowlight = useMemo(() => createLowlight({ js, ts, python, html, css, json, bash, sql, rust, cpp }), [])
 
   const titleIndexRef = useRef<Map<string, string>>(new Map())
+  const lastActiveNoteIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const map = new Map<string, string>()
@@ -593,11 +594,20 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
 
     const currentContent = editor.getHTML()
     if (currentContent !== content) {
-      queueMicrotask(() => {
-        if (editor.isDestroyed) return
-        editor.commands.setContent(content, { emitUpdate: false })
-      })
+      // Only set content if we switched notes, OR if the editor is not currently focused.
+      // This prevents typing from being interrupted by debounced store flushes.
+      const noteIdChanged = lastActiveNoteIdRef.current !== activeNote.id
+      if (noteIdChanged || !editor.isFocused) {
+        queueMicrotask(() => {
+          if (editor.isDestroyed) return
+          const freshContent = editor.getHTML()
+          if (freshContent !== content) {
+            editor.commands.setContent(content, { emitUpdate: false })
+          }
+        })
+      }
     }
+    lastActiveNoteIdRef.current = activeNote.id
     editor.setEditable(activeNote.folder !== 'trash')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
