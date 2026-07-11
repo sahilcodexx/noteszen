@@ -141,6 +141,10 @@ let notesChangedTimeout: ReturnType<typeof setTimeout> | null = null
 let lastLocalSaveAt = 0
 const contentDrafts = new Map<string, string>()
 
+function getContentDraft(noteId: string): string | undefined {
+  return contentDrafts.get(noteId)
+}
+
 function buildTitleIndex(notes: Note[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const note of notes) {
@@ -184,16 +188,20 @@ function mergePreviewNotes(incoming: Note[], existing: Note[]): Note[] {
   const keep = keepIdsForContent()
   return incoming.map((note) => {
     const previous = existingById.get(note.id)
-    if (previous?.contentLoaded) {
-      const isKeep = keep.has(note.id)
-      if (
-        isKeep ||
-        previous.updatedAt === note.updatedAt ||
-        previous.content.length >= note.content.length
-      ) {
-        return { ...note, content: previous.content, contentLoaded: true }
-      }
+    const draft = getContentDraft(note.id)
+
+    if (draft !== undefined) {
+      return { ...note, content: draft, contentLoaded: true }
     }
+
+    if (previous?.contentLoaded && keep.has(note.id)) {
+      return { ...note, content: previous.content, contentLoaded: true }
+    }
+
+    if (previous?.contentLoaded && previous.updatedAt === note.updatedAt) {
+      return { ...note, content: previous.content, contentLoaded: true }
+    }
+
     return { ...note, contentLoaded: false }
   })
 }
@@ -525,7 +533,19 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
   ensureNoteContent: async (noteId) => {
     const existing = get().notes.find((note) => note.id === noteId)
-    if (!existing || existing.contentLoaded) return
+    if (!existing) return
+
+    const draft = getContentDraft(noteId)
+    if (draft !== undefined) {
+      set({
+        notes: get().notes.map((note) =>
+          note.id === noteId ? { ...note, content: draft, contentLoaded: true } : note
+        ),
+      })
+      return
+    }
+
+    if (existing.contentLoaded) return
 
     const api = getAPI()
     if (!api?.getNote) {
@@ -541,6 +561,15 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     if (!fullNote) return
     // Drop a stale load if the user navigated away while fetching.
     if (get().selectedNoteId !== noteId && !get().openNoteTabs.includes(noteId)) return
+    const latestDraft = getContentDraft(noteId)
+    if (latestDraft !== undefined) {
+      set({
+        notes: get().notes.map((note) =>
+          note.id === noteId ? { ...note, content: latestDraft, contentLoaded: true } : note
+        ),
+      })
+      return
+    }
     const sanitized = sanitizeLoadedNotes([{ ...fullNote, contentLoaded: true }])[0]
     set({
       notes: unloadNotesOutsideKeep(
