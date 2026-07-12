@@ -12,7 +12,7 @@ export default function CardCoverMedia({ cover, variant = 'card' }: CardCoverMed
   const imageClass =
     variant === 'card'
       ? 'aspect-video w-full object-cover opacity-80'
-      : 'aspect-video w-full object-cover'
+      : 'h-40 md:h-48 w-full object-cover'
 
   if (isCoverImage(cover)) {
     return <CoverImage key={cover} cover={cover} className={imageClass} />
@@ -21,7 +21,8 @@ export default function CardCoverMedia({ cover, variant = 'card' }: CardCoverMed
   return (
     <div
       className={cn(
-        'aspect-video w-full',
+        variant === 'card' ? 'aspect-video' : 'h-40 md:h-48',
+        'w-full',
         variant === 'card' && 'opacity-80',
         isCoverGradient(cover) ? cover : 'bg-muted'
       )}
