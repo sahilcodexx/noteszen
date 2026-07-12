@@ -12,7 +12,7 @@ export default function CardCoverMedia({ cover, variant = 'card' }: CardCoverMed
   const imageClass =
     variant === 'card'
       ? 'aspect-video w-full object-cover opacity-80'
-      : 'h-52 md:h-64 w-full object-cover'
+      : 'h-52 md:h-64 w-full object-contain bg-muted/20'
 
   if (isCoverImage(cover)) {
     return <CoverImage key={cover} cover={cover} className={imageClass} />

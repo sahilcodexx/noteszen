@@ -726,6 +726,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   createNote: (initialFields = {}) => {
+    window.dispatchEvent(new CustomEvent('noteszen:flush-editor'))
+    get().flushNoteContent()
+
     const activeFolder = get().activeFolder
     const systemFolders = ['notes', 'favorites', 'daily', 'recent', 'archive', 'trash']
     let folder = initialFields.folder

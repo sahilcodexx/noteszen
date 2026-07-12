@@ -311,7 +311,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
     }
   }, [activeNote?.id, activeNote?.contentLoaded, activeNote?.content])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     showSlashMenuRef.current = showSlashMenu
     selectedIndexRef.current = selectedIndex
     isZenModeRef.current = isZenMode
@@ -583,7 +583,7 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
   }, [editor, appSettings.spellCheckLanguage, isEditorReady])
 
   // Synchronize note contents on select and toggle editable state
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isEditorReady || !activeNote || !editor?.schema) return
 
     const content = stripAiDraftBannerFromHtml(activeNote.content || '')
@@ -597,7 +597,9 @@ export default function Editor({ noteId }: { noteId?: string } = {}) {
       // Only set content if we switched notes, OR if the editor is not currently focused.
       // This prevents typing from being interrupted by debounced store flushes.
       const noteIdChanged = lastActiveNoteIdRef.current !== activeNote.id
-      if (noteIdChanged || !editor.isFocused) {
+      if (noteIdChanged) {
+        editor.commands.setContent(content, { emitUpdate: false })
+      } else if (!editor.isFocused) {
         queueMicrotask(() => {
           if (editor.isDestroyed) return
           const freshContent = editor.getHTML()
