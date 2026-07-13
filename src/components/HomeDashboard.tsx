@@ -18,7 +18,6 @@ import NewNoteCard from './NewNoteCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { filterNotesWithFuse } from '../lib/search'
 import { notify } from '../lib/toast'
 import { useLiveClock } from '../hooks/useLiveClock'
 
@@ -100,25 +99,17 @@ export default function HomeDashboard({
     vaults.find((v) => v.id === activeVaultId)?.name ?? 'Default Vault'
   const folderLabel = getFolderLabel(activeFolder, folders)
 
-  const activeNotes = useMemo(
-    () => notes.filter((n) => n.folder !== 'trash' && !n.isArchived),
-    [notes]
-  )
+  const sorted = useMemo(() => sortByUpdated(notes), [notes])
 
-  const filtered = useMemo(
-    () => sortByUpdated(filterNotesWithFuse(activeNotes, searchQuery)),
-    [activeNotes, searchQuery]
-  )
-
-  const recentlyEdited = useMemo(() => filtered.slice(0, 6), [filtered])
+  const recentlyEdited = useMemo(() => sorted.slice(0, 6), [sorted])
 
   const sectionNotes = useMemo(() => {
     const pinnedRecent = new Set(recentlyEdited.map((n) => n.id))
     const assigned = new Set<string>()
-    const result: Record<string, typeof filtered> = { ideas: [], research: [], drafts: [] }
+    const result: Record<string, typeof sorted> = { ideas: [], research: [], drafts: [] }
 
     for (const section of SECTIONS) {
-      for (const note of filtered) {
+      for (const note of sorted) {
         if (assigned.has(note.id) || pinnedRecent.has(note.id)) continue
         if (section.match(note)) {
           result[section.id].push(note)
@@ -127,7 +118,7 @@ export default function HomeDashboard({
       }
     }
 
-    for (const note of filtered) {
+    for (const note of sorted) {
       if (!assigned.has(note.id) && !pinnedRecent.has(note.id)) result.ideas.push(note)
     }
 
@@ -136,7 +127,7 @@ export default function HomeDashboard({
     }
 
     return result
-  }, [filtered, recentlyEdited])
+  }, [sorted, recentlyEdited])
 
   useEffect(() => {
     const handler = () => searchRef.current?.focus()
@@ -153,7 +144,7 @@ export default function HomeDashboard({
     })
   }
 
-  const renderNoteGrid = (items: typeof filtered, sectionId?: 'ideas' | 'research' | 'drafts') => (
+  const renderNoteGrid = (items: typeof sorted, sectionId?: 'ideas' | 'research' | 'drafts') => (
     <div
       className={cn(
         homeViewMode === 'grid'
@@ -251,7 +242,7 @@ export default function HomeDashboard({
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4 scrollbar-none">
-        {filtered.length === 0 && !searchQuery ? (
+        {sorted.length === 0 && !searchQuery ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-sm font-medium text-muted-foreground">No notes here yet</p>
             <p className="mt-1 text-xs text-muted-foreground/70">

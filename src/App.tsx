@@ -351,7 +351,7 @@ function MainApp() {
             </Suspense>
           ) : mainView === 'home' ? (
             <HomeDashboard
-              notes={folderFilteredNotes}
+              notes={filteredNotes}
               sidebarCollapsed={isSidebarCollapsed}
               onExpandSidebar={toggleSidebar}
             />

@@ -1,13 +1,20 @@
 import Fuse from 'fuse.js'
 import type { Note } from '../types'
 
+const fuseCache = new WeakMap<Note[], Fuse<Note>>()
+
 export function createNotesFuse(notes: Note[]) {
-  return new Fuse(notes, {
-    keys: ['title', 'content', 'tags'],
-    threshold: 0.4,
-    ignoreLocation: true,
-    includeMatches: true,
-  })
+  let fuse = fuseCache.get(notes)
+  if (!fuse) {
+    fuse = new Fuse(notes, {
+      keys: ['title', 'content', 'tags'],
+      threshold: 0.4,
+      ignoreLocation: true,
+      includeMatches: true,
+    })
+    fuseCache.set(notes, fuse)
+  }
+  return fuse
 }
 
 export function filterNotesWithFuse(notes: Note[], query: string): Note[] {
