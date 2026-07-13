@@ -11,6 +11,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   optimizeDeps: {
     include: [
       '@tiptap/extension-highlight',
@@ -25,6 +28,7 @@ export default defineConfig({
     modulePreload: false,
     sourcemap: false,
     chunkSizeWarningLimit: 900,
+    minify: 'esbuild',
     rollupOptions: {
       output: {
         manualChunks(id) {
