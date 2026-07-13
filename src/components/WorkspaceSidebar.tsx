@@ -14,6 +14,7 @@ import {
   MoreHorizontal,
   Trash,
 } from 'lucide-react'
+import { useMemo } from 'react'
 import { useNotesStore } from '../store/useNotesStore'
 import { useShallow } from 'zustand/react/shallow'
 import { cn } from '@/lib/utils'
@@ -76,17 +77,27 @@ export default function WorkspaceSidebar({
   const workspaceName =
     vaults.find((v) => v.id === activeVaultId)?.name ?? 'Default Vault'
 
-  const countFor = (folderId: string) =>
-    notes.filter((n) => {
-      if (folderId === 'trash') return n.folder === 'trash'
-      if (n.folder === 'trash') return false
-      if (folderId === 'archive') return n.isArchived
-      if (n.isArchived) return false
-      if (folderId === 'favorites') return n.isFavorite
-      if (folderId === 'notes') return true
-      if (folders.some((f) => f.id === folderId)) return n.folder === folderId
-      return false
-    }).length
+  const noteCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const note of notes) {
+      if (note.folder === 'trash') {
+        counts.trash = (counts.trash || 0) + 1
+        continue
+      }
+      if (note.isArchived) {
+        counts.archive = (counts.archive || 0) + 1
+        continue
+      }
+      counts.notes = (counts.notes || 0) + 1
+      if (note.isFavorite) counts.favorites = (counts.favorites || 0) + 1
+      if (note.folder && !['notes', 'favorites', 'daily', 'recent', 'archive', 'trash'].includes(note.folder)) {
+        counts[note.folder] = (counts[note.folder] || 0) + 1
+      }
+    }
+    return counts
+  }, [notes])
+
+  const countFor = (folderId: string) => noteCounts[folderId] || 0
 
   const recentNotes = recentNoteIds
     .map((id) => notes.find((n) => n.id === id))
