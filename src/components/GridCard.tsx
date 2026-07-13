@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { memo, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -27,7 +27,7 @@ interface GridCardProps {
   layout?: 'grid' | 'list'
 }
 
-export default function GridCard({
+const GridCard = memo(function GridCard({
   title,
   description,
   preview,
@@ -108,4 +108,6 @@ export default function GridCard({
       </CardFooter>
     </Card>
   )
-}
+})
+
+export default GridCard

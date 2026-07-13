@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { MoreHorizontal, Star } from 'lucide-react'
 import type { Note } from '../types'
 import {
@@ -82,7 +83,29 @@ interface NoteCardProps {
   layout?: 'grid' | 'list'
 }
 
-export default function NoteCard({
+const NoteCard = memo(function NoteCard({
+  note,
+  onOpen,
+  onToggleFavorite,
+  onDelete,
+  layout = 'grid',
+}: NoteCardProps) {
+  return <NoteCardInner note={note} onOpen={onOpen} onToggleFavorite={onToggleFavorite} onDelete={onDelete} layout={layout} />
+}, (prev, next) => {
+  return prev.note.id === next.note.id
+    && prev.note.title === next.note.title
+    && prev.note.updatedAt === next.note.updatedAt
+    && prev.note.isFavorite === next.note.isFavorite
+    && prev.note.isPinned === next.note.isPinned
+    && prev.note.content === next.note.content
+    && prev.note.icon === next.note.icon
+    && prev.note.cover === next.note.cover
+    && prev.note.status === next.note.status
+    && prev.note.contentLoaded === next.note.contentLoaded
+    && prev.layout === next.layout
+})
+
+function NoteCardInner({
   note,
   onOpen,
   onToggleFavorite,
@@ -111,3 +134,5 @@ export default function NoteCard({
     />
   )
 }
+
+export default NoteCard
